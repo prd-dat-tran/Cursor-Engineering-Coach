@@ -5,7 +5,7 @@
 
 import * as vscode from 'vscode';
 import { loadSidebarStats } from '../core/cache';
-import { getNonce } from './panel-shared';
+import { getNonce, escapeHtmlAttr } from './panel-shared';
 
 export class DashboardSidebarProvider implements vscode.WebviewViewProvider {
   public static instance: DashboardSidebarProvider | undefined;
@@ -45,7 +45,7 @@ export class DashboardSidebarProvider implements vscode.WebviewViewProvider {
       ? `
       <div class="sidebar-card">
         <p class="sidebar-label">Detected harnesses</p>
-        <p class="sidebar-harnesses">${stats.harnesses.join(' · ')}</p>
+        <p class="sidebar-harnesses">${stats.harnesses.map(h => escapeHtmlAttr(h)).join(' \u00b7 ')}</p>
         <p class="sidebar-note">Last synced ${new Date(stats.savedAt).toLocaleString()}</p>
       </div>`
       : `
