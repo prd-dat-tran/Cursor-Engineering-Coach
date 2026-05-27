@@ -61,12 +61,17 @@ The extension is organized into three sections: **Observe**, **Measure**, and **
 | **OpenCode** | macOS/Linux: `~/.local/share/opencode/`<br>Windows: `%USERPROFILE%\.local\share\opencode\` |
 | **GitHub Copilot CLI** | `~/.copilot/session-state/` and `~/.copilot/history-session-state/` |
 
+### Chat
+
+Type `@aicoach` in any VS Code chat panel for conversational access to all coaching data. Slash commands `/summary`, `/improve`, `/compare`, and `/flow` give quick access to common analyses. The participant orchestrates multiple backend tools automatically to answer complex questions.
+
 ## Getting Started
 
 1. Open the command palette (`Cmd+Shift+P` / `Ctrl+Shift+P`).
 2. Run **AI Engineer Coach: Open Dashboard**.
 3. Use the sidebar to navigate pages. Filter by workspace or harness at the bottom.
 4. Run **AI Engineer Coach: Reload Data** to re-parse after new sessions.
+5. Type `@aicoach` in VS Code chat for conversational coaching.
 
 
 

@@ -26,6 +26,10 @@ AI Engineer Coach organizes its capabilities into three areas that mirror a cont
 - [Skill Finder](/improve/skill-finder/) -- Discover repeated prompts and matching community skills
 - [Context Health](/improve/context-health/) -- Evaluate context quality and session management efficiency
 
+## Chat
+
+- [Chat Participant](/features/chat/) -- Conversational access to all coaching data via `@aicoach` in VS Code chat, with slash commands and agentic tool orchestration
+
 ## Level Up
 
 - [Learning Center](/level-up/learning/) -- Personalized quizzes and challenges built from your actual usage

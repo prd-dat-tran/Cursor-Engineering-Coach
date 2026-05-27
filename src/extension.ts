@@ -21,8 +21,10 @@ import {
   setDefaultTrustStore,
   type PendingEntry,
 } from './core/rule-trust';
+import { panelCache } from './webview/panel-cache';
+import { registerTools } from './mcp/tools';
+import { registerChatParticipant } from './chat/participant';
 import { exportSummaryFiles } from './summary-export-vscode';
-
 
 type PanelModule = typeof import('./webview/panel');
 let panelModulePromise: Promise<PanelModule> | null = null;
@@ -190,6 +192,9 @@ export function activate(context: vscode.ExtensionContext) {
       await promptAndReload();
     }),
   );
+
+  registerTools(context, () => panelCache.analyzerInstance);
+  registerChatParticipant(context);
 
   void ready.then(() => loadPanelModule()).then(({ DashboardSidebarProvider }) => {
     const sidebarProvider = new DashboardSidebarProvider(context.extensionUri);
