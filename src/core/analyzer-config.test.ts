@@ -40,7 +40,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     sessionId: 'sess-1',
     workspaceId: 'ws-1',
     workspaceName: 'TestProject',
-    harness: 'VS Code',
+    harness: 'Cursor',
     requests: [],
     requestCount: 0,
     creationDate: Date.now(),
@@ -222,7 +222,7 @@ describe('ConfigAnalyzer', () => {
 
     const result = makeAnalyzer([session], [makeWorkspace()]).getConfigHealth();
 
-    expect(result.contextProvisionByHarness['VS Code'].score).toBe(100);
+    expect(result.contextProvisionByHarness['Cursor'].score).toBe(100);
     expect(result.overallScore).toBe(82);
   });
 
@@ -306,17 +306,17 @@ describe('ConfigAnalyzer', () => {
   it('filters workspace health and context provision by harness', () => {
     const result = makeAnalyzer(
       [
-        makeSession({ workspaceId: 'ws-1', workspaceName: 'Alpha', harness: 'VS Code', requestCount: 60, requests: [makeRequest()] }),
-        makeSession({ workspaceId: 'ws-2', workspaceName: 'Beta', harness: 'Claude Code', requestCount: 60, requests: [makeRequest({ requestId: 'req-2' })] }),
+        makeSession({ workspaceId: 'ws-1', workspaceName: 'Alpha', harness: 'Cursor', requestCount: 60, requests: [makeRequest()] }),
+        makeSession({ workspaceId: 'ws-2', workspaceName: 'Beta', harness: 'Cursor Nightly', requestCount: 60, requests: [makeRequest({ requestId: 'req-2' })] }),
       ],
       [
         makeWorkspace({ id: 'ws-1', name: 'Alpha', path: '/fake/root/ws-1' }),
         makeWorkspace({ id: 'ws-2', name: 'Beta', path: '/fake/root/ws-2' }),
       ],
-    ).getConfigHealth({ harness: 'Claude Code' });
+    ).getConfigHealth({ harness: 'Cursor Nightly' });
 
     expect(result.workspaces.map(workspace => workspace.workspaceId)).toEqual(['ws-2']);
-    expect(Object.keys(result.contextProvisionByHarness)).toEqual(['Claude Code']);
+    expect(Object.keys(result.contextProvisionByHarness)).toEqual(['Cursor Nightly']);
   });
 
   it('scores context provision metrics per harness', () => {
@@ -346,7 +346,7 @@ describe('ConfigAnalyzer', () => {
       [makeWorkspace()],
     ).getConfigHealth();
 
-    expect(result.contextProvisionByHarness['VS Code']).toMatchObject({
+    expect(result.contextProvisionByHarness['Cursor']).toMatchObject({
       totalRequests: 2,
       withFileRefs: 1,
       withCustomInstructions: 1,
@@ -361,29 +361,29 @@ describe('ConfigAnalyzer', () => {
       agentModeRate: 50,
       score: 50,
     });
-    expect(result.contextProvisionByHarness['VS Code'].modeDistribution).toEqual([
+    expect(result.contextProvisionByHarness['Cursor'].modeDistribution).toEqual([
       { mode: 'agent', count: 1 },
       { mode: 'chat', count: 1 },
     ]);
-    expect(result.contextProvisionByHarness['VS Code'].topModels).toEqual([{ model: 'gpt-4', count: 2 }]);
-    expect(result.contextProvisionByHarness['VS Code'].topTools).toEqual([{ tool: 'grep', count: 1 }]);
-    expect(result.contextProvisionByHarness['VS Code'].topReferencedFiles).toEqual([{ file: 'src/a.ts', count: 1 }]);
+    expect(result.contextProvisionByHarness['Cursor'].topModels).toEqual([{ model: 'gpt-4', count: 2 }]);
+    expect(result.contextProvisionByHarness['Cursor'].topTools).toEqual([{ tool: 'grep', count: 1 }]);
+    expect(result.contextProvisionByHarness['Cursor'].topReferencedFiles).toEqual([{ file: 'src/a.ts', count: 1 }]);
   });
 
   it('separates context provision by harness type', () => {
     const result = makeAnalyzer(
       [
-        makeSession({ harness: 'VS Code', workspaceId: 'ws-1', requestCount: 60, requests: [makeRequest({ requestId: 'req-1', referencedFiles: ['a.ts'] })] }),
-        makeSession({ harness: 'Claude Code', workspaceId: 'ws-2', workspaceName: 'Claude', requestCount: 60, requests: [makeRequest({ requestId: 'req-2', customInstructions: ['stay concise'] })] }),
+        makeSession({ harness: 'Cursor', workspaceId: 'ws-1', requestCount: 60, requests: [makeRequest({ requestId: 'req-1', referencedFiles: ['a.ts'] })] }),
+        makeSession({ harness: 'Cursor Nightly', workspaceId: 'ws-2', workspaceName: 'Beta', requestCount: 60, requests: [makeRequest({ requestId: 'req-2', customInstructions: ['stay concise'] })] }),
       ],
       [
-        makeWorkspace({ id: 'ws-1', name: 'VS', path: '/fake/root/ws-1' }),
-        makeWorkspace({ id: 'ws-2', name: 'Claude', path: '/fake/root/ws-2' }),
+        makeWorkspace({ id: 'ws-1', name: 'Alpha', path: '/fake/root/ws-1' }),
+        makeWorkspace({ id: 'ws-2', name: 'Beta', path: '/fake/root/ws-2' }),
       ],
     ).getConfigHealth();
 
-    expect(result.contextProvisionByHarness['VS Code'].totalRequests).toBe(1);
-    expect(result.contextProvisionByHarness['Claude Code'].totalRequests).toBe(1);
+    expect(result.contextProvisionByHarness['Cursor'].totalRequests).toBe(1);
+    expect(result.contextProvisionByHarness['Cursor Nightly'].totalRequests).toBe(1);
   });
 
   it('limits context provision to the selected workspace filter', () => {
@@ -398,7 +398,7 @@ describe('ConfigAnalyzer', () => {
       ],
     ).getConfigHealth({ workspaceId: 'ws-1' });
 
-    expect(result.contextProvisionByHarness['VS Code'].totalRequests).toBe(1);
+    expect(result.contextProvisionByHarness['Cursor'].totalRequests).toBe(1);
   });
 
   it('computes agentic readiness signals from workspace config presence', () => {
@@ -464,7 +464,7 @@ describe('ConfigAnalyzer', () => {
     const pattern = result.contextAntiPatterns.find(item => item.id === 'no-context-files');
     expect(pattern).toBeDefined();
     expect(pattern?.occurrences).toBe(1);
-    expect(pattern?.examples).toEqual(['NoContext (120 requests, VS Code)']);
+    expect(pattern?.examples).toEqual(['NoContext (120 requests, Cursor)']);
   });
 
   it('generates a low-context-provision anti-pattern for weak harness context', () => {
@@ -474,8 +474,8 @@ describe('ConfigAnalyzer', () => {
       [makeWorkspace()],
     ).getConfigHealth();
 
-    const pattern = result.contextAntiPatterns.find(item => item.id === 'low-context-provision-vs-code');
-    expect(result.contextProvisionByHarness['VS Code'].score).toBe(0);
+    const pattern = result.contextAntiPatterns.find(item => item.id === 'low-context-provision-cursor');
+    expect(result.contextProvisionByHarness['Cursor'].score).toBe(0);
     expect(pattern).toBeDefined();
     expect(pattern?.occurrences).toBe(50);
     expect(pattern?.severity).toBe('medium');
@@ -521,8 +521,8 @@ describe('ConfigAnalyzer', () => {
     const newerTs = Date.now();
     const result = makeAnalyzer(
       [
-        makeSession({ workspaceId: 'ws-1', workspaceName: 'Alpha', harness: 'VS Code', requestCount: 70, creationDate: olderTs, lastMessageDate: olderTs, requests: [makeRequest({ requestId: 'req-1', timestamp: olderTs })] }),
-        makeSession({ workspaceId: 'ws-2', workspaceName: 'Beta', harness: 'Claude Code', requestCount: 60, creationDate: newerTs, lastMessageDate: newerTs, requests: [makeRequest({ requestId: 'req-2', timestamp: newerTs })] }),
+        makeSession({ workspaceId: 'ws-1', workspaceName: 'Alpha', harness: 'Cursor', requestCount: 70, creationDate: olderTs, lastMessageDate: olderTs, requests: [makeRequest({ requestId: 'req-1', timestamp: olderTs })] }),
+        makeSession({ workspaceId: 'ws-2', workspaceName: 'Beta', harness: 'Cursor Nightly', requestCount: 60, creationDate: newerTs, lastMessageDate: newerTs, requests: [makeRequest({ requestId: 'req-2', timestamp: newerTs })] }),
       ],
       [
         makeWorkspace({ id: 'ws-1', name: 'Alpha', path: '/shared/root' }),
@@ -530,7 +530,7 @@ describe('ConfigAnalyzer', () => {
       ],
     ).getConfigHealth();
 
-    expect(result.workspaces[0].harness).toBe('VS Code, Claude Code');
+    expect(result.workspaces[0].harness).toBe('Cursor, Cursor Nightly');
     expect(result.workspaces[0].lastActivity).toBe(newerTs);
   });
 

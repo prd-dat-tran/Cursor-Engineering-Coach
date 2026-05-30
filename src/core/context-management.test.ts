@@ -52,7 +52,7 @@ function sess(overrides: Partial<Session> & { requests?: SessionRequest[] } = {}
     sessionId: overrides.sessionId ?? `s-${Math.random().toString(36).slice(2, 8)}`,
     workspaceId: overrides.workspaceId ?? 'ws-1',
     workspaceName: overrides.workspaceName ?? 'test-project',
-    harness: overrides.harness ?? 'VS Code Insiders',
+    harness: overrides.harness ?? 'Cursor',
     requests,
     ...overrides,
   });
@@ -124,13 +124,13 @@ describe('createRequest token fields', () => {
   });
 });
 
-/* ── VS Code-style data (token + compaction) ─────────────────────── */
+/* ── Per-request tokens + compaction ─────────────────────────────── */
 
-describe('VS Code data source tokens & compaction', () => {
+describe('per-request tokens & compaction', () => {
   it('sessions with promptTokens are counted as having token data', () => {
     const sessions = [
       sess({
-        harness: 'VS Code Insiders',
+        harness: 'Cursor',
         requests: flatTokenRequests(6, 40_000),
       }),
     ];
@@ -169,20 +169,20 @@ describe('VS Code data source tokens & compaction', () => {
   });
 });
 
-/* ── Claude data source tokens ───────────────────────────────────── */
+/* ── Per-request tokens, no compaction ───────────────────────────── */
 
-describe('Claude data source tokens', () => {
-  it('sessions with Claude-style token data are scored', () => {
+describe('per-request token data (no compaction)', () => {
+  it('sessions with per-request token data are scored', () => {
     const sessions = [
       sess({
-        harness: 'Claude',
+        harness: 'Cursor Nightly',
         workspaceId: 'claude-proj',
         workspaceName: 'claude-project',
         requests: Array.from({ length: 6 }, (_, i) =>
           req({
             requestId: `claude-r-${i}`,
             timestamp: BASE_TS + i * 60_000,
-            agentName: 'Claude',
+            agentName: 'Copilot',
             agentMode: 'agent',
             promptTokens: 8_000 + i * 2_000, // 8K → 18K — lean
             completionTokens: 500 + i * 100,
@@ -193,15 +193,15 @@ describe('Claude data source tokens', () => {
     const data = getCtxMgmt(sessions);
     expect(data.sessionsWithTokenData).toBe(1);
     expect(data.workspaces).toHaveLength(1);
-    expect(data.workspaces[0].harness).toBe('Claude');
+    expect(data.workspaces[0].harness).toBe('Cursor Nightly');
     expect(data.workspaces[0].avgPromptTokens).toBeGreaterThan(0);
     expect(data.workspaces[0].verdict).toBe('optimal'); // low token counts
   });
 
-  it('Claude sessions without compaction have compactionCount 0', () => {
+  it('sessions without compaction have compactionCount 0', () => {
     const sessions = [
       sess({
-        harness: 'Claude',
+        harness: 'Cursor Nightly',
         requests: flatTokenRequests(6, 10_000),
       }),
     ];
@@ -211,20 +211,20 @@ describe('Claude data source tokens', () => {
   });
 });
 
-/* ── OpenCode data source tokens ─────────────────────────────────── */
+/* ── Alternate per-request token shape ───────────────────────────── */
 
-describe('OpenCode data source tokens', () => {
-  it('sessions with OpenCode-style token data are scored', () => {
+describe('alternate per-request token data', () => {
+  it('sessions with alternate token data are scored', () => {
     const sessions = [
       sess({
-        harness: 'OpenCode',
+        harness: 'Cursor',
         workspaceId: 'oc-proj',
         workspaceName: 'opencode-project',
         requests: Array.from({ length: 6 }, (_, i) =>
           req({
             requestId: `oc-r-${i}`,
             timestamp: BASE_TS + i * 60_000,
-            agentName: 'OpenCode',
+            agentName: 'Copilot',
             agentMode: 'build',
             promptTokens: 5_000 + i * 1_000,
             completionTokens: 300,
@@ -234,27 +234,27 @@ describe('OpenCode data source tokens', () => {
     ];
     const data = getCtxMgmt(sessions);
     expect(data.sessionsWithTokenData).toBe(1);
-    expect(data.workspaces[0].harness).toBe('OpenCode');
+    expect(data.workspaces[0].harness).toBe('Cursor');
     expect(data.workspaces[0].avgPromptTokens).toBeGreaterThan(0);
   });
 });
 
-/* ── Codex data source (no per-request tokens) ───────────────────── */
+/* ── Sessions without per-request tokens ─────────────────────────── */
 
-describe('Codex data source (no native tokens)', () => {
-  it('Codex sessions without native tokens are excluded from token-based stats', () => {
+describe('sessions without native tokens', () => {
+  it('sessions without native tokens are excluded from token-based stats', () => {
     const sessions = [
       sess({
-        harness: 'Codex',
+        harness: 'Cursor',
         workspaceId: 'codex-proj',
         workspaceName: 'codex-project',
         requests: Array.from({ length: 10 }, (_, i) =>
           req({
             requestId: `codex-r-${i}`,
             timestamp: BASE_TS + i * 60_000,
-            agentName: 'Codex',
+            agentName: 'Copilot',
             agentMode: 'agent',
-            // no promptTokens — Codex doesn't provide per-request tokens
+            // no promptTokens — this surface doesn't provide per-request tokens
           }),
         ),
       }),
@@ -271,28 +271,28 @@ describe('Codex data source (no native tokens)', () => {
 /* ── Mixed harness end-to-end ────────────────────────────────────── */
 
 describe('mixed harness end-to-end', () => {
-  it('combines VS Code + Claude + Codex sessions correctly', () => {
+  it('combines token-rich, token-light, and token-less sessions correctly', () => {
     const sessions = [
-      // VS Code with high token usage
+      // token-rich session
       sess({
         sessionId: 's-vsc',
-        harness: 'VS Code Insiders',
+        harness: 'Cursor',
         workspaceId: 'ws-vsc',
         workspaceName: 'vscode-project',
         requests: flatTokenRequests(10, 100_000),
       }),
-      // Claude with low token usage
+      // token-light session
       sess({
         sessionId: 's-claude',
-        harness: 'Claude',
+        harness: 'Cursor Nightly',
         workspaceId: 'ws-claude',
         workspaceName: 'claude-project',
         requests: flatTokenRequests(8, 10_000),
       }),
-      // Codex with no token data
+      // session with no token data
       sess({
         sessionId: 's-codex',
-        harness: 'Codex',
+        harness: 'Cursor',
         workspaceId: 'ws-codex',
         workspaceName: 'codex-project',
         requests: Array.from({ length: 5 }, (_, i) => req({ requestId: `cx-${i}`, timestamp: BASE_TS + i * 60_000 })),
@@ -300,35 +300,35 @@ describe('mixed harness end-to-end', () => {
     ];
     const data = getCtxMgmt(sessions);
 
-    // Codex has no native tokens and is no longer scored — only VS Code and
-    // Claude have native data, so we expect 2 workspaces.
+    // The token-less session is no longer scored — only the token-rich and
+    // token-light sessions have native data, so we expect 2 workspaces.
     expect(data.workspaces).toHaveLength(2);
     expect(data.sessionsWithTokenData).toBe(2);
     expect(data.totalSessions).toBe(3);
 
-    // VS Code workspace should be limited or degraded (100K tokens)
+    // token-rich workspace should be limited or degraded (100K tokens)
     const vscWs = data.workspaces.find(w => w.workspaceName === 'vscode-project');
     expect(vscWs).toBeDefined();
     expect(vscWs!.avgPromptTokens).toBe(100_000);
 
-    // Claude workspace should be optimal
+    // token-light workspace should be optimal
     const claudeWs = data.workspaces.find(w => w.workspaceName === 'claude-project');
     expect(claudeWs).toBeDefined();
     expect(claudeWs!.verdict).toBe('optimal');
     expect(claudeWs!.score).toBeGreaterThan(vscWs!.score);
 
-    // Codex workspace should not appear at all
+    // token-less workspace should not appear at all
     expect(data.workspaces.find(w => w.workspaceName === 'codex-project')).toBeUndefined();
   });
 
   it('filters by harness correctly', () => {
     const sessions = [
-      sess({ sessionId: 's1', harness: 'VS Code Insiders', workspaceId: 'ws-1', requests: flatTokenRequests(6, 80_000) }),
-      sess({ sessionId: 's2', harness: 'Claude', workspaceId: 'ws-2', requests: flatTokenRequests(6, 10_000) }),
+      sess({ sessionId: 's1', harness: 'Cursor', workspaceId: 'ws-1', requests: flatTokenRequests(6, 80_000) }),
+      sess({ sessionId: 's2', harness: 'Cursor Nightly', workspaceId: 'ws-2', requests: flatTokenRequests(6, 10_000) }),
     ];
-    const data = getCtxMgmt(sessions, { harness: 'Claude' });
+    const data = getCtxMgmt(sessions, { harness: 'Cursor Nightly' });
     expect(data.workspaces).toHaveLength(1);
-    expect(data.workspaces[0].harness).toBe('Claude');
+    expect(data.workspaces[0].harness).toBe('Cursor Nightly');
     expect(data.totalSessions).toBe(1);
   });
 
@@ -866,10 +866,10 @@ describe('Analyzer.getContextManagement integration', () => {
 /* ── Realistic multi-source simulation ───────────────────────────── */
 
 describe('realistic multi-source simulation', () => {
-  it('simulates a real scenario with VS Code bloat, Claude lean, Codex no data', () => {
+  it('simulates a real scenario with a bloated, a lean, and a no-data session', () => {
     const tsBase = new Date(2025, 5, 1, 10, 0, 0).getTime();
 
-    // VS Code Insiders: long agent session with growing context hitting compaction
+    // token-rich: long agent session with growing context hitting compaction
     const vscReqs: SessionRequest[] = [];
     for (let i = 0; i < 15; i++) {
       const tokens = 20_000 + i * 8_000; // 20K → 132K
@@ -886,7 +886,7 @@ describe('realistic multi-source simulation', () => {
       }));
     }
 
-    // Claude Code: focused short sessions with low token usage
+    // token-light: focused short sessions with low token usage
     const claudeReqs: SessionRequest[] = [];
     for (let i = 0; i < 8; i++) {
       claudeReqs.push(req({
@@ -894,13 +894,13 @@ describe('realistic multi-source simulation', () => {
         timestamp: tsBase + i * 90_000,
         promptTokens: 6_000 + i * 500, // 6K → 9.5K — very lean
         completionTokens: 400,
-        agentName: 'Claude',
+        agentName: 'Copilot',
         agentMode: 'agent',
         modelId: 'claude-sonnet-4',
       }));
     }
 
-    // OpenCode: moderate usage
+    // alternate source: moderate usage
     const ocReqs: SessionRequest[] = [];
     for (let i = 0; i < 6; i++) {
       ocReqs.push(req({
@@ -908,57 +908,57 @@ describe('realistic multi-source simulation', () => {
         timestamp: tsBase + 86_400_000 + i * 60_000, // next day
         promptTokens: 40_000 + i * 3_000,
         completionTokens: 800,
-        agentName: 'OpenCode',
+        agentName: 'Copilot',
         agentMode: 'build',
       }));
     }
 
-    // Codex: no token data
+    // token-less: no token data
     const codexReqs: SessionRequest[] = [];
     for (let i = 0; i < 5; i++) {
       codexReqs.push(req({
         requestId: `codex-${i}`,
         timestamp: tsBase + 2 * 86_400_000 + i * 60_000,
-        agentName: 'Codex',
+        agentName: 'Copilot',
         agentMode: 'agent',
       }));
     }
 
     const sessions = [
-      sess({ sessionId: 's-vsc', harness: 'VS Code Insiders', workspaceId: 'ws-vsc', workspaceName: 'main-project', requests: vscReqs }),
-      sess({ sessionId: 's-claude', harness: 'Claude', workspaceId: 'ws-claude', workspaceName: 'side-project', requests: claudeReqs }),
-      sess({ sessionId: 's-oc', harness: 'OpenCode', workspaceId: 'ws-oc', workspaceName: 'oc-project', requests: ocReqs }),
-      sess({ sessionId: 's-codex', harness: 'Codex', workspaceId: 'ws-codex', workspaceName: 'codex-project', requests: codexReqs }),
+      sess({ sessionId: 's-vsc', harness: 'Cursor', workspaceId: 'ws-vsc', workspaceName: 'main-project', requests: vscReqs }),
+      sess({ sessionId: 's-claude', harness: 'Cursor Nightly', workspaceId: 'ws-claude', workspaceName: 'side-project', requests: claudeReqs }),
+      sess({ sessionId: 's-oc', harness: 'Cursor', workspaceId: 'ws-oc', workspaceName: 'oc-project', requests: ocReqs }),
+      sess({ sessionId: 's-codex', harness: 'Cursor', workspaceId: 'ws-codex', workspaceName: 'codex-project', requests: codexReqs }),
     ];
 
     const data = getCtxMgmt(sessions);
 
     // Basic structure
     expect(data.totalSessions).toBe(4);
-    expect(data.sessionsWithTokenData).toBe(3); // Codex has no native tokens — excluded
+    expect(data.sessionsWithTokenData).toBe(3); // the token-less session is excluded
     expect(data.workspaces).toHaveLength(3);
 
     // Compaction tracking
-    expect(data.totalCompactions).toBe(2); // only VS Code had compactions
+    expect(data.totalCompactions).toBe(2); // only the token-rich session had compactions
 
-    // VS Code workspace is the most bloated
+    // token-rich workspace is the most bloated
     const vscWs = data.workspaces.find(w => w.workspaceName === 'main-project')!;
     expect(vscWs).toBeDefined();
     expect(vscWs.compactionCount).toBe(2);
     expect(vscWs.requestsWithTokens).toBe(15);
 
-    // Claude workspace is optimal
+    // token-light workspace is optimal
     const claudeWs = data.workspaces.find(w => w.workspaceName === 'side-project')!;
     expect(claudeWs).toBeDefined();
     expect(claudeWs.verdict).toBe('optimal');
     expect(claudeWs.compactionCount).toBe(0);
 
-    // OpenCode workspace
+    // alternate-source workspace
     const ocWs = data.workspaces.find(w => w.workspaceName === 'oc-project')!;
     expect(ocWs).toBeDefined();
     expect(ocWs.requestsWithTokens).toBe(6);
 
-    // Claude should have the best score
+    // the token-light workspace should have the best score
     expect(claudeWs.score).toBeGreaterThan(vscWs.score);
     expect(claudeWs.score).toBeGreaterThanOrEqual(ocWs.score);
 
@@ -968,7 +968,7 @@ describe('realistic multi-source simulation', () => {
     // Tips should be generated
     expect(data.tips.length).toBeGreaterThan(0);
 
-    // Anti-patterns should include runaway context (VS Code has monotonically growing early requests)
+    // Anti-patterns should include runaway context (the token-rich session has monotonically growing early requests)
     // and possibly context-amnesia (compaction at high utilization)
     expect(data.antiPatterns.length).toBeGreaterThan(0);
     // All anti-patterns should be in context-management group
@@ -977,10 +977,10 @@ describe('realistic multi-source simulation', () => {
     }
   });
 
-  it('Xcode sessions without native tokens are excluded (no estimation)', () => {
+  it('sessions without native tokens are excluded (no estimation)', () => {
     const sessions = [
       sess({
-        harness: 'Xcode',
+        harness: 'Cursor',
         workspaceId: 'xcode-proj',
         workspaceName: 'ios-app',
         requests: Array.from({ length: 8 }, (_, i) =>
@@ -989,7 +989,7 @@ describe('realistic multi-source simulation', () => {
       }),
     ];
     const data = getCtxMgmt(sessions);
-    // Approximation has been removed — Xcode sessions without native token
+    // Approximation has been removed — sessions without native token
     // data are no longer surfaced as workspaces with token data.
     expect(data.sessionsWithTokenData).toBe(0);
     expect(data.workspaces).toHaveLength(0);
@@ -1197,30 +1197,30 @@ describe('getContextRangeAvailability', () => {
 
   it('reports harnesses that emit no per-request token data', () => {
     const sessions = [
-      sess({ harness: 'GitHub Copilot CLI', requests: [
+      sess({ harness: 'Cursor Nightly', requests: [
         req({ requestId: 'r1', promptTokens: null, timestamp: NOW - 5 * DAY }),
         req({ requestId: 'r2', promptTokens: null, timestamp: NOW - 6 * DAY }),
       ] }),
-      sess({ harness: 'Local Agent', requests: [req({ promptTokens: 1000, timestamp: NOW - 5 * DAY })] }),
+      sess({ harness: 'Cursor', requests: [req({ promptTokens: 1000, timestamp: NOW - 5 * DAY })] }),
     ];
     const a = new Analyzer(sessions);
-    // No filter: both harnesses considered. Local Agent has tokens, CLI doesn't.
+    // No filter: both surfaces considered. Cursor has tokens, Cursor Nightly doesn't.
     const all = a.getContextRangeAvailability();
     expect(all.matchingSessions).toBe(2);
     expect(all.sessionsWithRequestTokens).toBe(1);
-    expect(all.harnessesWithoutRequestTokens).toEqual(['GitHub Copilot CLI']);
-    // Filter to CLI: empty ranges + diagnostic explains the gap.
-    const cli = a.getContextRangeAvailability({ harness: 'GitHub Copilot CLI' });
+    expect(all.harnessesWithoutRequestTokens).toEqual(['Cursor Nightly']);
+    // Filter to Cursor Nightly: empty ranges + diagnostic explains the gap.
+    const cli = a.getContextRangeAvailability({ harness: 'Cursor Nightly' });
     expect(cli.rangesWithTokens).toEqual([]);
     expect(cli.matchingSessions).toBe(1);
     expect(cli.sessionsWithRequestTokens).toBe(0);
-    expect(cli.harnessesWithoutRequestTokens).toEqual(['GitHub Copilot CLI']);
+    expect(cli.harnessesWithoutRequestTokens).toEqual(['Cursor Nightly']);
   });
 
   it('reports zero matching sessions when filter excludes everything', () => {
-    const sessions = [sess({ harness: 'Local Agent', requests: [req({ promptTokens: 1000 })] })];
+    const sessions = [sess({ harness: 'Cursor', requests: [req({ promptTokens: 1000 })] })];
     const a = new Analyzer(sessions);
-    const out = a.getContextRangeAvailability({ harness: 'Codex' });
+    const out = a.getContextRangeAvailability({ harness: 'Cursor Nightly' });
     expect(out.matchingSessions).toBe(0);
     expect(out.sessionsWithRequestTokens).toBe(0);
     expect(out.harnessesWithoutRequestTokens).toEqual([]);

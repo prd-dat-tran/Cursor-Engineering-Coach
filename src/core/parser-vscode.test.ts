@@ -145,7 +145,7 @@ describe('parseSessionFile token extraction', () => {
     ].join('\n');
 
     withTempFile('session-tokens.jsonl', lines, (filePath) => {
-      const session = parseSessionFile(filePath, 'ws-1', 'test-ws', 'VS Code');
+      const session = parseSessionFile(filePath, 'ws-1', 'test-ws', 'Cursor');
       expect(session).not.toBeNull();
       expect(session!.requests[0].promptTokens).toBe(1000);
       // Should use request-level completionTokens (450) not metadata.outputTokens (50)
@@ -170,7 +170,7 @@ describe('parseSessionFile token extraction', () => {
     ].join('\n');
 
     withTempFile('session-meta-only.jsonl', lines, (filePath) => {
-      const session = parseSessionFile(filePath, 'ws-2', 'test-ws', 'VS Code');
+      const session = parseSessionFile(filePath, 'ws-2', 'test-ws', 'Cursor');
       expect(session).not.toBeNull();
       expect(session!.requests[0].promptTokens).toBe(2000);
       // Falls back to metadata.outputTokens since no request-level completionTokens

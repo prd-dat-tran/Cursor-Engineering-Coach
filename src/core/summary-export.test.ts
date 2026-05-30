@@ -120,7 +120,7 @@ describe('summary export', () => {
   it('builds a stable report object with totals, filters, languages, and top anti-patterns', () => {
     const report = buildSummaryExport({
       generatedAt: '2026-05-25T10:00:00.000Z',
-      filter: { workspaceId: 'directus', harness: 'Codex' },
+      filter: { workspaceId: 'directus', harness: 'Cursor' },
       stats,
       codeProduction,
       dailyActivity,
@@ -130,7 +130,7 @@ describe('summary export', () => {
     });
 
     expect(report.schemaVersion).toBe(1);
-    expect(report.filter).toEqual({ workspaceId: 'directus', harness: 'Codex' });
+    expect(report.filter).toEqual({ workspaceId: 'directus', harness: 'Cursor' });
     expect(report.totals).toEqual({ sessions: 7, requests: 42, workspaces: 3 });
     expect(report.production.totalAiLoc).toBe(1200);
     expect(report.production.topLanguages).toEqual([

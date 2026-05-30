@@ -429,7 +429,7 @@ function defaultRow(): Record<string, unknown> {
     workspaceId: 'test-ws',
     workspaceName: 'Test Workspace',
     location: '/tmp/test',
-    harness: 'VS Code',
+    harness: 'Cursor',
     creationDate: Date.now(),
     lastMessageDate: Date.now(),
     requestCount: 1,

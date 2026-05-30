@@ -48,15 +48,15 @@ describe('getTokenCoverage', () => {
   it('aggregates totals across multiple harnesses and workspaces', () => {
     const sessions = [
       sess({
-        harness: 'Claude', workspaceName: 'proj-a',
+        harness: 'Cursor', workspaceName: 'proj-a',
         requests: [req({ promptTokens: 100, completionTokens: 50 })],
       }),
       sess({
-        harness: 'OpenCode', workspaceName: 'proj-b',
+        harness: 'Cursor Nightly', workspaceName: 'proj-b',
         requests: [req({ promptTokens: 200, completionTokens: 100 })],
       }),
       sess({
-        harness: 'Claude', workspaceName: 'proj-b',
+        harness: 'Cursor', workspaceName: 'proj-b',
         requests: [req({ promptTokens: 300, completionTokens: 150 })],
       }),
     ];
@@ -74,14 +74,14 @@ describe('getTokenCoverage', () => {
   it('flags missing data per harness with a missingPct', () => {
     const sessions = [
       sess({
-        harness: 'Claude', workspaceName: 'proj',
+        harness: 'Cursor', workspaceName: 'proj',
         requests: [
           req({ requestId: 'a1', promptTokens: 100, completionTokens: 50 }),
           req({ requestId: 'a2' }), // missing
         ],
       }),
       sess({
-        harness: 'Codex', workspaceName: 'proj',
+        harness: 'Cursor Nightly', workspaceName: 'proj',
         requests: [
           req({ requestId: 'c1' }), // missing
           req({ requestId: 'c2' }), // missing
@@ -89,8 +89,8 @@ describe('getTokenCoverage', () => {
       }),
     ];
     const data = new Analyzer(sessions).getTokenCoverage();
-    const claude = data.byHarness.find(h => h.harness === 'Claude')!;
-    const codex = data.byHarness.find(h => h.harness === 'Codex')!;
+    const claude = data.byHarness.find(h => h.harness === 'Cursor')!;
+    const codex = data.byHarness.find(h => h.harness === 'Cursor Nightly')!;
     expect(claude.missingPct).toBe(50);
     expect(claude.countedRequests).toBe(1);
     expect(codex.missingPct).toBe(100);
@@ -103,7 +103,7 @@ describe('getTokenCoverage', () => {
   it('marks CLI source as session-aggregated when modelUsage present', () => {
     const sessions = [
       sess({
-        harness: 'GitHub Copilot CLI', workspaceName: 'cli-proj',
+        harness: 'Cursor Nightly', workspaceName: 'cli-proj',
         modelUsage: { 'gpt-5.5': { inputTokens: 4000, outputTokens: 200, cacheReadTokens: 0, cacheWriteTokens: 0 } },
         requests: [
           req({ modelId: 'gpt-5.5', completionTokens: 100 }),
@@ -112,7 +112,7 @@ describe('getTokenCoverage', () => {
       }),
     ];
     const data = new Analyzer(sessions).getTokenCoverage();
-    const cli = data.byHarness.find(h => h.harness === 'GitHub Copilot CLI')!;
+    const cli = data.byHarness.find(h => h.harness === 'Cursor Nightly')!;
     expect(cli.source).toBe('session-aggregated');
     expect(cli.countedRequests).toBe(2);
     expect(cli.inputTokens).toBe(4000);
@@ -125,7 +125,7 @@ describe('getTokenCoverage', () => {
     // per-request data only (falls back to per-request path).
     const sessions = [
       sess({
-        harness: 'GitHub Copilot CLI', workspaceName: 'p',
+        harness: 'Cursor Nightly', workspaceName: 'p',
         modelUsage: { 'gpt-5.5': { inputTokens: 1000, outputTokens: 100, cacheReadTokens: 0, cacheWriteTokens: 0 } },
         requests: [
           req({ modelId: 'gpt-5.5', completionTokens: 100 }),
@@ -134,21 +134,21 @@ describe('getTokenCoverage', () => {
       }),
     ];
     const data = new Analyzer(sessions).getTokenCoverage();
-    const cli = data.byHarness.find(h => h.harness === 'GitHub Copilot CLI')!;
+    const cli = data.byHarness.find(h => h.harness === 'Cursor Nightly')!;
     expect(cli.source).toBe('mixed');
   });
 
   it('sorts byHarness and byWorkspace by request count (desc)', () => {
     const sessions = [
-      sess({ harness: 'Claude', workspaceName: 'big',
+      sess({ harness: 'Cursor', workspaceName: 'big',
         requests: Array.from({ length: 5 }, () => req({ promptTokens: 10, completionTokens: 10 })),
       }),
-      sess({ harness: 'Codex', workspaceName: 'small',
+      sess({ harness: 'Cursor Nightly', workspaceName: 'small',
         requests: [req({ promptTokens: 10, completionTokens: 10 })],
       }),
     ];
     const data = new Analyzer(sessions).getTokenCoverage();
-    expect(data.byHarness[0].harness).toBe('Claude');
+    expect(data.byHarness[0].harness).toBe('Cursor');
     expect(data.byWorkspace[0].workspaceName).toBe('big');
   });
 
@@ -167,10 +167,10 @@ describe('getTokenCoverage', () => {
     const inRange = new Date(2025, 5, 15).getTime();
     const outRange = new Date(2025, 5, 20).getTime();
     const sessions = [
-      sess({ harness: 'Claude', workspaceName: 'in-window',
+      sess({ harness: 'Cursor', workspaceName: 'in-window',
         requests: [req({ timestamp: inRange, promptTokens: 100, completionTokens: 50 })],
       }),
-      sess({ harness: 'Claude', workspaceName: 'out-of-window',
+      sess({ harness: 'Cursor', workspaceName: 'out-of-window',
         requests: [req({ timestamp: outRange, promptTokens: 100, completionTokens: 50 })],
       }),
     ];
@@ -183,7 +183,7 @@ describe('getTokenCoverage', () => {
 
   it('counts a session as covered when any of its requests has billing data', () => {
     const sessions = [
-      sess({ harness: 'Claude', workspaceName: 'p',
+      sess({ harness: 'Cursor', workspaceName: 'p',
         requests: [
           req({ requestId: 'a' }), // missing
           req({ requestId: 'b', promptTokens: 100, completionTokens: 50 }),
@@ -200,13 +200,13 @@ describe('getTokenCoverage', () => {
 
   it('emits per-session rows sorted worst-coverage-first', () => {
     const sessions = [
-      sess({ harness: 'Claude', workspaceName: 'p',
+      sess({ harness: 'Cursor', workspaceName: 'p',
         requests: [
           req({ requestId: 'g1', promptTokens: 100, completionTokens: 50 }),
           req({ requestId: 'g2', promptTokens: 100, completionTokens: 50 }),
         ],
       }),
-      sess({ harness: 'Codex', workspaceName: 'p',
+      sess({ harness: 'Cursor Nightly', workspaceName: 'p',
         requests: [
           req({ requestId: 'b1' }),
           req({ requestId: 'b2', promptTokens: 100, completionTokens: 50 }),
@@ -216,17 +216,17 @@ describe('getTokenCoverage', () => {
     const data = new Analyzer(sessions).getTokenCoverage();
     expect(data.bySession).toHaveLength(2);
     // Worst (50% missing) sorts before fully covered (0% missing)
-    expect(data.bySession[0].harness).toBe('Codex');
+    expect(data.bySession[0].harness).toBe('Cursor Nightly');
     expect(data.bySession[0].missingPct).toBe(50);
     expect(data.bySession[0].source).toBe('per-request');
-    expect(data.bySession[1].harness).toBe('Claude');
+    expect(data.bySession[1].harness).toBe('Cursor');
     expect(data.bySession[1].missingPct).toBe(0);
   });
 
   it('marks a session as session-aggregated source when modelUsage drives billing', () => {
     const sessions = [
       sess({
-        harness: 'Codex', workspaceName: 'p',
+        harness: 'Cursor Nightly', workspaceName: 'p',
         modelUsage: { 'gpt-5.3-codex': { inputTokens: 1000, outputTokens: 200, cacheReadTokens: 0, cacheWriteTokens: 0 } },
         requests: [
           req({ modelId: 'gpt-5.3-codex', completionTokens: 100 }),
@@ -243,7 +243,7 @@ describe('getTokenCoverage', () => {
 
   it('marks an entirely-missing session as source="none"', () => {
     const sessions = [
-      sess({ harness: 'Claude', workspaceName: 'p',
+      sess({ harness: 'Cursor', workspaceName: 'p',
         requests: [req({ requestId: 'm1' }), req({ requestId: 'm2' })],
       }),
     ];
@@ -259,12 +259,12 @@ describe('getTokenCoverage', () => {
     const sessions = [
       // Active session — no shutdown event yet, no token data.
       sess({
-        harness: 'GitHub Copilot CLI', workspaceName: 'live',
+        harness: 'Cursor Nightly', workspaceName: 'live',
         requests: [req({ requestId: 'a1' }), req({ requestId: 'a2' })],
       }),
       // A separate normal session with full coverage so totals aren't all 0.
       sess({
-        harness: 'Claude', workspaceName: 'done',
+        harness: 'Cursor', workspaceName: 'done',
         requests: [req({ requestId: 'b1', promptTokens: 100, completionTokens: 50 })],
       }),
     ];
@@ -273,12 +273,12 @@ describe('getTokenCoverage', () => {
 
     expect(data.activeSessions).toBe(1);
     expect(data.pendingRequests).toBe(2);
-    // Only the Claude request is "finalizable" — the 2 active CLI reqs don't count.
+    // Only the finalized request is "finalizable" — the 2 active reqs don't count.
     expect(data.countedRequests).toBe(1);
     expect(data.missingRequests).toBe(0);
     expect(data.missingPct).toBe(0);
 
-    const cliRow = data.bySession.find(s => s.harness === 'GitHub Copilot CLI')!;
+    const cliRow = data.bySession.find(s => s.harness === 'Cursor Nightly')!;
     expect(cliRow.endReason).toBe('active');
     expect(cliRow.pendingRequests).toBe(2);
     expect(cliRow.missingPct).toBe(0); // all pending → no finalizable, no missing
@@ -287,7 +287,7 @@ describe('getTokenCoverage', () => {
   it('excludes pending requests in aborted sessions from missing %', () => {
     const sessions = [
       sess({
-        harness: 'Codex', workspaceName: 'p',
+        harness: 'Cursor Nightly', workspaceName: 'p',
         requests: [req({ requestId: 'x1' })],
       }),
     ];
@@ -303,9 +303,9 @@ describe('getTokenCoverage', () => {
 
   it('classifies output-only requests as partial, not counted or missing', () => {
     const sessions = [
-      // VS Code copilot/auto: completionTokens present, promptTokens missing.
+      // Output-only request: completionTokens present, promptTokens missing.
       sess({
-        harness: 'Local Agent (Insiders)', workspaceName: 'auto',
+        harness: 'Cursor', workspaceName: 'auto',
         requests: [req({ requestId: 'p1', completionTokens: 500, promptTokens: null })],
       }),
     ];
@@ -328,7 +328,7 @@ describe('getTokenCoverage', () => {
     const jun1 = new Date(2025, 5, 1, 12).getTime();
     const sessions = [
       sess({
-        harness: 'Claude', workspaceName: 'p',
+        harness: 'Cursor', workspaceName: 'p',
         requests: [
           req({ requestId: 'm1', timestamp: may1, promptTokens: 100, completionTokens: 50 }),
           req({ requestId: 'm2', timestamp: may15 }), // missing
@@ -336,34 +336,34 @@ describe('getTokenCoverage', () => {
         ],
       }),
       sess({
-        harness: 'OpenCode', workspaceName: 'p',
+        harness: 'Cursor Nightly', workspaceName: 'p',
         requests: [req({ requestId: 'o1', timestamp: jun1, promptTokens: 50, completionTokens: 25 })],
       }),
     ];
     const data = new Analyzer(sessions).getTokenCoverage();
 
     expect(data.timeline.months).toEqual(['2025-05', '2025-06']);
-    expect(data.timeline.harnesses.sort()).toEqual(['Claude', 'OpenCode']);
+    expect(data.timeline.harnesses.sort()).toEqual(['Cursor', 'Cursor Nightly']);
 
-    const claudeMay = data.timeline.cells['Claude']['2025-05']!;
+    const claudeMay = data.timeline.cells['Cursor']['2025-05']!;
     expect(claudeMay.requests).toBe(2);
     expect(claudeMay.countedRequests).toBe(1);
     expect(claudeMay.missingPct).toBe(50);
 
-    const claudeJun = data.timeline.cells['Claude']['2025-06']!;
+    const claudeJun = data.timeline.cells['Cursor']['2025-06']!;
     expect(claudeJun.requests).toBe(1);
     expect(claudeJun.countedRequests).toBe(1);
     expect(claudeJun.missingPct).toBe(0);
 
-    expect(data.timeline.cells['OpenCode']['2025-05']).toBeUndefined();
-    expect(data.timeline.cells['OpenCode']['2025-06']!.countedRequests).toBe(1);
+    expect(data.timeline.cells['Cursor Nightly']['2025-05']).toBeUndefined();
+    expect(data.timeline.cells['Cursor Nightly']['2025-06']!.countedRequests).toBe(1);
   });
 
-  it('finalized CLI sessions still get full coverage from session-aggregated totals', () => {
-    // Once a CLI session shuts down it gets modelUsage; coverage should be 100%.
+  it('finalized sessions still get full coverage from session-aggregated totals', () => {
+    // Once a session is finalized it gets modelUsage; coverage should be 100%.
     const sessions = [
       sess({
-        harness: 'GitHub Copilot CLI', workspaceName: 'wp',
+        harness: 'Cursor Nightly', workspaceName: 'wp',
         requests: [
           req({ requestId: 'cli-1', completionTokens: 100, promptTokens: null, modelId: 'gpt-5.4' }),
           req({ requestId: 'cli-2', completionTokens: 200, promptTokens: null, modelId: 'gpt-5.4' }),
@@ -378,13 +378,13 @@ describe('getTokenCoverage', () => {
     expect(data.missingPct).toBe(0);
   });
 
-  it('errored VS Code chat requests are pending, not missing (excluded from coverage denom)', () => {
-    // VS Code chat requests with `result.errorDetails` (canceled, network
+  it('errored chat requests are pending, not missing (excluded from coverage denom)', () => {
+    // Chat requests with `result.errorDetails` (canceled, network
     // failure, length limit, etc.) never received token data. They should
     // not be counted as a parser gap.
     const sessions = [
       sess({
-        harness: 'Local Agent (Insiders)', workspaceName: 'wp',
+        harness: 'Cursor', workspaceName: 'wp',
         requests: [
           req({ requestId: 'ok', promptTokens: 100, completionTokens: 50 }),
           req({ requestId: 'err', endState: 'errored' }),
@@ -398,13 +398,13 @@ describe('getTokenCoverage', () => {
     expect(data.missingPct).toBe(0);
   });
 
-  it('in-flight (no-result) VS Code chat requests are pending, not missing', () => {
+  it('in-flight (no-result) chat requests are pending, not missing', () => {
     // Requests where `result === {}` (e.g. window closed, app crashed,
     // request still in-flight) should be excluded from the coverage
     // denominator — they never had a chance to record token data.
     const sessions = [
       sess({
-        harness: 'Local Agent (Insiders)', workspaceName: 'wp',
+        harness: 'Cursor', workspaceName: 'wp',
         requests: [
           req({ requestId: 'ok', promptTokens: 100, completionTokens: 50 }),
           req({ requestId: 'inflight', endState: 'pending' }),
@@ -419,12 +419,12 @@ describe('getTokenCoverage', () => {
   });
 
   it('genuine missing requests (finalized but no tokens) still count as missing', () => {
-    // VS Code chat requests where result+metadata exist but neither
+    // Chat requests where result+metadata exist but neither
     // promptTokens nor completionTokens were captured (e.g. some older
     // copilot/auto requests). These ARE genuine parser-coverage gaps.
     const sessions = [
       sess({
-        harness: 'Local Agent (Insiders)', workspaceName: 'wp',
+        harness: 'Cursor', workspaceName: 'wp',
         requests: [
           req({ requestId: 'ok', promptTokens: 100, completionTokens: 50 }),
           req({ requestId: 'gap' }), // no endState set, no tokens
@@ -439,13 +439,13 @@ describe('getTokenCoverage', () => {
   });
 
   it('endState=no-data requests are tracked separately and excluded from coverage denominator', () => {
-    // Harness either inherently doesn't capture tokens (Xcode) or completed
-    // a request but didn't write token fields (some VS Code copilot/auto and
-    // copilot/gpt-5.4 requests). Cannot be recovered, so should not be flagged
-    // as missing — but they're also distinct from in-flight pending requests.
+    // The session either inherently doesn't capture tokens or completed a
+    // request but didn't write token fields. Cannot be recovered, so should
+    // not be flagged as missing — but they're also distinct from in-flight
+    // pending requests.
     const sessions = [
       sess({
-        harness: 'Local Agent (Insiders)', workspaceName: 'wp',
+        harness: 'Cursor', workspaceName: 'wp',
         requests: [
           req({ requestId: 'ok', promptTokens: 100, completionTokens: 50 }),
           req({ requestId: 'nodata', endState: 'no-data' }),
@@ -466,7 +466,7 @@ describe('getTokenCoverage', () => {
     // (NOT analyzer-level isCanceled detection) on such synthetic requests.
     const sessions = [
       sess({
-        harness: 'GitHub Copilot CLI', workspaceName: 'wp',
+        harness: 'Cursor Nightly', workspaceName: 'wp',
         requests: [
           req({ requestId: 'ok', promptTokens: 100, completionTokens: 50 }),
           req({ requestId: 'aborted', isCanceled: true, endState: 'errored' }),

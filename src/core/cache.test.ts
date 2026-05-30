@@ -43,7 +43,7 @@ function makeSession(): Session {
     sessionId: 's1',
     workspaceId: 'ws1',
     workspaceName: 'workspace',
-    harness: 'Local Agent',
+    harness: 'Cursor',
     requests: [createRequest({
       requestId: 'r1',
       messageText: 'a'.repeat(800),
@@ -89,7 +89,7 @@ describe('stripSessionsForMemory', () => {
       sessionId: 's2',
       workspaceId: 'ws2',
       workspaceName: 'workspace',
-      harness: 'Local Agent',
+      harness: 'Cursor',
       requests: [createRequest({ requestId: 'r2', messageText: 'short msg', responseText: 'short resp' })],
     });
     stripSessionsForMemory([session]);
@@ -213,11 +213,11 @@ describe('memory cache', () => {
 
 describe('sidebar stats', () => {
   it('saveSidebarStats and loadSidebarStats round-trip', () => {
-    const stats = { harnesses: ['Local Agent', 'Xcode'], savedAt: Date.now() };
+    const stats = { harnesses: ['Cursor', 'Cursor Nightly'], savedAt: Date.now() };
     saveSidebarStats(stats);
     const loaded = loadSidebarStats();
     expect(loaded).not.toBeNull();
-    expect(loaded!.harnesses).toContain('Local Agent');
+    expect(loaded!.harnesses).toContain('Cursor');
     expect(loaded!.savedAt).toBe(stats.savedAt);
   });
 });

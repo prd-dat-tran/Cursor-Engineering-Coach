@@ -22,8 +22,8 @@ describe('escapeHtmlAttr', () => {
   });
 
   it('leaves safe strings unchanged', () => {
-    expect(escapeHtmlAttr('VS Code')).toBe('VS Code');
-    expect(escapeHtmlAttr('Claude')).toBe('Claude');
+    expect(escapeHtmlAttr('My Project')).toBe('My Project');
+    expect(escapeHtmlAttr('Cursor')).toBe('Cursor');
   });
 
   it('handles empty string', () => {

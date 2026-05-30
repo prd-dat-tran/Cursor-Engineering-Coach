@@ -49,7 +49,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     workspaceId: 'ws-1',
     workspaceName: 'my-project',
     location: '/projects/my-project',
-    harness: 'Local Agent',
+    harness: 'Cursor',
     creationDate: now - 3600000,
     lastMessageDate: now,
     requestCount: 1,
@@ -112,27 +112,27 @@ describe('DashboardAnalyzer', () => {
     it('includes harnesses per workspace', () => {
       const now = Date.now();
       const sessions = [
-        makeSession({ workspaceName: 'proj', harness: 'Local Agent', lastMessageDate: now }),
-        makeSession({ workspaceName: 'proj', harness: 'Claude', lastMessageDate: now }),
+        makeSession({ workspaceName: 'proj', harness: 'Cursor', lastMessageDate: now }),
+        makeSession({ workspaceName: 'proj', harness: 'Cursor Nightly', lastMessageDate: now }),
       ];
       const analyzer = createAnalyzer(sessions);
       const ws = analyzer.getWorkspaces();
       const proj = ws.find(w => w.name === 'proj');
-      expect(proj?.harnesses).toContain('Local Agent');
-      expect(proj?.harnesses).toContain('Claude');
+      expect(proj?.harnesses).toContain('Cursor');
+      expect(proj?.harnesses).toContain('Cursor Nightly');
     });
   });
 
   describe('getHarnesses', () => {
     it('returns unique harnesses sorted', () => {
       const sessions = [
-        makeSession({ harness: 'Local Agent' }),
-        makeSession({ harness: 'Claude' }),
-        makeSession({ harness: 'Local Agent' }),
+        makeSession({ harness: 'Cursor' }),
+        makeSession({ harness: 'Cursor Nightly' }),
+        makeSession({ harness: 'Cursor' }),
       ];
       const analyzer = createAnalyzer(sessions);
       const harnesses = analyzer.getHarnesses();
-      expect(harnesses).toEqual(['Claude', 'Local Agent']);
+      expect(harnesses).toEqual(['Cursor', 'Cursor Nightly']);
     });
   });
 
@@ -140,13 +140,13 @@ describe('DashboardAnalyzer', () => {
     it('returns breakdown by harness', () => {
       const now = Date.now();
       const sessions = [
-        makeSession({ harness: 'Local Agent', requests: [makeRequest({ timestamp: now }), makeRequest({ timestamp: now + 1000 })], lastMessageDate: now }),
-        makeSession({ harness: 'Claude', requests: [makeRequest({ timestamp: now })], lastMessageDate: now }),
+        makeSession({ harness: 'Cursor', requests: [makeRequest({ timestamp: now }), makeRequest({ timestamp: now + 1000 })], lastMessageDate: now }),
+        makeSession({ harness: 'Cursor Nightly', requests: [makeRequest({ timestamp: now })], lastMessageDate: now }),
       ];
       const analyzer = createAnalyzer(sessions);
       const result = analyzer.getHarnessBreakdown();
-      expect(result.labels).toContain('Local Agent');
-      expect(result.labels).toContain('Claude');
+      expect(result.labels).toContain('Cursor');
+      expect(result.labels).toContain('Cursor Nightly');
       expect(result.sessions.length).toBe(2);
       expect(result.requests.length).toBe(2);
     });
@@ -199,8 +199,8 @@ describe('DashboardAnalyzer', () => {
     it('breaks down by harness', () => {
       const day1 = new Date('2024-03-15T10:00:00').getTime();
       const sessions = [
-        makeSession({ harness: 'Local Agent', requests: [makeRequest({ timestamp: day1 })], lastMessageDate: day1 }),
-        makeSession({ harness: 'Claude', requests: [makeRequest({ timestamp: day1 })], lastMessageDate: day1 }),
+        makeSession({ harness: 'Cursor', requests: [makeRequest({ timestamp: day1 })], lastMessageDate: day1 }),
+        makeSession({ harness: 'Cursor Nightly', requests: [makeRequest({ timestamp: day1 })], lastMessageDate: day1 }),
       ];
       const analyzer = createAnalyzer(sessions);
       const result = analyzer.getDailyActivity();
@@ -318,8 +318,8 @@ describe('DashboardAnalyzer', () => {
     it('returns comparison data for multiple harnesses', () => {
       const ts = new Date('2024-03-15T10:00:00').getTime();
       const sessions = [
-        makeSession({ harness: 'Local Agent', requests: [makeRequest({ timestamp: ts }), makeRequest({ timestamp: ts + 1000 })], lastMessageDate: ts }),
-        makeSession({ harness: 'Claude', requests: [makeRequest({ timestamp: ts })], lastMessageDate: ts }),
+        makeSession({ harness: 'Cursor', requests: [makeRequest({ timestamp: ts }), makeRequest({ timestamp: ts + 1000 })], lastMessageDate: ts }),
+        makeSession({ harness: 'Cursor Nightly', requests: [makeRequest({ timestamp: ts })], lastMessageDate: ts }),
       ];
       const analyzer = createAnalyzer(sessions);
       const result = analyzer.getHarnessComparison();
@@ -332,7 +332,7 @@ describe('DashboardAnalyzer', () => {
       const ts = new Date('2024-03-15T10:00:00').getTime();
       const sessions = [
         makeSession({
-          harness: 'Local Agent',
+          harness: 'Cursor',
           requests: [
             makeRequest({ timestamp: ts, modelId: 'gpt-4.1', totalElapsed: 5000, responseLength: 200 }),
           ],
@@ -342,7 +342,7 @@ describe('DashboardAnalyzer', () => {
       const analyzer = createAnalyzer(sessions);
       const result = analyzer.getHarnessComparison();
       const item = result.harnesses[0];
-      expect(item.harness).toBe('Local Agent');
+      expect(item.harness).toBe('Cursor');
       expect(item.avgElapsed).toBe(5000);
       expect(item.avgResponseLength).toBe(200);
       expect(item.topModels.length).toBeGreaterThan(0);
@@ -354,7 +354,7 @@ describe('DashboardAnalyzer', () => {
       const ts = new Date('2024-03-15T10:00:00').getTime();
       const sessions = [
         makeSession({
-          harness: 'Local Agent',
+          harness: 'Cursor',
           requests: [makeRequest({ timestamp: ts, modelId: 'gpt-4.1' })],
           lastMessageDate: ts,
         }),
@@ -362,8 +362,8 @@ describe('DashboardAnalyzer', () => {
       const analyzer = createAnalyzer(sessions);
       const result = analyzer.getParserCoverage();
       expect(result.fields.length).toBeGreaterThan(0);
-      expect(result.harnesses).toContain('Local Agent');
-      expect(result.matrix['modelId']['Local Agent'].populated).toBe(1);
+      expect(result.harnesses).toContain('Cursor');
+      expect(result.matrix['modelId']['Cursor'].populated).toBe(1);
     });
   });
 
@@ -372,7 +372,7 @@ describe('DashboardAnalyzer', () => {
       const ts = new Date('2024-03-15T10:00:00').getTime();
       const sessions = [
         makeSession({
-          harness: 'Local Agent',
+          harness: 'Cursor',
           requests: [makeRequest({ timestamp: ts, modelId: 'gpt-4.1' })],
           lastMessageDate: ts,
         }),
@@ -380,7 +380,7 @@ describe('DashboardAnalyzer', () => {
       const analyzer = createAnalyzer(sessions);
       const result = analyzer.getParserPreview();
       expect(result.samples).toHaveLength(1);
-      expect(result.samples[0].harness).toBe('Local Agent');
+      expect(result.samples[0].harness).toBe('Cursor');
       expect(result.samples[0].fields['modelId'].populated).toBe(true);
     });
 
@@ -388,7 +388,7 @@ describe('DashboardAnalyzer', () => {
       const ts = new Date('2024-03-15T10:00:00').getTime();
       const sessions = [
         makeSession({
-          harness: 'Local Agent',
+          harness: 'Cursor',
           requests: [
             makeRequest({ timestamp: ts, modelId: '' }),
             makeRequest({ timestamp: ts + 1000, modelId: 'gpt-4.1' }),

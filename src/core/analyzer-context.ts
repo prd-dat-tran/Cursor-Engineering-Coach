@@ -839,9 +839,9 @@ export class ContextAnalyzer extends AnalyzerBase {
    *
    * Also returns diagnostic info so the UI can explain *why* there is no
    * data when a filter combination yields an empty result. This matters
-   * because some harnesses (e.g. GitHub Copilot CLI) only emit
-   * session-aggregated tokens — they have data but not the per-request
-   * granularity that Context Management requires.
+   * because some sessions only carry session-aggregated tokens — they
+   * have data but not the per-request granularity that Context
+   * Management requires.
    */
   getContextRangeAvailability(f?: DateFilter): {
     rangesWithTokens: number[];

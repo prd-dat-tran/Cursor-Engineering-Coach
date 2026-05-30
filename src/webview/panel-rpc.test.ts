@@ -8,9 +8,9 @@ import { getRpcHandler, validateDateFilter } from './panel-rpc';
 
 describe('panel-rpc', () => {
   it('maps legacy workspace params onto workspaceId', () => {
-    expect(validateDateFilter({ workspace: 'ws-123', harness: 'Local Agent' })).toEqual({
+    expect(validateDateFilter({ workspace: 'ws-123', harness: 'Cursor' })).toEqual({
       workspaceId: 'ws-123',
-      harness: 'Local Agent',
+      harness: 'Cursor',
     });
   });
 

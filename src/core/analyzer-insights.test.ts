@@ -49,7 +49,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     workspaceId: 'ws-1',
     workspaceName: 'my-project',
     location: '/projects/my-project',
-    harness: 'Local Agent',
+    harness: 'Cursor',
     creationDate: now - 3600000,
     lastMessageDate: now,
     requestCount: 1,

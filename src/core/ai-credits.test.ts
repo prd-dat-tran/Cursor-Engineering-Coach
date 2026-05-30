@@ -32,8 +32,7 @@ function sess(requests: SessionRequest[]): Session {
     sessionId: `s-${Math.random().toString(36).slice(2, 8)}`,
     workspaceId: 'ws-1',
     workspaceName: 'proj',
-    // All Claude sessions now use the unified 'Claude' harness.
-    harness: 'Claude',
+    harness: 'Cursor',
     requests,
   });
 }
@@ -211,7 +210,7 @@ describe('getAiCreditBurndown — missing-token handling', () => {
       sessionId: 's-pending',
       workspaceId: 'ws-1',
       workspaceName: 'proj',
-      harness: 'Claude',
+      harness: 'Cursor',
       requests: [
         createRequest({
           messageText: 'hi', responseText: 'in progress',
@@ -273,7 +272,7 @@ describe('getAiCredits — new bucket semantics', () => {
       sessionId: 's-mix',
       workspaceId: 'ws-1',
       workspaceName: 'proj',
-      harness: 'Claude',
+      harness: 'Cursor',
       requests: [
         createRequest({ messageText: 'a', responseText: 'b', requestId: 'r1',
           timestamp: BASE_TS, modelId: 'claude-sonnet-4',
@@ -305,7 +304,7 @@ describe('getAiCredits — new bucket semantics', () => {
       sessionId: 's-allpending',
       workspaceId: 'ws-1',
       workspaceName: 'proj',
-      harness: 'Claude',
+      harness: 'Cursor',
       requests: [
         createRequest({ messageText: 'a', responseText: 'b', requestId: 'p1',
           timestamp: BASE_TS, modelId: 'claude-sonnet-4', endState: 'pending' }),
@@ -402,16 +401,16 @@ function cliSess(opts: {
       sessionId: `cli-${Math.random().toString(36).slice(2, 8)}`,
       workspaceId: 'ws-cli',
       workspaceName: 'cli-proj',
-      harness: 'GitHub Copilot CLI',
+      harness: 'Cursor',
       requests: opts.requests,
     }),
     modelUsage: opts.modelUsage,
   };
 }
 
-describe('session-level billing (Copilot CLI shutdown.modelMetrics)', () => {
+describe('session-level billing (session-aggregated modelUsage)', () => {
   it('uses session-level totals as authoritative billing source when present', () => {
-    // Per-request only has output tokens (CLI assistant.message). Session-level
+    // Per-request only has output tokens. Session-level
     // has the full input + cached + output totals.
     const requests = [
       req({ requestId: 'r1', timestamp: BASE_TS, modelId: 'gpt-5.5', completionTokens: 100 }),
@@ -525,7 +524,7 @@ describe('getAiCredits — dailyTokensByWorkspace', () => {
       sessionId: `s-${Math.random().toString(36).slice(2, 8)}`,
       workspaceId: wsName,
       workspaceName: wsName,
-      harness: 'Claude',
+      harness: 'Cursor',
       requests,
     });
   }
