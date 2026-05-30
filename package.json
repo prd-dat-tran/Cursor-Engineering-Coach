@@ -14,7 +14,7 @@
     "url": "https://github.com/prd-dat-tran/Cursor-Engineering-Coach/issues"
   },
   "engines": {
-    "vscode": "^1.118.0"
+    "vscode": "^1.105.0"
   },
   "categories": [
     "Other",
@@ -306,7 +306,7 @@
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.60.0",
     "@types/node": "25.9.1",
-    "@types/vscode": "1.118.0",
+    "@types/vscode": "1.105.0",
     "@vitest/coverage-v8": "4.1.6",
     "@vscode/vsce": "3.9.1",
     "cspell": "10.0.0",
