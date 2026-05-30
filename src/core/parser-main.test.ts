@@ -4,7 +4,6 @@
  *--------------------------------------------------------------------------------------------*/
 
 import type { Dirent } from 'fs';
-import path from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./parser-vscode', () => ({
@@ -12,19 +11,7 @@ vi.mock('./parser-vscode', () => ({
   scanVsCodeDirs: vi.fn(() => ({ entries: [], totalDirs: 0 })),
   processWorkspaceEntry: vi.fn(),
   processWorkspaceEntryAsync: vi.fn(() => Promise.resolve('')),
-  harnessFromPath: vi.fn(() => 'VS Code'),
-}));
-
-vi.mock('./parser-xcode', () => ({
-  findXcodeDirs: vi.fn(() => []),
-  parseXcodeDatabases: vi.fn(() => []),
-  parseXcodeDatabasesAsync: vi.fn(() => Promise.resolve([])),
-}));
-
-vi.mock('./parser-harnesses', () => ({
-  collectExternalHarnessesSync: vi.fn(),
-  collectExternalHarnessesAsync: vi.fn(() => Promise.resolve()),
-  EXTERNAL_HARNESS_SET: new Set(['Claude', 'Codex', 'OpenCode']),
+  harnessFromPath: vi.fn(() => 'Cursor'),
 }));
 
 vi.mock('./cache', () => ({
@@ -39,7 +26,6 @@ vi.mock('./cache', () => ({
 }));
 
 import type { ParseResult } from './parser';
-import type { ParseContext } from './parser-shared';
 import type { Session } from './types';
 import { LOAD_PHASES, clearCache, findLogsDirs, parseAllLogs, parseAllLogsAsyncDetailed } from './parser';
 import {
@@ -59,17 +45,6 @@ import {
   processWorkspaceEntryAsync,
   scanVsCodeDirs,
 } from './parser-vscode';
-import {
-  findXcodeDirs,
-  parseXcodeDatabases,
-  parseXcodeDatabasesAsync,
-} from './parser-xcode';
-import {
-  collectExternalHarnessesAsync,
-  collectExternalHarnessesSync,
-} from './parser-harnesses';
-
-const XCODE_DIR = path.join('/Users/test/.config/github-copilot/xcode');
 
 function makeResult(): ParseResult {
   return {
@@ -86,7 +61,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     workspaceId: 'ws-1',
     workspaceName: 'Workspace 1',
     location: '/logs/workspace-1',
-    harness: 'VS Code',
+    harness: 'Cursor',
     creationDate: null,
     lastMessageDate: null,
     requestCount: 0,
@@ -106,14 +81,7 @@ beforeEach(() => {
   vi.mocked(scanVsCodeDirs).mockReturnValue({ entries: [], totalDirs: 0 });
   vi.mocked(processWorkspaceEntry).mockImplementation(() => '');
   vi.mocked(processWorkspaceEntryAsync).mockResolvedValue('');
-  vi.mocked(harnessFromPath).mockReturnValue('VS Code');
-
-  vi.mocked(findXcodeDirs).mockReturnValue([]);
-  vi.mocked(parseXcodeDatabases).mockReturnValue([]);
-  vi.mocked(parseXcodeDatabasesAsync).mockResolvedValue([]);
-
-  vi.mocked(collectExternalHarnessesSync).mockImplementation(() => {});
-  vi.mocked(collectExternalHarnessesAsync).mockResolvedValue();
+  vi.mocked(harnessFromPath).mockReturnValue('Cursor');
 
   vi.mocked(getMemoryCache).mockReturnValue(null);
   vi.mocked(setMemoryCache).mockImplementation(() => {});
@@ -129,8 +97,7 @@ describe('LOAD_PHASES', () => {
     expect(LOAD_PHASES).toEqual([
       'Discovering log directories',
       'Checking cache',
-      'Parsing session logs',
-      'Scanning external harnesses',
+      'Parsing Cursor sessions',
       'Preparing analytics',
       'Ready',
     ]);
@@ -138,11 +105,10 @@ describe('LOAD_PHASES', () => {
 });
 
 describe('findLogsDirs', () => {
-  it('combines VS Code and Xcode directories', () => {
-    vi.mocked(findVsCodeDirs).mockReturnValue(['/logs/vscode-a', '/logs/vscode-b']);
-    vi.mocked(findXcodeDirs).mockReturnValue([XCODE_DIR]);
+  it('returns the Cursor workspace storage dirs', () => {
+    vi.mocked(findVsCodeDirs).mockReturnValue(['/logs/cursor-a', '/logs/cursor-b']);
 
-    expect(findLogsDirs()).toEqual(['/logs/vscode-a', '/logs/vscode-b', XCODE_DIR]);
+    expect(findLogsDirs()).toEqual(['/logs/cursor-a', '/logs/cursor-b']);
   });
 });
 
@@ -159,86 +125,37 @@ describe('parseAllLogs', () => {
     expect(scanVsCodeDirs).toHaveBeenCalledWith([]);
   });
 
-  it('processes each VS Code workspace entry', () => {
+  it('processes each Cursor workspace entry', () => {
     vi.mocked(scanVsCodeDirs).mockReturnValue({
       entries: [
-        { logsDir: '/logs/vscode', dirEntries: [dirEntry('ws-1'), dirEntry('ws-2')] },
-        { logsDir: '/logs/vscode-2', dirEntries: [dirEntry('ws-3')] },
+        { logsDir: '/logs/cursor', dirEntries: [dirEntry('ws-1'), dirEntry('ws-2')] },
+        { logsDir: '/logs/cursor-nightly', dirEntries: [dirEntry('ws-3')] },
       ],
       totalDirs: 3,
     });
 
-    parseAllLogs(['/logs/vscode', '/logs/vscode-2']);
+    parseAllLogs(['/logs/cursor', '/logs/cursor-nightly']);
 
     expect(processWorkspaceEntry).toHaveBeenCalledTimes(3);
-    expect(processWorkspaceEntry).toHaveBeenNthCalledWith(1, '/logs/vscode', 'ws-1', 'VS Code', expect.any(Object));
-    expect(processWorkspaceEntry).toHaveBeenNthCalledWith(2, '/logs/vscode', 'ws-2', 'VS Code', expect.any(Object));
-    expect(processWorkspaceEntry).toHaveBeenNthCalledWith(3, '/logs/vscode-2', 'ws-3', 'VS Code', expect.any(Object));
+    expect(processWorkspaceEntry).toHaveBeenNthCalledWith(1, '/logs/cursor', 'ws-1', 'Cursor', expect.any(Object));
+    expect(processWorkspaceEntry).toHaveBeenNthCalledWith(2, '/logs/cursor', 'ws-2', 'Cursor', expect.any(Object));
+    expect(processWorkspaceEntry).toHaveBeenNthCalledWith(3, '/logs/cursor-nightly', 'ws-3', 'Cursor', expect.any(Object));
   });
 
-  it('uses harnessFromPath for each VS Code logs dir', () => {
+  it('uses harnessFromPath for each Cursor logs dir', () => {
     vi.mocked(scanVsCodeDirs).mockReturnValue({
       entries: [{ logsDir: '/logs/custom', dirEntries: [dirEntry('ws-1')] }],
       totalDirs: 1,
     });
-    vi.mocked(harnessFromPath).mockReturnValue('GitHub Copilot CLI');
 
     parseAllLogs(['/logs/custom']);
 
     expect(harnessFromPath).toHaveBeenCalledWith('/logs/custom');
-    expect(processWorkspaceEntry).toHaveBeenCalledWith('/logs/custom', 'ws-1', 'GitHub Copilot CLI', expect.any(Object));
-  });
-
-  it('parses Xcode databases for Xcode directories', () => {
-    vi.mocked(parseXcodeDatabases).mockReturnValue([
-      makeSession({ sessionId: 'xcode-1', workspaceId: 'xc-ws', workspaceName: 'Xcode Workspace', harness: 'Xcode' }),
-    ]);
-
-    const result = parseAllLogs([XCODE_DIR]);
-
-    expect(parseXcodeDatabases).toHaveBeenCalledWith(XCODE_DIR);
-    expect(result.sessions).toHaveLength(1);
-    expect(result.workspaces.get('xc-ws')).toEqual({
-      id: 'xc-ws',
-      name: 'Xcode Workspace',
-      path: XCODE_DIR,
-    });
-  });
-
-  it('does not overwrite an existing workspace when Xcode adds sessions', () => {
-    vi.mocked(scanVsCodeDirs).mockReturnValue({
-      entries: [{ logsDir: '/logs/vscode', dirEntries: [dirEntry('shared')] }],
-      totalDirs: 1,
-    });
-    vi.mocked(processWorkspaceEntry).mockImplementation((_logsDir, wsId, _harness, ctx: ParseContext) => {
-      ctx.workspaces.set(wsId, { id: wsId, name: 'VS Code Workspace', path: '/logs/vscode' });
-      return '';
-    });
-    vi.mocked(parseXcodeDatabases).mockReturnValue([
-      makeSession({ sessionId: 'xcode-1', workspaceId: 'shared', workspaceName: 'Xcode Workspace', harness: 'Xcode' }),
-    ]);
-
-    const result = parseAllLogs(['/logs/vscode', XCODE_DIR]);
-
-    expect(result.workspaces.get('shared')).toEqual({
-      id: 'shared',
-      name: 'VS Code Workspace',
-      path: '/logs/vscode',
-    });
-  });
-
-  it('calls collectExternalHarnessesSync', () => {
-    const result = parseAllLogs(['/logs/vscode']);
-
-    expect(collectExternalHarnessesSync).toHaveBeenCalledWith(result.workspaces, result.sessions);
+    expect(processWorkspaceEntry).toHaveBeenCalledWith('/logs/custom', 'ws-1', 'Cursor', expect.any(Object));
   });
 
   it('calls stripSessionsForMemory with parsed sessions', () => {
-    vi.mocked(parseXcodeDatabases).mockReturnValue([
-      makeSession({ sessionId: 'xcode-1', workspaceId: 'xc-ws', workspaceName: 'Xcode Workspace', harness: 'Xcode' }),
-    ]);
-
-    const result = parseAllLogs([XCODE_DIR]);
+    const result = parseAllLogs(['/logs/cursor']);
 
     expect(stripSessionsForMemory).toHaveBeenCalledWith(result.sessions);
   });
@@ -269,32 +186,11 @@ describe('parseAllLogsAsyncDetailed', () => {
     expect(setMemoryCache).not.toHaveBeenCalled();
   });
 
-  it('refreshes external harnesses on memory-cache hit after removing old external sessions', async () => {
-    const cachedResult = makeResult();
-    cachedResult.sessions.push(
-      makeSession({ sessionId: 'kept', harness: 'VS Code' }),
-      makeSession({ sessionId: 'claude', harness: 'Claude' }),
-      makeSession({ sessionId: 'claude-ghcp', harness: 'Claude' }),
-      makeSession({ sessionId: 'codex', harness: 'Codex' }),
-    );
-
-    vi.mocked(getMemoryCache).mockReturnValue({ result: cachedResult, dirMetas: {} });
-
-    const parsed = await parseAllLogsAsyncDetailed(['/logs']);
-
-    expect(parsed.result.sessions.map(session => session.sessionId)).toEqual(['kept']);
-    expect(collectExternalHarnessesAsync).toHaveBeenCalledWith(
-      cachedResult.workspaces,
-      cachedResult.sessions,
-      expect.any(Object),
-    );
-  });
-
   it('reports progress during a cold parse', async () => {
     const progress: Array<{ phase: number; detail?: string; workspacePlan?: string[]; workspaceDone?: string }> = [];
 
     vi.mocked(scanVsCodeDirs).mockReturnValue({
-      entries: [{ logsDir: '/logs/vscode', dirEntries: [dirEntry('ws-1')] }],
+      entries: [{ logsDir: '/logs/cursor', dirEntries: [dirEntry('ws-1')] }],
       totalDirs: 1,
     });
     vi.mocked(processWorkspaceEntryAsync).mockImplementation((_logsDir, wsId, _harness, _ctx, onWorkspaceProgress) => {
@@ -302,7 +198,7 @@ describe('parseAllLogsAsyncDetailed', () => {
       return Promise.resolve(`Workspace ${wsId}`);
     });
 
-    await parseAllLogsAsyncDetailed(['/logs/vscode'], (update) => {
+    await parseAllLogsAsyncDetailed(['/logs/cursor'], (update) => {
       progress.push(update);
     });
 
@@ -314,49 +210,24 @@ describe('parseAllLogsAsyncDetailed', () => {
     expect(progress.some(update => update.phase === 2 && typeof update.workspaceDone === 'string')).toBe(true);
   });
 
-  it('processes each VS Code workspace asynchronously during cold parse', async () => {
+  it('processes each Cursor workspace asynchronously during cold parse', async () => {
     vi.mocked(scanVsCodeDirs).mockReturnValue({
-      entries: [{ logsDir: '/logs/vscode', dirEntries: [dirEntry('ws-1'), dirEntry('ws-2')] }],
+      entries: [{ logsDir: '/logs/cursor', dirEntries: [dirEntry('ws-1'), dirEntry('ws-2')] }],
       totalDirs: 2,
     });
 
-    await parseAllLogsAsyncDetailed(['/logs/vscode']);
+    await parseAllLogsAsyncDetailed(['/logs/cursor']);
 
     expect(processWorkspaceEntryAsync).toHaveBeenCalledTimes(2);
-    expect(processWorkspaceEntryAsync).toHaveBeenNthCalledWith(1, '/logs/vscode', 'ws-1', 'VS Code', expect.any(Object), expect.any(Function));
-    expect(processWorkspaceEntryAsync).toHaveBeenNthCalledWith(2, '/logs/vscode', 'ws-2', 'VS Code', expect.any(Object), expect.any(Function));
-  });
-
-  it('parses Xcode databases asynchronously during cold parse', async () => {
-    vi.mocked(parseXcodeDatabasesAsync).mockResolvedValue([
-      makeSession({ sessionId: 'xcode-1', workspaceId: 'xc-ws', workspaceName: 'Xcode Workspace', harness: 'Xcode' }),
-    ]);
-
-    const parsed = await parseAllLogsAsyncDetailed([XCODE_DIR]);
-
-    expect(parseXcodeDatabasesAsync).toHaveBeenCalledWith(XCODE_DIR);
-    expect(parsed.result.workspaces.get('xc-ws')).toEqual({
-      id: 'xc-ws',
-      name: 'Xcode Workspace',
-      path: XCODE_DIR,
-    });
-  });
-
-  it('calls collectExternalHarnessesAsync during cold parse', async () => {
-    const parsed = await parseAllLogsAsyncDetailed(['/logs/vscode']);
-
-    expect(collectExternalHarnessesAsync).toHaveBeenCalledWith(
-      parsed.result.workspaces,
-      parsed.result.sessions,
-      expect.any(Object),
-    );
+    expect(processWorkspaceEntryAsync).toHaveBeenNthCalledWith(1, '/logs/cursor', 'ws-1', 'Cursor', expect.any(Object), expect.any(Function));
+    expect(processWorkspaceEntryAsync).toHaveBeenNthCalledWith(2, '/logs/cursor', 'ws-2', 'Cursor', expect.any(Object), expect.any(Function));
   });
 
   it('strips sessions and saves caches after cold parse', async () => {
     const currentMetas = { '/logs/ws-1': { chatCount: 2, chatMaxMtime: 10, editCount: 1, editMaxMtime: 5 } };
     vi.mocked(computeDirMetasAsync).mockResolvedValue(currentMetas);
 
-    const parsed = await parseAllLogsAsyncDetailed(['/logs/vscode']);
+    const parsed = await parseAllLogsAsyncDetailed(['/logs/cursor']);
 
     expect(stripSessionsForMemory).toHaveBeenCalledWith(parsed.result.sessions);
     expect(setMemoryCache).toHaveBeenCalledWith(parsed.result, currentMetas);

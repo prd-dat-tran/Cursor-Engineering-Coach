@@ -1,27 +1,27 @@
 # Authoring Rules and Metrics
 
-Detection rules and metrics are the primary extensibility surface of AI Engineer Coach. Every rule
-and metric is a self-contained markdown file with YAML frontmatter and a small DSL — no code changes
-required to ship a new one.
+Detection rules and metrics are the primary extensibility surface of Cursor Engineering Coach.
+Every rule and metric is a self-contained markdown file with YAML frontmatter and a small DSL — no
+code changes required to ship a new one.
 
 This guide covers contributing a built-in rule or metric to this repository. For the in-extension
 authoring flow (live-test, threshold sliders, AI-assisted drafting), see the
-[Rule Editor guide](https://microsoft.github.io/AI-Engineering-Coach/improve/rule-editor/).
+[Rule Editor guide](https://prd-dat-tran.github.io/Cursor-Engineering-Coach/improve/rule-editor/).
 
 ## Where rules and metrics live
 
 | Layer | Location | Trust | Use when |
 |---|---|---|---|
 | Built-in | [`src/core/rules/`](../src/core/rules/), [`src/core/metrics/`](../src/core/metrics/) | Trusted | Contributing a rule for everyone via this repo |
-| Personal | `~/.ai-engineer-coach/rules/`, `~/.ai-engineer-coach/metrics/` | Prompted on first load | Private rules shared across all your workspaces |
-| Project | `<workspace>/.ai-engineer-coach/rules/`, `<workspace>/.ai-engineer-coach/metrics/` | Prompted on first load | Workspace-specific rules checked into a repo |
+| Personal | `~/.cursor-engineering-coach/rules/`, `~/.cursor-engineering-coach/metrics/` | Prompted on first load | Private rules shared across all your workspaces |
+| Project | `<workspace>/.cursor-engineering-coach/rules/`, `<workspace>/.cursor-engineering-coach/metrics/` | Prompted on first load | Workspace-specific rules checked into a repo |
 
 Personal and project rules follow the same file format as built-in rules but are loaded at runtime
 through the trust gate in [`src/core/rule-trust.ts`](../src/core/rule-trust.ts).
 
 For the full DSL reference — field schema, function catalog, and metric primitives — open the
 **DSL Reference** modal inside the extension (Rule Editor → DSL Reference) or the
-[Rule Playground](https://microsoft.github.io/AI-Engineering-Coach/improve/rule-playground/).
+[Rule Playground](https://prd-dat-tran.github.io/Cursor-Engineering-Coach/improve/rule-playground/).
 
 ## Anatomy of a rule
 
@@ -122,7 +122,7 @@ Before opening a pull request:
    ```bash
    npm test
    ```
-3. **Live-test against your own data.** Launch the extension in the VS Code Extension Development
+3. **Live-test against your own data.** Launch the extension in the Cursor Extension Development
    Host (`F5`), open the **Rule Editor**, find your new rule, and click **Test Rule**. Use the
    threshold sliders to sweep values without re-editing the markdown.
 4. **Prototype DSL expressions** in the **Rule Playground** before committing them — it shares the

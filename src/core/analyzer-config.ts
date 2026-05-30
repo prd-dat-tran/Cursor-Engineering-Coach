@@ -76,7 +76,7 @@ export class ConfigAnalyzer extends AnalyzerBase {
     if (analysis.kind === 'unresolved') {
       return this.buildUnresolvedWorkspaceHealth(wsId, ws.name, activity);
     }
-    return this.buildResolvedWorkspaceHealth(wsId, ws.name, activity, analysis.rootPath, analysis.isClaudeWorkspace, analysis.harness);
+    return this.buildResolvedWorkspaceHealth(wsId, ws.name, activity, analysis.rootPath, analysis.harness);
   }
 
   private shouldSkipWorkspace(
@@ -94,14 +94,13 @@ export class ConfigAnalyzer extends AnalyzerBase {
     ws: Workspace,
     activity: { sessionCount: number; requestCount: number; lastTimestamp: number | null; lastDate: string | null; harness: string } | undefined,
     f?: DateFilter,
-  ): { kind: 'resolved'; rootPath: string; isClaudeWorkspace: boolean; harness: string } | { kind: 'unresolved' } | null {
+  ): { kind: 'resolved'; rootPath: string; harness: string } | { kind: 'unresolved' } | null {
     const rootPath = resolveWorkspaceRoot(wsId, ws);
     if (!rootPath) return f?.workspaceId ? { kind: 'unresolved' } : null;
 
-    const isClaudeWorkspace = wsId.startsWith('claude-');
-    const harness = activity?.harness || (isClaudeWorkspace ? 'Claude Code' : 'Local Agent');
+    const harness = activity?.harness || 'Cursor';
     if (f?.harness && harness !== f.harness) return null;
-    return { kind: 'resolved', rootPath, isClaudeWorkspace, harness };
+    return { kind: 'resolved', rootPath, harness };
   }
 
   private buildResolvedWorkspaceHealth(
@@ -109,11 +108,10 @@ export class ConfigAnalyzer extends AnalyzerBase {
     workspaceName: string,
     activity: { sessionCount: number; requestCount: number; lastTimestamp: number | null; lastDate: string | null; harness: string } | undefined,
     rootPath: string,
-    isClaudeWorkspace: boolean,
     harness: string,
   ): WorkspaceConfigHealth {
     const configFiles = scanConfigFiles(rootPath);
-    const hookCoverage = isClaudeWorkspace ? analyzeHookCoverage(rootPath) : null;
+    const hookCoverage = analyzeHookCoverage(rootPath);
     const staleStatus = this.getStaleStatus(configFiles, activity);
 
     return {
@@ -122,15 +120,13 @@ export class ConfigAnalyzer extends AnalyzerBase {
       rootPath,
       harness,
       configFiles,
-      hasInstructions: configFiles.some(cf => cf.kind === 'instruction' || cf.kind === 'claude-md'),
-      hasPrompts: configFiles.some(cf => cf.kind === 'prompt'),
-      hasAgents: configFiles.some(cf => cf.kind === 'agent'),
+      hasInstructions: configFiles.some(cf => cf.kind === 'instruction'),
       hasSkills: configFiles.some(cf => cf.kind === 'skill'),
       hasHooks: hookCoverage !== null && hookCoverage.totalHooks > 0,
       progressiveDisclosureScore: computeProgressiveDisclosureScore(configFiles),
       instructionQualityScore: computeInstructionQualityScore(configFiles),
       hookCoverage,
-      suggestions: generateWorkspaceSuggestions(configFiles, hookCoverage, isClaudeWorkspace),
+      suggestions: generateWorkspaceSuggestions(configFiles, hookCoverage, false),
       sessionCount: activity?.sessionCount ?? 0,
       requestCount: activity?.requestCount ?? 0,
       lastActivity: activity?.lastTimestamp ?? null,
@@ -148,11 +144,9 @@ export class ConfigAnalyzer extends AnalyzerBase {
       workspaceId: wsId,
       workspaceName,
       rootPath: '',
-      harness: activity?.harness || 'Local Agent',
+      harness: activity?.harness || 'Cursor',
       configFiles: [],
       hasInstructions: false,
-      hasPrompts: false,
-      hasAgents: false,
       hasSkills: false,
       hasHooks: false,
       progressiveDisclosureScore: 0,
@@ -257,7 +251,7 @@ export class ConfigAnalyzer extends AnalyzerBase {
         group: 'tool-mastery',
         occurrences: activeNoContext.length,
         description: `${activeNoContext.length} workspace(s) with 100+ requests have no instruction files. Without context files, every prompt starts from scratch.`,
-        suggestion: 'Add .github/copilot-instructions.md (for VS Code) or CLAUDE.md (for Claude Code) to your most active workspaces. This is the single highest-leverage action for better AI outputs.',
+        suggestion: 'Add an AGENTS.md or .cursor/rules/<topic>.md file to your most active workspaces. This is the single highest-leverage action for better Cursor outputs.',
         examples: activeNoContext.slice(0, 5).map(w => `${w.workspaceName} (${w.requestCount} requests, ${w.harness})`),
         details,
         weeklyHist: { labels: [], counts: [] },
@@ -442,39 +436,21 @@ export class ConfigAnalyzer extends AnalyzerBase {
     const hasAnySkills = withSkills > 0 || personalSkillCount > 0;
     signals.push({
       id: 'skills', label: 'Custom Skills',
-      present: hasAnySkills, weight: 10,
+      present: hasAnySkills, weight: 30,
       detail: withSkills > 0
-        ? `${withSkills} selected workspace(s) have workspace-level custom skills`
+        ? `${withSkills} selected workspace(s) have .cursor/skills/<name>/SKILL.md files`
         : personalSkillCount > 0
-          ? `${personalSkillCount} personal custom skill file(s) found outside the workspace`
-          : 'No custom skills found in the selected workspace(s) or personal skill directories',
-    });
-
-    const withAgents = wsHealths.filter(w => w.hasAgents).length;
-    signals.push({
-      id: 'agents', label: 'Custom Agents',
-      present: withAgents > 0, weight: 10,
-      detail: withAgents > 0
-        ? `${withAgents} selected workspace(s) have custom agent profiles`
-        : 'No custom agent profiles found in the selected workspace(s)',
-    });
-
-    const withPrompts = wsHealths.filter(w => w.hasPrompts).length;
-    signals.push({
-      id: 'prompts', label: 'Prompt Templates',
-      present: withPrompts > 0, weight: 10,
-      detail: withPrompts > 0
-        ? `${withPrompts} selected workspace(s) have prompt templates`
-        : 'No prompt templates found in the selected workspace(s)',
+          ? `${personalSkillCount} personal Cursor skill file(s) found in ~/.cursor/skills/`
+          : 'No custom skills found in the selected workspace(s) or ~/.cursor/skills/',
     });
 
     const withHooks = wsHealths.filter(w => w.hasHooks).length;
     signals.push({
-      id: 'hooks', label: 'Hooks (Pre/Post)',
+      id: 'hooks', label: 'Cursor Hooks',
       present: withHooks > 0, weight: 10,
       detail: withHooks > 0
-        ? `${withHooks} workspace(s) have hook configurations`
-        : 'No hooks configured',
+        ? `${withHooks} workspace(s) have .cursor/hooks.json configurations`
+        : 'No .cursor/hooks.json configured',
     });
 
     let devcontainerFound = false;
@@ -497,10 +473,8 @@ export class ConfigAnalyzer extends AnalyzerBase {
     let mcpFound = false;
     for (const ws of wsHealths) {
       const mcpPaths = [
-        path.join(ws.rootPath, '.vscode', 'mcp.json'),
-        path.join(ws.rootPath, 'mcp.json'),
-        path.join(ws.rootPath, '.claude', 'mcp_servers.json'),
         path.join(ws.rootPath, '.cursor', 'mcp.json'),
+        path.join(ws.rootPath, 'mcp.json'),
       ];
       if (mcpPaths.some(p => safeFileExists(p))) {
         mcpFound = true;

@@ -19,7 +19,7 @@ Detects when no new programming languages have been explored recently, despite A
 You've used {{extra.totalLanguages}} languages total, but haven't explored a new one in {{count}} weeks. AI is a learning accelerator -- use it to try new languages and frameworks.
 
 # How to Improve
-AI coding assistants dramatically lower the barrier to learning new languages. Try asking Copilot to help you build something small in a language you haven't used before. Start with "Write a simple HTTP server in [Go/Rust/Elixir]" to break the ice.
+AI coding assistants dramatically lower the barrier to learning new languages. Try asking Cursor to help you build something small in a language you haven't used before. Start with "Write a simple HTTP server in [Go/Rust/Elixir]" to break the ice.
 
 # Examples
 {{extra.languageList}}

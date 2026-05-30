@@ -4,24 +4,15 @@ title: "Home"
 
 ## Privacy First
 
-AI Engineer Coach is entirely **read-only** and ships with **zero telemetry**. It parses log files that already exist on your machine and never sends data anywhere. Your usage data stays local.
+Cursor Engineering Coach is entirely **read-only** and ships with **zero telemetry**. It parses log files that already exist on your machine and never sends data anywhere. Your usage data stays local.
 
-## Multi-Harness Support
+## Built for Cursor
 
-AI Engineer Coach reads logs from multiple AI coding tools:
-
-| Harness | Source |
-|---|---|
-| **Local Agent / Local Agent (Insiders)** | Chat panel logs in the extension host directory (VS Code / VS Code Insiders) |
-| **GitHub Copilot for Xcode** | Copilot Chat conversations from Apple's Xcode IDE |
-| **Claude** | Session files from Anthropic's CLI-based coding assistant |
-| **Codex** | Session history from OpenAI's terminal agent |
-| **OpenCode** | Session logs from the open-source terminal coding tool |
-| **GitHub Copilot CLI** | Session state and history from the Copilot CLI terminal agent |
+Cursor Engineering Coach analyzes your Cursor IDE sessions — chat conversations, agent runs, generated code, rules files, and MCP server interactions — and turns them into actionable coaching feedback. See [Cursor Sources]({{< ref "getting-started/cursor-sources" >}}) for the exact files it reads.
 
 ## How It Works
 
-AI Engineer Coach runs as a VS Code extension. On activation, it scans your local log directories for supported tools, parses every session into structured data, and renders an interactive webview panel with dashboards, charts, and actionable findings. The analysis pipeline is organized around three areas: **Observe**, **Measure**, and **Improve**, plus a **Level Up** section that turns your data into a progression system.
+Cursor Engineering Coach runs as a Cursor extension. On activation, it scans your local Cursor workspace storage, parses every session into structured data, and renders an interactive webview panel with dashboards, charts, and actionable findings. The analysis pipeline is organized around three areas: **Observe**, **Measure**, and **Improve**, plus a **Level Up** section that turns your data into a progression system.
 
 ## Editable Rule Engine
 

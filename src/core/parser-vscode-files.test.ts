@@ -13,14 +13,12 @@ import {
   readFile,
   parseWorkspaceName,
   parseWorkspaceFolderPath,
-  parseCLIWorkspaceName,
-  parseCLIWorkspaceFolderPath,
 } from './parser-vscode-files';
 
 const tempDirs: string[] = [];
 
 function makeTempDir(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-engineer-coach-pvf-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cursor-engineering-coach-pvf-'));
   tempDirs.push(dir);
   return dir;
 }
@@ -255,49 +253,3 @@ describe('parseWorkspaceFolderPath', () => {
   });
 });
 
-describe('parseCLIWorkspaceName', () => {
-  it('extracts workspace name from cwd line in yaml', () => {
-    const dir = makeTempDir();
-    const wsYaml = path.join(dir, 'workspace.yaml');
-    fs.writeFileSync(wsYaml, 'cwd: /Users/me/projects/my-cli-app\nother: stuff\n');
-    expect(parseCLIWorkspaceName(wsYaml)).toBe('my-cli-app');
-  });
-
-  it('returns unknown when no cwd line', () => {
-    const dir = makeTempDir();
-    const wsYaml = path.join(dir, 'workspace.yaml');
-    fs.writeFileSync(wsYaml, 'other: stuff\n');
-    expect(parseCLIWorkspaceName(wsYaml)).toBe('unknown');
-  });
-
-  it('returns unknown for missing file', () => {
-    expect(parseCLIWorkspaceName('/nonexistent/workspace.yaml')).toBe('unknown');
-  });
-});
-
-describe('parseCLIWorkspaceFolderPath', () => {
-  it('returns absolute cwd path', () => {
-    const dir = makeTempDir();
-    const wsYaml = path.join(dir, 'workspace.yaml');
-    fs.writeFileSync(wsYaml, 'cwd: /Users/me/projects/my-app\n');
-    expect(parseCLIWorkspaceFolderPath(wsYaml)).toBe('/Users/me/projects/my-app');
-  });
-
-  it('strips trailing slashes', () => {
-    const dir = makeTempDir();
-    const wsYaml = path.join(dir, 'workspace.yaml');
-    fs.writeFileSync(wsYaml, 'cwd: /Users/me/projects/my-app/\n');
-    expect(parseCLIWorkspaceFolderPath(wsYaml)).toBe('/Users/me/projects/my-app');
-  });
-
-  it('returns null for relative cwd', () => {
-    const dir = makeTempDir();
-    const wsYaml = path.join(dir, 'workspace.yaml');
-    fs.writeFileSync(wsYaml, 'cwd: relative/path\n');
-    expect(parseCLIWorkspaceFolderPath(wsYaml)).toBeNull();
-  });
-
-  it('returns null for missing file', () => {
-    expect(parseCLIWorkspaceFolderPath('/nonexistent/workspace.yaml')).toBeNull();
-  });
-});

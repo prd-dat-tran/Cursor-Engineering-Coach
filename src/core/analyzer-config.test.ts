@@ -171,10 +171,9 @@ describe('ConfigAnalyzer', () => {
 
   it('maps config file kinds and helper scores into workspace health', () => {
     const configFiles = [
-      makeConfigFile({ relativePath: 'CLAUDE.md', kind: 'claude-md' }),
-      makeConfigFile({ relativePath: '.github/prompts/fix.prompt.md', kind: 'prompt' }),
-      makeConfigFile({ relativePath: '.github/agents/reviewer.md', kind: 'agent' }),
-      makeConfigFile({ relativePath: '.github/skills/review/SKILL.md', kind: 'skill' }),
+      makeConfigFile({ relativePath: 'AGENTS.md', kind: 'instruction' }),
+      makeConfigFile({ relativePath: '.cursor/rules/style.md', kind: 'instruction' }),
+      makeConfigFile({ relativePath: '.cursor/skills/review/SKILL.md', kind: 'skill' }),
     ];
     scanConfigFilesMock.mockReturnValue(configFiles);
     analyzeHookCoverageMock.mockReturnValue({
@@ -183,23 +182,21 @@ describe('ConfigAnalyzer', () => {
       hasSessionStart: false,
       hasPermissionRequest: false,
       totalHooks: 2,
-      hookEvents: ['PreToolUse', 'PostToolUse'],
+      hookEvents: ['beforeToolUse', 'afterToolUse'],
     });
     computeProgressiveDisclosureScoreMock.mockReturnValue(77);
     computeInstructionQualityScoreMock.mockReturnValue(88);
     generateWorkspaceSuggestionsMock.mockReturnValue(['Add more examples']);
 
     const result = makeAnalyzer(
-      [makeSession({ workspaceId: 'claude-ws-1', workspaceName: 'ClaudeProject', requestCount: 60, requests: [makeRequest()] })],
-      [makeWorkspace({ id: 'claude-ws-1', name: 'ClaudeProject', path: '/fake/root/claude-ws-1' })],
+      [makeSession({ workspaceId: 'ws-1', workspaceName: 'CursorProject', requestCount: 60, requests: [makeRequest()] })],
+      [makeWorkspace({ id: 'ws-1', name: 'CursorProject', path: '/fake/root/ws-1' })],
     ).getConfigHealth();
 
     expect(result.workspaces).toHaveLength(1);
     expect(result.workspaces[0]).toMatchObject({
-      workspaceId: 'claude-ws-1',
+      workspaceId: 'ws-1',
       hasInstructions: true,
-      hasPrompts: true,
-      hasAgents: true,
       hasSkills: true,
       hasHooks: true,
       progressiveDisclosureScore: 77,
@@ -407,9 +404,8 @@ describe('ConfigAnalyzer', () => {
   it('computes agentic readiness signals from workspace config presence', () => {
     scanConfigFilesMock.mockReturnValue([
       makeConfigFile({ kind: 'instruction' }),
-      makeConfigFile({ relativePath: '.github/prompts/fix.prompt.md', kind: 'prompt' }),
-      makeConfigFile({ relativePath: '.github/agents/reviewer.md', kind: 'agent' }),
-      makeConfigFile({ relativePath: '.github/skills/review/SKILL.md', kind: 'skill' }),
+      makeConfigFile({ relativePath: '.cursor/rules/style.md', kind: 'instruction' }),
+      makeConfigFile({ relativePath: '.cursor/skills/review/SKILL.md', kind: 'skill' }),
     ]);
     analyzeHookCoverageMock.mockReturnValue({
       hasPreToolUse: true,
@@ -432,7 +428,7 @@ describe('ConfigAnalyzer', () => {
 
   it('counts personal skill files toward agentic readiness', () => {
     scanConfigFilesMock.mockReturnValue([makeConfigFile({ kind: 'instruction' })]);
-    scanPersonalSkillFilesMock.mockReturnValue([makeConfigFile({ relativePath: '~/.agents/skill/SKILL.md', kind: 'skill' })]);
+    scanPersonalSkillFilesMock.mockReturnValue([makeConfigFile({ relativePath: '~/.cursor/skills/skill/SKILL.md', kind: 'skill' })]);
 
     const result = makeAnalyzer(
       [makeSession({ requestCount: 60, requests: [makeRequest()] })],
@@ -441,7 +437,7 @@ describe('ConfigAnalyzer', () => {
 
     const skillsSignal = result.agenticReadiness.signals.find(signal => signal.id === 'skills');
     expect(skillsSignal?.present).toBe(true);
-    expect(skillsSignal?.detail).toContain('personal custom skill file');
+    expect(skillsSignal?.detail).toContain('personal Cursor skill file');
   });
 
   it('marks freshness as missing when a workspace has stale or absent context', () => {

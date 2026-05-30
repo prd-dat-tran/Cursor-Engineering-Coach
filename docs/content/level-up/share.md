@@ -6,7 +6,7 @@ description: "Generate shareable stat cards"
 
 # Share
 
-The Share page lets you generate a visual stat card summarizing your AI coding activity. You can share it with your team or save it as a personal record.
+The Share page lets you generate a visual stat card summarizing your Cursor coding activity. You can share it with your team or save it as a personal record.
 
 ![Share Stats](/screenshots/screen-share.png)
 

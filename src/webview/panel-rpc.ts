@@ -142,7 +142,7 @@ function buildOccurrenceSessionSummary(session: Session): {
 
 /* ── Rule generation helpers ── */
 
-const GENERATE_RULE_SYSTEM_PROMPT = `You are an expert at writing detection rules for the AI Engineer Coach VS Code extension.
+const GENERATE_RULE_SYSTEM_PROMPT = `You are an expert at writing detection rules for the Cursor Engineering Coach VS Code extension.
 Rules are markdown files with YAML frontmatter and a Detection Logic block using a custom DSL.
 
 ${DSL_CHEATSHEET}
@@ -261,7 +261,7 @@ Detects sessions with only a single message, indicating missed refinement opport
 {{count}} sessions ({{pct}}) have only 1 message. You may be missing refinement opportunities.
 
 # How to Improve
-Use follow-up messages to refine Copilot's responses. Iterating produces much better results than one-shot prompts.
+Use follow-up messages to refine Cursor's responses. Iterating produces much better results than one-shot prompts.
 
 # Examples
 {{extra.workspace}}: "{{message}}..."
@@ -711,7 +711,7 @@ const rpcHandlers: TypedRpcHandlers = {
     const filter = validateDateFilter(params);
     const reqs = a.filterRequests(filter);
     const sessions = a.filterSessions(filter);
-    const skipIde = !!(filter?.harness && !filter.harness.startsWith('Local Agent') && filter.harness !== 'Xcode');
+    const skipIde = !!(filter?.harness && filter.harness !== 'Cursor');
     const detectorResults = runDetectors(reqs, sessions, skipIde);
     const emissions = runEmitters(reqs, sessions, skipIde);
     const previews = getRulePreviewStats(reqs, sessions, skipIde, detectorResults, emissions);
@@ -784,7 +784,7 @@ const rpcHandlers: TypedRpcHandlers = {
     const filter = validateDateFilter(params);
     const reqs = a.filterRequests(filter);
     const sessions = a.filterSessions(filter);
-    const skipIde = !!(filter?.harness && !filter.harness.startsWith('Local Agent') && filter.harness !== 'Xcode');
+    const skipIde = !!(filter?.harness && filter.harness !== 'Cursor');
     const detectorResults = runDetectors(reqs, sessions, skipIde);
     const emissions = runEmitters(reqs, sessions, skipIde);
     const previews = getRulePreviewStats(reqs, sessions, skipIde, detectorResults, emissions);
@@ -853,7 +853,7 @@ const rpcHandlers: TypedRpcHandlers = {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const vscode = require('vscode') as typeof import('vscode');
-      await vscode.commands.executeCommand('aiEngineerCoach.reviewLocalRules');
+      await vscode.commands.executeCommand('cursorEngineeringCoach.reviewLocalRules');
       return { ok: true };
     } catch (err) {
       return { ok: false, error: String(err) };
@@ -910,7 +910,7 @@ const rpcHandlers: TypedRpcHandlers = {
       const vscode = require('vscode') as typeof import('vscode');
       const { callLlm } = await import('./panel-llm');
 
-      const systemPrompt = `You are an expert explaining why a specific coding session triggered an AI Engineer Coach detection rule.
+      const systemPrompt = `You are an expert explaining why a specific coding session triggered an Cursor Engineering Coach detection rule.
 You will receive the rule (in DSL form) and a summary of the session. Explain in 2-4 short sentences:
 1. What the rule is looking for
 2. Which specific aspects of this session match the rule
@@ -946,7 +946,7 @@ Explain why this session triggered the rule.`;
       const filter = isRecord(params?.filter) ? validateDateFilter(params.filter) : undefined;
       const reqs = a.filterRequests(filter);
       const sessions = a.filterSessions(filter);
-      const skipIde = !!(filter?.harness && !filter.harness.startsWith('Local Agent') && filter.harness !== 'Xcode');
+      const skipIde = !!(filter?.harness && filter.harness !== 'Cursor');
 
       // Enrich requests with session info (needed by rules that reference workspaceName/sessionId)
       const sessionMap = new Map<string, { sessionId: string; workspaceName: string }>();

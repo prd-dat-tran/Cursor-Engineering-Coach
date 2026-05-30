@@ -33,4 +33,4 @@ benchmark-*.json
 node_modules/**
 
 # Local manual-test rules (project-layer, for exercising the trust gate in dev)
-.ai-engineer-coach/**
+.cursor-engineering-coach/**

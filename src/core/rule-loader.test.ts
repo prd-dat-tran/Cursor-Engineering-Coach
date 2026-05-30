@@ -72,12 +72,12 @@ const HOME_DIR = '/mock-home';
 const WORKSPACE_ROOT = '/workspace';
 const BUILTIN_RULES_DIR = path.join(CORE_DIR, 'rules');
 const FALLBACK_RULES_DIR = path.join(CORE_DIR, '..', 'src', 'core', 'rules');
-const PERSONAL_RULES_DIR = path.join(HOME_DIR, '.ai-engineer-coach', 'rules');
-const PROJECT_RULES_DIR = path.join(WORKSPACE_ROOT, '.ai-engineer-coach', 'rules');
+const PERSONAL_RULES_DIR = path.join(HOME_DIR, '.cursor-engineering-coach', 'rules');
+const PROJECT_RULES_DIR = path.join(WORKSPACE_ROOT, '.cursor-engineering-coach', 'rules');
 const BUILTIN_METRICS_DIR = path.join(CORE_DIR, 'metrics');
 const FALLBACK_METRICS_DIR = path.join(CORE_DIR, '..', 'src', 'core', 'metrics');
-const PERSONAL_METRICS_DIR = path.join(HOME_DIR, '.ai-engineer-coach', 'metrics');
-const PROJECT_METRICS_DIR = path.join(WORKSPACE_ROOT, '.ai-engineer-coach', 'metrics');
+const PERSONAL_METRICS_DIR = path.join(HOME_DIR, '.cursor-engineering-coach', 'metrics');
+const PROJECT_METRICS_DIR = path.join(WORKSPACE_ROOT, '.cursor-engineering-coach', 'metrics');
 
 const VALID_RULE_MARKDOWN = `---
 id: test-rule
@@ -173,7 +173,7 @@ beforeEach(() => {
 describe('rule-loader', () => {
   it('exports the expected rules directory constant', async () => {
     const loader = await loadRuleLoader();
-    expect(loader.RULES_DIR_NAME).toBe('.ai-engineer-coach/rules');
+    expect(loader.RULES_DIR_NAME).toBe('.cursor-engineering-coach/rules');
   });
 
   it('getPersonalRulesDir returns the homedir-based rules path', async () => {

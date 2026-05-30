@@ -1,14 +1,23 @@
-<!-- BEGIN MICROSOFT SECURITY.MD V1.0.0 BLOCK -->
+# Security Policy
 
-## Security
+## Reporting a Vulnerability
 
-Microsoft takes the security of our software products and services seriously, which
-includes all source code repositories in our GitHub organizations.
+If you discover a security vulnerability in Cursor Engineering Coach, please **do not** open a
+public GitHub issue. Instead, report it privately to the maintainers using GitHub's
+[private vulnerability reporting](https://github.com/prd-dat-tran/Cursor-Engineering-Coach/security/advisories/new)
+feature.
 
-**Please do not report security vulnerabilities through public GitHub issues.**
+We will acknowledge your report within 5 business days, investigate the issue, and coordinate a fix
+and disclosure timeline with you.
 
-For security reporting information, locations, contact information, and policies,
-please review the latest guidance for Microsoft repositories at
-[https://aka.ms/SECURITY.md](https://aka.ms/SECURITY.md).
+## Scope
 
-<!-- END MICROSOFT SECURITY.MD BLOCK -->
+Cursor Engineering Coach is a read-only extension that runs entirely on your local machine. It does
+not collect telemetry and does not send your session data to any external service. The security
+surface is therefore limited to:
+
+- Local file parsing of Cursor session logs and rules files
+- Optional language-model calls explicitly invoked by the user
+- The packaged JavaScript bundle distributed via the `.vsix`
+
+Reports about any of the above are in scope.

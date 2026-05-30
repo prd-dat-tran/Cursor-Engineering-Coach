@@ -82,7 +82,7 @@ export function PctBadge({ pct, label }: { pct: number; label: string }) {
 export function ErrorMsg({ message }: { message: string }) {
   return html`<div class="error-boundary">
     <p class="error-message">${message}</p>
-    <p class="error-hint">Try reloading the dashboard (Ctrl+Shift+P → "AI Engineer Coach: Reload Data")</p>
+    <p class="error-hint">Try reloading the dashboard (Ctrl+Shift+P → "Cursor Engineering Coach: Reload Data")</p>
   </div>`;
 }
 
@@ -113,6 +113,6 @@ function showErrorFallback(pageName: string, container: HTMLElement, err: unknow
     <div class="error-boundary">
       <h3>\u26a0\ufe0f Failed to render ${pageName}</h3>
       <p class="error-message">${message}</p>
-      <p class="error-hint">Try reloading the dashboard (Ctrl+Shift+P \u2192 "AI Engineer Coach: Reload Data")</p>
+      <p class="error-hint">Try reloading the dashboard (Ctrl+Shift+P \u2192 "Cursor Engineering Coach: Reload Data")</p>
     </div>`, container);
 }

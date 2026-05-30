@@ -29,7 +29,7 @@ interface ShareContext {
 /* ── Social Share URLs ────────────────────────────────────────────── */
 
 function getShareText(data: ShareContext): string {
-  return `My AI coding stats: ${formatNum(data.totalLoc)} lines of code, ${data.currentStreak}-day streak, Flow Score ${data.flowScore}. Track yours with AI Engineer Coach 👇\n\n${REPO_URL}`;
+  return `My AI coding stats: ${formatNum(data.totalLoc)} lines of code, ${data.currentStreak}-day streak, Flow Score ${data.flowScore}. Track yours with Cursor Engineering Coach 👇\n\n${REPO_URL}`;
 }
 
 function getTwitterShareUrl(data: ShareContext): string {
@@ -38,17 +38,17 @@ function getTwitterShareUrl(data: ShareContext): string {
 }
 
 function getLinkedInShareUrl(data: ShareContext): string {
-  const text = `My AI coding stats:\n🔥 ${data.currentStreak}-day streak\n💻 ${formatNum(data.totalLoc)} AI lines of code\n⚡ Flow Score ${data.flowScore}\n\nTrack yours → ${REPO_URL}\n\n#AI #CodingStats #GitHub #Copilot`;
+  const text = `My Cursor stats:\n🔥 ${data.currentStreak}-day streak\n💻 ${formatNum(data.totalLoc)} AI lines of code\n⚡ Flow Score ${data.flowScore}\n\nTrack yours → ${REPO_URL}\n\n#AI #CodingStats #Cursor`;
   return `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`;
 }
 
 function getRedditShareUrl(data: ShareContext): string {
-  const title = `My AI coding stats: ${formatNum(data.totalLoc)} lines, ${data.currentStreak}-day streak (AI Engineer Coach)`;
+  const title = `My AI coding stats: ${formatNum(data.totalLoc)} lines, ${data.currentStreak}-day streak (Cursor Engineering Coach)`;
   return `https://www.reddit.com/submit?url=${encodeURIComponent(REPO_URL)}&title=${encodeURIComponent(title)}`;
 }
 
 function getHNShareUrl(): string {
-  return `https://news.ycombinator.com/submitlink?u=${encodeURIComponent(REPO_URL)}&t=${encodeURIComponent('AI Engineer Coach - Local analytics for AI coding sessions')}`;
+  return `https://news.ycombinator.com/submitlink?u=${encodeURIComponent(REPO_URL)}&t=${encodeURIComponent('Cursor Engineering Coach - Local analytics for AI coding sessions')}`;
 }
 
 /* ── Canvas Card Renderer ─────────────────────────────────────────── */
@@ -174,7 +174,7 @@ function drawShareCard(canvas: HTMLCanvasElement, data: CardData): void {
   // Footer
   ctx.fillStyle = '#484f58';
   ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
-  ctx.fillText('ai-engineer-coach', 28, H - 14);
+  ctx.fillText('cursor-engineering-coach', 28, H - 14);
 
   const dateStr = new Date().toISOString().slice(0, 10);
   const dateW = ctx.measureText(dateStr).width;

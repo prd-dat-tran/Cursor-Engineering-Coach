@@ -317,14 +317,7 @@ export const COLORS = {
 export const PALETTE = [COLORS.blue, COLORS.green, COLORS.purple, COLORS.yellow, COLORS.red, COLORS.cyan, COLORS.orange, COLORS.pink];
 
 export const HARNESS_COLORS: Record<string, string> = {
-  'Local Agent': '#007ACC',
-  'Local Agent (Insiders)': '#24bfa5',
-  'Xcode': '#147EFB',
-  'GitHub Copilot CLI': '#6e40c9',
-  'Claude': '#d97706',
-
-  'Codex': '#10b981',
-  'OpenCode': '#8b5cf6',
+  'Cursor': '#000000',
 };
 
 export function harnessColor(name: string, idx: number): string {
@@ -439,6 +432,6 @@ function showErrorFallback(pageName: string, container: HTMLElement, err: unknow
     <div class="error-boundary">
       <h3>\u26a0\ufe0f Failed to render ${pageName}</h3>
       <p class="error-message">${message}</p>
-      <p class="error-hint">Try reloading the dashboard (Ctrl+Shift+P \u2192 "AI Engineer Coach: Reload Data")</p>
+      <p class="error-hint">Try reloading the dashboard (Ctrl+Shift+P \u2192 "Cursor Engineering Coach: Reload Data")</p>
     </div>`);
 }

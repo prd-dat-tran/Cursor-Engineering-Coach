@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 # --------------------------------------------------------------------------------------------
-#  Copyright (c) Microsoft Corporation. All rights reserved.
-#  Licensed under the MIT License. See LICENSE in the project root for license information.
+#  Cursor Engineering Coach — local test/install helper.
+#  Builds the extension, packages it as a .vsix, installs into Cursor, and optionally launches.
 # --------------------------------------------------------------------------------------------
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-# Resolve the `code-insiders` CLI (macOS may not have it on PATH)
-if command -v code-insiders &>/dev/null; then
-  CODE=code-insiders
-elif [[ -x "/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code" ]]; then
-  CODE="/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code"
+# Resolve the `cursor` CLI (macOS may not have it on PATH)
+if command -v cursor &>/dev/null; then
+  CODE=cursor
+elif [[ -x "/Applications/Cursor.app/Contents/Resources/app/bin/cursor" ]]; then
+  CODE="/Applications/Cursor.app/Contents/Resources/app/bin/cursor"
 else
-  echo "❌ Could not find VS Code Insiders ('code-insiders' CLI). Install it via: VS Code Insiders → Cmd+Shift+P → 'Shell Command: Install code-insiders command'"
+  echo "❌ Could not find Cursor ('cursor' CLI). Install it via: Cursor → Cmd+Shift+P → 'Shell Command: Install cursor command'"
   exit 1
 fi
 
@@ -38,6 +38,6 @@ echo "📥 Installing $VSIX..."
 if [[ "${SKIP_LAUNCH:-}" == "1" ]]; then
   echo "✅ Extension installed (launch skipped)"
 else
-  echo "🚀 Launching VS Code in current directory..."
+  echo "🚀 Launching Cursor in current directory..."
   "$CODE" .
 fi

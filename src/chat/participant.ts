@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 /**
- * @aicoach chat participant — conversational interface to AI Engineer Coach data.
+ * @coach chat participant — conversational interface to Cursor Engineering Coach data.
  * Delegates tool calls to the LM tools registered in tools.ts.
  */
 
@@ -12,7 +12,7 @@ import * as vscode from 'vscode';
 import { TOOL_DEFS } from '../mcp/tools';
 import { buildSystemPrompt } from './system-prompt';
 
-const PARTICIPANT_ID = 'aiEngineerCoach.aicoach';
+const PARTICIPANT_ID = 'cursorEngineeringCoach.coach';
 const MAX_TOOL_ROUNDS = 8;
 const MAX_HISTORY_CHARS = 12_000;
 
@@ -26,9 +26,9 @@ interface SlashCommand {
 }
 
 const SLASH_COMMANDS: SlashCommand[] = [
-  { name: 'summary', description: 'Get a quick summary of your AI coding usage', defaultPrompt: 'Give me a concise overview of my AI coding usage, highlighting strengths and top areas to improve.' },
+  { name: 'summary', description: 'Get a quick summary of your Cursor usage', defaultPrompt: 'Give me a concise overview of my Cursor usage, highlighting strengths and top areas to improve.' },
   { name: 'improve', description: 'Get improvement recommendations', defaultPrompt: 'Analyze my usage patterns and give me the top 3 things I should improve, with specific actions.' },
-  { name: 'compare', description: 'Compare your AI coding tools', defaultPrompt: 'Compare the AI coding tools I use and tell me which is most effective for what.' },
+  { name: 'compare', description: 'Compare your Cursor agent modes', defaultPrompt: 'Compare how I use Cursor agent mode vs ask mode and tell me which is most effective for what.' },
   { name: 'flow', description: 'Analyze your flow & focus', defaultPrompt: 'Analyze my flow state and deep work patterns. When am I most productive, and how can I protect that time?' },
 ];
 
@@ -47,7 +47,7 @@ function getChatTools(): vscode.LanguageModelChatTool[] {
 /**
  * Convert prior chat turns into LanguageModelChatMessages so the model
  * has awareness of the ongoing conversation — including turns handled by
- * other participants (e.g. default Copilot, @workspace).
+ * other participants in the Cursor chat panel.
  */
 function buildHistoryMessages(
   history: ReadonlyArray<vscode.ChatRequestTurn | vscode.ChatResponseTurn>,
@@ -181,7 +181,7 @@ function getFollowups(result: vscode.ChatResult): vscode.ChatFollowup[] {
 
   return [
     { prompt: 'What should I improve next?', label: 'Improve', command: 'improve' },
-    { prompt: 'Compare my AI tools', label: 'Compare tools', command: 'compare' },
+    { prompt: 'Compare my Cursor modes', label: 'Compare modes', command: 'compare' },
     { prompt: 'How is my focus & flow?', label: 'Flow state', command: 'flow' },
   ];
 }

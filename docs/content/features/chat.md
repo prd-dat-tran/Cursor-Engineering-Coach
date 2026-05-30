@@ -1,26 +1,26 @@
 ---
 title: "Chat Participant"
 weight: 30
-description: "Conversational access to all coaching data via @aicoach in VS Code chat"
+description: "Conversational access to all coaching data via @coach in Cursor's chat panel"
 ---
 
 # Chat Participant
 
-The `@aicoach` chat participant gives you conversational access to all AI Engineer Coach data directly in the VS Code chat panel. Ask questions in natural language and get data-driven coaching responses without leaving your editor.
+The `@coach` chat participant gives you conversational access to all Cursor Engineering Coach data directly in Cursor's chat panel. Ask questions in natural language and get data-driven coaching responses without leaving your editor.
 
 ## Getting Started
 
-Before using `@aicoach`, open the AI Engineer Coach sidebar at least once to load your session data.
+Before using `@coach`, open the Cursor Engineering Coach sidebar at least once to load your session data.
 
-> **Note:** When you use `@aicoach`, your question and the results returned by AI Engineer Coach tools are sent to the selected VS Code chat model so it can synthesize a response. The underlying coaching data is gathered locally, but the final chat answer is not produced purely through local processing.
+> **Note:** When you use `@coach`, your question and the results returned by coaching tools are sent to Cursor's selected chat model so it can synthesize a response. The underlying coaching data is gathered locally, but the final chat answer is not produced purely through local processing.
 
-Type `@aicoach` in any VS Code chat panel followed by your question:
+Type `@coach` in Cursor's chat panel followed by your question:
 
 ```
-@aicoach how am I doing this week?
+@coach how am I doing this week?
 ```
 
-The participant is sticky — once invoked, follow-up messages in the same thread continue the conversation without needing to type `@aicoach` again.
+The participant is sticky — once invoked, follow-up messages in the same thread continue the conversation without needing to type `@coach` again.
 
 ## Slash Commands
 
@@ -28,35 +28,35 @@ The participant is sticky — once invoked, follow-up messages in the same threa
 |---|---|---|
 | `/summary` | Quick usage overview | Highlights strengths and top areas to improve |
 | `/improve` | Improvement recommendations | Top 3 things to improve with specific actions |
-| `/compare` | Tool comparison | Compare AI coding tools and their effectiveness |
+| `/compare` | Mode/model comparison | Compare your Cursor agent modes and models |
 | `/flow` | Flow & focus analysis | Deep work patterns and best productivity hours |
 
 Use a slash command with no additional text to get the default analysis, or add your own question:
 
 ```
-@aicoach /flow Am I more productive in the morning or afternoon?
+@coach /flow Am I more productive in the morning or afternoon?
 ```
 
 ## Available Tools
 
-The participant has access to 12 backend tools that it selects automatically based on your question:
+The participant has access to backend tools that it selects automatically based on your question:
 
 | Tool | Domain | What it returns |
 |---|---|---|
-| `aiEngineerCoach_summary` | Observe | Session counts, recommendations, top anti-patterns |
-| `aiEngineerCoach_activity` | Observe | Daily requests, LOC, sessions, and harness breakdown |
-| `aiEngineerCoach_credits` | Measure | AI credit usage, per-model breakdown, daily trend, and costly requests |
-| `aiEngineerCoach_codeProduction` | Measure | AI vs user LOC, language breakdown, workspace distribution |
-| `aiEngineerCoach_flow` | Measure | Deep work scores, best hours, follow-up latency |
-| `aiEngineerCoach_patterns` | Improve | Anti-patterns and practice recommendations with severity |
-| `aiEngineerCoach_insights` | Improve | Learning velocity, intent classification, prompt maturity |
-| `aiEngineerCoach_wellbeing` | Improve | Work-life balance score, time distribution, burnout risk |
-| `aiEngineerCoach_workflows` | Improve | Repeated workflow clusters with automation suggestions |
-| `aiEngineerCoach_harnessComparison` | Observe | Side-by-side tool comparison: sessions, LOC, cancel rates |
-| `aiEngineerCoach_sessions` | Observe | Browse or search individual sessions by ID or keyword |
-| `aiEngineerCoach_contextHealth` | Improve | Context utilization, compaction, config health, and instruction quality |
+| `coach_summary` | Observe | Session counts, recommendations, top anti-patterns |
+| `coach_activity` | Observe | Daily requests, LOC, and session breakdown |
+| `coach_credits` | Measure | Usage estimates, per-model breakdown, daily trend, and costly requests |
+| `coach_codeProduction` | Measure | AI vs user LOC, language breakdown, workspace distribution |
+| `coach_flow` | Measure | Deep work scores, best hours, follow-up latency |
+| `coach_patterns` | Improve | Anti-patterns and practice recommendations with severity |
+| `coach_insights` | Improve | Learning velocity, intent classification, prompt maturity |
+| `coach_wellbeing` | Improve | Work-life balance score, time distribution, burnout risk |
+| `coach_workflows` | Improve | Repeated workflow clusters with automation suggestions |
+| `coach_modeComparison` | Observe | Side-by-side comparison of agent versus ask mode |
+| `coach_sessions` | Observe | Browse or search individual sessions by ID or keyword |
+| `coach_contextHealth` | Improve | Context utilization, compaction, config health, and rules-file quality |
 
-All tools accept optional `fromDate`, `toDate`, `workspaceId`, and `harness` filters. The participant resolves relative time references ("last week", "past month") automatically.
+All tools accept optional `fromDate`, `toDate`, and `workspaceId` filters. The participant resolves relative time references ("last week", "past month") automatically.
 
 ## How It Works
 
@@ -74,22 +74,22 @@ This means a single question like "compare my productivity this week vs last wee
 
 **Broad check-in:**
 ```
-@aicoach Give me a quick health check
+@coach Give me a quick health check
 ```
-→ Calls `summary`, returns practice scores, session count, top anti-pattern, and a suggested next step.
+→ Calls `coach_summary`, returns practice scores, session count, top anti-pattern, and a suggested next step.
 
 **Specific investigation:**
 ```
-@aicoach Why is my prompt quality score dropping?
+@coach Why is my prompt quality score dropping?
 ```
-→ Calls `patterns` with recent date range, surfaces the specific anti-patterns driving the score down with example prompts from your sessions.
+→ Calls `coach_patterns` with recent date range, surfaces the specific anti-patterns driving the score down with example prompts from your sessions.
 
 ## Follow-ups
 
 After each response, the participant suggests follow-up prompts to guide deeper analysis:
 
 - **Improve** — "What should I improve next?"
-- **Compare tools** — "Compare my AI tools"
+- **Compare modes** — "Compare agent vs ask mode"
 - **Flow state** — "How is my focus & flow?"
 
 Click any follow-up to continue the conversation without typing.

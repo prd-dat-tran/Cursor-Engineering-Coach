@@ -608,16 +608,17 @@ export class InsightsAnalyzer extends AnalyzerBase {
 
   private getMigrationFeatureMatrix(): Array<{ feature: string; description: string; harnesses: string[] }> {
     return [
-      { feature: 'Sub-agents', description: 'Delegate sub-tasks to specialized agents', harnesses: ['Local Agent', 'Local Agent (Insiders)', 'Claude'] },
-      { feature: 'MCP Tools', description: 'Model Context Protocol tool integration', harnesses: ['Local Agent', 'Local Agent (Insiders)', 'Claude'] },
-      { feature: 'Custom Instructions', description: 'Project-level AI instructions (.instructions.md)', harnesses: ['Local Agent', 'Local Agent (Insiders)', 'Claude'] },
-      { feature: 'Plan Mode', description: 'Separate planning step before implementation', harnesses: ['Local Agent', 'Local Agent (Insiders)', 'Claude'] },
-      { feature: 'Skills', description: 'Domain-specific knowledge modules', harnesses: ['Local Agent', 'Local Agent (Insiders)'] },
-      { feature: 'Slash Commands', description: '/fix, /explain, /tests, /doc', harnesses: ['Local Agent', 'Local Agent (Insiders)'] },
-      { feature: 'Multi-file Edits', description: 'Edit multiple files in a single turn', harnesses: ['Local Agent', 'Local Agent (Insiders)', 'Claude', 'Codex'] },
-      { feature: 'Terminal Access', description: 'Run commands as part of agent workflow', harnesses: ['Local Agent', 'Local Agent (Insiders)', 'Claude', 'Codex', 'OpenCode'] },
-      { feature: 'File References', description: 'Reference specific files in prompts', harnesses: ['Local Agent', 'Local Agent (Insiders)', 'Claude'] },
-      { feature: 'Parallel Sessions', description: 'Run multiple conversations simultaneously', harnesses: ['Local Agent', 'Local Agent (Insiders)', 'Claude', 'Codex'] },
+      { feature: 'Agent Mode', description: 'Cursor agent autonomously plans, edits, and runs commands', harnesses: ['Cursor'] },
+      { feature: 'Ask Mode', description: 'Read-only chat for questions and reviews without edits', harnesses: ['Cursor'] },
+      { feature: 'MCP Tools', description: 'Model Context Protocol tool integration via .cursor/mcp.json', harnesses: ['Cursor'] },
+      { feature: 'Rules', description: 'Project-level instructions in .cursor/rules/, AGENTS.md, or .cursorrules', harnesses: ['Cursor'] },
+      { feature: 'Hooks', description: 'Automation triggered on agent events via .cursor/hooks.json', harnesses: ['Cursor'] },
+      { feature: 'Skills', description: 'Reusable, domain-specific instructions in .cursor/skills/', harnesses: ['Cursor'] },
+      { feature: 'Plan Mode', description: 'Separate planning step before implementation', harnesses: ['Cursor'] },
+      { feature: 'Multi-file Edits', description: 'Edit multiple files in a single turn', harnesses: ['Cursor'] },
+      { feature: 'Terminal Access', description: 'Run commands as part of agent workflow', harnesses: ['Cursor'] },
+      { feature: 'File References', description: 'Reference specific files in prompts via @file', harnesses: ['Cursor'] },
+      { feature: 'Parallel Sessions', description: 'Run multiple conversations simultaneously', harnesses: ['Cursor'] },
     ];
   }
 

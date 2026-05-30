@@ -502,8 +502,8 @@ export function formatContextHealth(analyzer: Analyzer, f?: DateFilter) {
       ).map(w => ({
         workspace: w.workspaceName,
         hasInstructions: w.hasInstructions,
-        hasPrompts: w.hasPrompts,
-        hasAgents: w.hasAgents,
+        hasSkills: w.hasSkills,
+        hasHooks: w.hasHooks,
         qualityScore: w.instructionQualityScore,
         staleContext: w.staleContext,
         suggestions: w.suggestions.slice(0, 3),

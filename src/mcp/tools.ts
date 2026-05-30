@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 /**
- * VS Code Language Model Tools — exposes Analyzer data to @aicoach chat participant.
+ * Language Model Tools — exposes Analyzer data to the @coach chat participant.
  * Each tool wraps an Analyzer method → formatter → JSON text result.
  */
 
@@ -54,7 +54,7 @@ const FILTER_SCHEMA = {
   fromDate: { type: 'string' as const, description: 'ISO date string (YYYY-MM-DD) for the start of the date range' },
   toDate: { type: 'string' as const, description: 'ISO date string (YYYY-MM-DD) for the end of the date range' },
   workspaceId: { type: 'string' as const, description: 'Filter to a specific workspace by its ID' },
-  harness: { type: 'string' as const, description: 'Filter to a specific AI coding tool (e.g. "VS Code", "Claude", "Copilot CLI")' },
+  harness: { type: 'string' as const, description: 'Filter to a specific Cursor surface (e.g. "Cursor"). Currently always "Cursor".' },
 };
 
 /* ---- tool definitions ---- */
@@ -69,21 +69,21 @@ interface ToolDef {
 
 const TOOL_DEFS: ToolDef[] = [
   {
-    name: 'aiEngineerCoach_summary',
+    name: 'coach_summary',
     description: 'Get a high-level summary of AI coding assistant usage including session counts, recommendations, and top anti-patterns. Use this as a starting point for coaching conversations.',
     inputSchema: { type: 'object', properties: { ...FILTER_SCHEMA } },
     invoke: (a, input) => textResult(formatSummary(a, parseFilter(input))),
     prepareMessage: 'Analyzing overall usage summary…',
   },
   {
-    name: 'aiEngineerCoach_activity',
+    name: 'coach_activity',
     description: 'Get daily activity data including requests, LOC produced, sessions, and harness breakdown. Good for understanding work patterns and productivity trends.',
     inputSchema: { type: 'object', properties: { ...FILTER_SCHEMA } },
     invoke: (a, input) => textResult(formatActivity(a, parseFilter(input))),
     prepareMessage: 'Loading activity data…',
   },
   {
-    name: 'aiEngineerCoach_credits',
+    name: 'coach_credits',
     description: 'Get AI credit usage including total credits consumed, per-model breakdown, daily trend, and most expensive requests. Use to discuss cost optimization.',
     inputSchema: { type: 'object', properties: { ...FILTER_SCHEMA } },
     invoke: (a, input) => {
@@ -106,56 +106,56 @@ const TOOL_DEFS: ToolDef[] = [
     prepareMessage: 'Calculating credit usage…',
   },
   {
-    name: 'aiEngineerCoach_codeProduction',
+    name: 'coach_codeProduction',
     description: 'Get code production metrics: AI-generated vs user-written LOC, language breakdown, and workspace distribution. Use to discuss code quality and AI leverage.',
     inputSchema: { type: 'object', properties: { ...FILTER_SCHEMA } },
     invoke: (a, input) => textResult(formatCodeProduction(a, parseFilter(input))),
     prepareMessage: 'Measuring code production…',
   },
   {
-    name: 'aiEngineerCoach_flow',
+    name: 'coach_flow',
     description: 'Get flow state analysis: deep work scores, best hours for focused work, follow-up latency, and session continuity. Use to discuss developer productivity and focus.',
     inputSchema: { type: 'object', properties: { ...FILTER_SCHEMA } },
     invoke: (a, input) => textResult(formatFlow(a, parseFilter(input))),
     prepareMessage: 'Analyzing flow state…',
   },
   {
-    name: 'aiEngineerCoach_patterns',
+    name: 'coach_patterns',
     description: 'Get detected anti-patterns and practice recommendations with severity, group scores, and trends. The primary tool for improvement coaching.',
     inputSchema: { type: 'object', properties: { ...FILTER_SCHEMA } },
     invoke: (a, input) => textResult(formatPatterns(a, parseFilter(input))),
     prepareMessage: 'Detecting usage patterns…',
   },
   {
-    name: 'aiEngineerCoach_insights',
+    name: 'coach_insights',
     description: 'Get advanced insights: learning velocity, intent classification, spec-driven development rate, prompt maturity grade, and sustainable pace assessment.',
     inputSchema: { type: 'object', properties: { ...FILTER_SCHEMA } },
     invoke: (a, input) => textResult(formatInsights(a, parseFilter(input))),
     prepareMessage: 'Generating insights…',
   },
   {
-    name: 'aiEngineerCoach_wellbeing',
+    name: 'coach_wellbeing',
     description: 'Get work-life balance score, time distribution (late night vs work hours), weekend ratio, burnout risk, and sustainable pace alerts.',
     inputSchema: { type: 'object', properties: { ...FILTER_SCHEMA } },
     invoke: (a, input) => textResult(formatWellbeing(a, parseFilter(input))),
     prepareMessage: 'Assessing work-life balance…',
   },
   {
-    name: 'aiEngineerCoach_workflows',
+    name: 'coach_workflows',
     description: 'Get repeated workflow clusters that could be automated with custom skills, including frequency, workspaces, and draft skill suggestions.',
     inputSchema: { type: 'object', properties: { ...FILTER_SCHEMA } },
     invoke: (a, input) => textResult(formatWorkflows(a, parseFilter(input))),
     prepareMessage: 'Finding workflow patterns…',
   },
   {
-    name: 'aiEngineerCoach_harnessComparison',
-    description: 'Compare AI coding tools (VS Code, Claude, Copilot CLI, etc.) side-by-side: sessions, requests, LOC, models used, cancel rates, and activity days.',
+    name: 'coach_modeComparison',
+    description: 'Compare Cursor agent modes (Agent vs Ask vs Plan, etc.) side-by-side: sessions, requests, LOC, models used, cancel rates, and activity days.',
     inputSchema: { type: 'object', properties: { ...FILTER_SCHEMA } },
     invoke: (a, input) => textResult(formatHarnessComparison(a, parseFilter(input))),
-    prepareMessage: 'Comparing AI tools…',
+    prepareMessage: 'Comparing Cursor modes…',
   },
   {
-    name: 'aiEngineerCoach_sessions',
+    name: 'coach_sessions',
     description: 'Browse or search individual coding sessions. Use sessionId for detail view, or page/search to browse. Shows prompts, models, tools, and work types.',
     inputSchema: {
       type: 'object',
@@ -176,7 +176,7 @@ const TOOL_DEFS: ToolDef[] = [
     prepareMessage: 'Loading sessions…',
   },
   {
-    name: 'aiEngineerCoach_contextHealth',
+    name: 'coach_contextHealth',
     description: 'Get context management health: context window utilization, compaction events, config health scores, agentic readiness, and instruction quality per workspace.',
     inputSchema: { type: 'object', properties: { ...FILTER_SCHEMA } },
     invoke: (a, input) => textResult(formatContextHealth(a, parseFilter(input))),
@@ -193,7 +193,7 @@ export function registerTools(context: vscode.ExtensionContext, getAnalyzer: () 
         const analyzer = getAnalyzer();
         if (!analyzer) {
           return new vscode.LanguageModelToolResult([
-            new vscode.LanguageModelTextPart('No data loaded yet. Open the AI Engineer Coach sidebar first to load your session data.'),
+            new vscode.LanguageModelTextPart('No data loaded yet. Open the Cursor Engineering Coach sidebar first to load your session data.'),
           ]);
         }
         return def.invoke(analyzer, options.input);

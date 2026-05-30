@@ -61,17 +61,17 @@ export class DashboardSidebarProvider implements vscode.WebviewViewProvider {
 <link href="${String(styleUri)}" rel="stylesheet">
 </head>
 <body>
-<h3>AI Engineer Coach</h3>
+<h3>Cursor Engineering Coach</h3>
 <div id="content">${statsHtml}</div>
 <button id="open">Explore AI Insights</button>
 <button id="reload" class="secondary">Sync Sessions</button>
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   document.getElementById('open').addEventListener('click', function() {
-    vscode.postMessage({ command: 'aiEngineerCoach.open' });
+    vscode.postMessage({ command: 'cursorEngineeringCoach.open' });
   });
   document.getElementById('reload').addEventListener('click', function() {
-    vscode.postMessage({ command: 'aiEngineerCoach.reload' });
+    vscode.postMessage({ command: 'cursorEngineeringCoach.reload' });
   });
 </script>
 </body>

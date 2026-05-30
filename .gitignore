@@ -6,7 +6,7 @@ dist/
 **/.DS_Store
 docs/public/
 docs/.hugo_build.lock
-docs/ai-engineer-coach.pdf
+docs/cursor-engineering-coach.pdf
 docs/security-audit.md
 .husky/pre-commit
 test-results/.last-run.json

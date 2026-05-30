@@ -1,14 +1,14 @@
-baseURL        = "https://microsoft.github.io/ai-engineer-coach/"
+baseURL        = "https://prd-dat-tran.github.io/Cursor-Engineering-Coach/"
 languageCode   = "en-us"
-title          = "AI Engineer Coach"
+title          = "Cursor Engineering Coach"
 theme          = "coach"
 enableGitInfo  = true
 canonifyURLs   = true
 
 [params]
-  description = "Analyze and improve your AI-assisted development workflow"
+  description = "Analyze and improve your Cursor IDE development workflow"
   version     = "0.1.0"
-  github      = "https://github.com/microsoft/ai-engineer-coach"
+  github      = "https://github.com/prd-dat-tran/Cursor-Engineering-Coach"
 
 [markup]
   [markup.highlight]

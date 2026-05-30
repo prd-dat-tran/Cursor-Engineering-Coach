@@ -11,7 +11,7 @@ import { html, render } from './render';
 import { consumeNavHint, updateNavBadge } from './app';
 import { getSkillCache, setSkillCache } from './skill-cache';
 
-const CATALOG_BASE = 'https://awesome-copilot.github.com';
+const CATALOG_BASE = 'https://github.com/PatrickJS/awesome-cursorrules';
 
 /** Set of cluster IDs the user has dismissed in this session */
 const dismissed = new Set<string>();
@@ -76,10 +76,10 @@ export async function renderSkills(container: HTMLElement, currentFilter: DateFi
     </section>
 
     <section class="sk-section" id="catalogSection">
-      <h2 class="sk-section-title">Community Skills & Agents</h2>
+      <h2 class="sk-section-title">Community Rules & Skills</h2>
       <p class="sk-section-desc">
         Matching picks from${' '}
-        <a href="${CATALOG_BASE}/" target="_blank">awesome-copilot</a>
+        <a href="${CATALOG_BASE}" target="_blank">awesome-cursorrules</a>
         ${' '}based on your repeated activities.
       </p>
       <div id="catalogResults">
@@ -432,7 +432,7 @@ function renderCatalogCard(item: CatalogItem): ReturnType<typeof html> {
   const color = kindColors[item.kind] || COLORS.blue;
   const icon = kindIcons[item.kind] || '?';
   const kindLabel = item.kind.charAt(0).toUpperCase() + item.kind.slice(1);
-  const ghUrl = `https://github.com/github/awesome-copilot/blob/main/${encodeURI(item.path)}`;
+  const ghUrl = `https://github.com/PatrickJS/awesome-cursorrules/blob/main/${encodeURI(item.path)}`;
 
   return html`
     <div class="sk-card sk-card-catalog">

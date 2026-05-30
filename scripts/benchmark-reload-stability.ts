@@ -30,7 +30,7 @@ function memory(label: string): void {
 
 function clearParseCache(): void {
   const home = process.env.HOME || process.env.USERPROFILE || '';
-  const cacheDir = path.join(home, '.copilot-analytics-cache');
+  const cacheDir = path.join(home, '.cursor-engineering-coach', 'cache');
   for (const file of ['parsed.json', 'meta.json']) {
     try { fs.unlinkSync(path.join(cacheDir, file)); } catch { /* ignore */ }
   }

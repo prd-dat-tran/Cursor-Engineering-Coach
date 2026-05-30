@@ -10,7 +10,7 @@ import type { AgenticReadinessScore } from './context-types';
 
 export interface ConfigFileInfo {
   relativePath: string;
-  kind: 'instruction' | 'prompt' | 'agent' | 'skill' | 'hook-config' | 'claude-md' | 'other';
+  kind: 'instruction' | 'skill' | 'hook-config' | 'other';
   lines: number;
   chars: number;
   isMarkdown: boolean;
@@ -36,8 +36,6 @@ export interface WorkspaceConfigHealth {
   harness: string;
   configFiles: ConfigFileInfo[];
   hasInstructions: boolean;
-  hasPrompts: boolean;
-  hasAgents: boolean;
   hasSkills: boolean;
   hasHooks: boolean;
   progressiveDisclosureScore: number;

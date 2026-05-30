@@ -24,7 +24,7 @@ import { ConfigFileInfo } from './types';
 const tempDirs: string[] = [];
 
 function makeTempDir(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-engineer-coach-config-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cursor-engineering-coach-config-'));
   tempDirs.push(dir);
   return dir;
 }
@@ -44,38 +44,39 @@ afterEach(() => {
 });
 
 describe('resolveWorkspaceRoot', () => {
-  it('uses existing Codex workspace paths as root paths', () => {
+  it('uses the resolved root path when the activity workspace has one', () => {
     const root = makeTempDir();
-    expect(resolveWorkspaceRoot('codex-proj-1234', { id: 'codex-proj-1234', name: 'proj', path: root })).toBe(root);
+    expect(resolveWorkspaceRoot('ws-1234', { id: 'ws-1234', name: 'proj', path: root })).toBe(root);
   });
 });
 
 describe('scanConfigFiles', () => {
-  it('detects documented custom agent profiles in .github/agents/*.md', () => {
+  it('detects AGENTS.md at the workspace root', () => {
     const root = makeTempDir();
-    writeFile(root, '.github/agents/readme-creator.md', `---
-name: readme-creator
-description: Agent specializing in creating and improving README files
----
-
-You are a documentation specialist focused on README files.
-`);
-
+    writeFile(root, 'AGENTS.md', '# Project conventions\n\nUse TypeScript.');
     const files = scanConfigFiles(root);
-    expect(files.some(file => file.kind === 'agent' && file.relativePath === path.join('.github/agents', 'readme-creator.md'))).toBe(true);
+    expect(files.some(f => f.kind === 'instruction' && f.relativePath === 'AGENTS.md')).toBe(true);
   });
 
-  it('detects prompt templates recursively under prompt directories', () => {
+  it('detects .cursorrules at the workspace root', () => {
     const root = makeTempDir();
-    writeFile(root, '.github/prompts/explanations/explain-code.prompt.md', `---
-description: Generate a clear code explanation with examples
----
-
-Explain the following code.
-`);
-
+    writeFile(root, '.cursorrules', 'Always prefer named exports.');
     const files = scanConfigFiles(root);
-    expect(files.some(file => file.kind === 'prompt' && file.relativePath === path.join('.github/prompts', 'explanations', 'explain-code.prompt.md'))).toBe(true);
+    expect(files.some(f => f.kind === 'instruction' && f.relativePath === '.cursorrules')).toBe(true);
+  });
+
+  it('detects scoped rules under .cursor/rules/', () => {
+    const root = makeTempDir();
+    writeFile(root, '.cursor/rules/react.md', '# React rules\n\nUse hooks.');
+    const files = scanConfigFiles(root);
+    expect(files.some(f => f.kind === 'instruction' && f.relativePath.includes('react.md'))).toBe(true);
+  });
+
+  it('detects skills under .cursor/skills/', () => {
+    const root = makeTempDir();
+    writeFile(root, '.cursor/skills/my-skill/SKILL.md', '# Skill\n\nDo things.');
+    const files = scanConfigFiles(root);
+    expect(files.some(f => f.kind === 'skill')).toBe(true);
   });
 
   it('does not include personal skill files in per-workspace scans', () => {
@@ -85,7 +86,7 @@ Explain the following code.
 
     try {
       process.env.HOME = home;
-      writeFile(home, '.agents/skills/test-skill/SKILL.md', '# Personal skill');
+      writeFile(home, '.cursor/skills/test-skill/SKILL.md', '# Personal skill');
 
       const files = scanConfigFiles(root);
       expect(files.some(file => file.kind === 'skill')).toBe(false);
@@ -94,42 +95,14 @@ Explain the following code.
     }
   });
 
-  it('detects copilot-instructions.md', () => {
-    const root = makeTempDir();
-    writeFile(root, '.github/copilot-instructions.md', '# Instructions\n\nUse TypeScript.');
-    const files = scanConfigFiles(root);
-    expect(files.some(f => f.kind === 'instruction' && f.relativePath === '.github/copilot-instructions.md')).toBe(true);
-  });
-
-  it('detects CLAUDE.md', () => {
-    const root = makeTempDir();
-    writeFile(root, 'CLAUDE.md', '# Claude\n\nFollow conventions.');
-    const files = scanConfigFiles(root);
-    expect(files.some(f => f.kind === 'claude-md' && f.relativePath === 'CLAUDE.md')).toBe(true);
-  });
-
-  it('detects scoped instructions in .github/instructions/', () => {
-    const root = makeTempDir();
-    writeFile(root, '.github/instructions/react.instructions.md', '# React rules\n\nUse hooks.');
-    const files = scanConfigFiles(root);
-    expect(files.some(f => f.kind === 'instruction' && f.relativePath.includes('react.instructions.md'))).toBe(true);
-  });
-
   it('marks oversized instruction files', () => {
     const root = makeTempDir();
     const longContent = '# Title\n' + 'x\n'.repeat(600);
-    writeFile(root, '.github/copilot-instructions.md', longContent);
+    writeFile(root, 'AGENTS.md', longContent);
     const files = scanConfigFiles(root);
-    const instrFile = files.find(f => f.relativePath === '.github/copilot-instructions.md');
+    const instrFile = files.find(f => f.relativePath === 'AGENTS.md');
     expect(instrFile).toBeDefined();
     expect(instrFile!.sizeVerdict).toBe('oversized');
-  });
-
-  it('detects skills in .github/skills/', () => {
-    const root = makeTempDir();
-    writeFile(root, '.github/skills/my-skill/SKILL.md', '# Skill\n\nDo things.');
-    const files = scanConfigFiles(root);
-    expect(files.some(f => f.kind === 'skill')).toBe(true);
   });
 });
 
@@ -149,17 +122,17 @@ describe('isCloudPath', () => {
 });
 
 describe('analyzeHookCoverage', () => {
-  it('returns null when no settings files exist', () => {
+  it('returns null when .cursor/hooks.json does not exist', () => {
     const root = makeTempDir();
     expect(analyzeHookCoverage(root)).toBeNull();
   });
 
-  it('detects hook events from .claude/settings.json', () => {
+  it('detects camelCase Cursor hook events', () => {
     const root = makeTempDir();
-    writeFile(root, '.claude/settings.json', JSON.stringify({
+    writeFile(root, '.cursor/hooks.json', JSON.stringify({
       hooks: {
-        PreToolUse: [{ command: 'echo pre' }],
-        PostToolUse: [{ command: 'echo post' }],
+        beforeToolUse: [{ command: 'echo pre' }],
+        afterToolUse: [{ command: 'echo post' }],
       },
     }));
     const result = analyzeHookCoverage(root);
@@ -167,18 +140,21 @@ describe('analyzeHookCoverage', () => {
     expect(result!.hasPreToolUse).toBe(true);
     expect(result!.hasPostToolUse).toBe(true);
     expect(result!.totalHooks).toBe(2);
-    expect(result!.hookEvents).toContain('PreToolUse');
+    expect(result!.hookEvents).toContain('beforeToolUse');
   });
 
-  it('merges hooks from settings.json and settings.local.json', () => {
+  it('recognizes legacy PascalCase hook events for back-compat', () => {
     const root = makeTempDir();
-    writeFile(root, '.claude/settings.json', JSON.stringify({ hooks: { PreToolUse: [] } }));
-    writeFile(root, '.claude/settings.local.json', JSON.stringify({ hooks: { SessionStart: [] } }));
+    writeFile(root, '.cursor/hooks.json', JSON.stringify({
+      hooks: {
+        PreToolUse: [{ command: 'echo pre' }],
+        SessionStart: [{ command: 'echo session' }],
+      },
+    }));
     const result = analyzeHookCoverage(root);
     expect(result).not.toBeNull();
     expect(result!.hasPreToolUse).toBe(true);
     expect(result!.hasSessionStart).toBe(true);
-    expect(result!.totalHooks).toBe(2);
   });
 });
 
@@ -189,17 +165,17 @@ describe('computeProgressiveDisclosureScore', () => {
 
   it('gives 25 points for having instructions', () => {
     const files: ConfigFileInfo[] = [
-      { relativePath: '.github/copilot-instructions.md', kind: 'instruction', lines: 10, chars: 100, isMarkdown: true, markdownIssues: [], sizeVerdict: 'compact', lastModified: null },
+      { relativePath: 'AGENTS.md', kind: 'instruction', lines: 10, chars: 100, isMarkdown: true, markdownIssues: [], sizeVerdict: 'compact', lastModified: null },
     ];
     expect(computeProgressiveDisclosureScore(files)).toBeGreaterThanOrEqual(25);
   });
 
   it('gives max score for comprehensive setup', () => {
     const files: ConfigFileInfo[] = [
-      { relativePath: '.github/copilot-instructions.md', kind: 'instruction', lines: 10, chars: 100, isMarkdown: true, markdownIssues: [], sizeVerdict: 'compact', lastModified: null },
-      { relativePath: '.github/instructions/ts.instructions.md', kind: 'instruction', lines: 10, chars: 80, isMarkdown: true, markdownIssues: [], sizeVerdict: 'compact', lastModified: null },
-      { relativePath: '.github/instructions/py.instructions.md', kind: 'instruction', lines: 10, chars: 80, isMarkdown: true, markdownIssues: [], sizeVerdict: 'compact', lastModified: null },
-      { relativePath: '.github/skills/lint/SKILL.md', kind: 'skill', lines: 20, chars: 200, isMarkdown: true, markdownIssues: [], sizeVerdict: 'compact', lastModified: null },
+      { relativePath: 'AGENTS.md', kind: 'instruction', lines: 10, chars: 100, isMarkdown: true, markdownIssues: [], sizeVerdict: 'compact', lastModified: null },
+      { relativePath: '.cursor/rules/ts.md', kind: 'instruction', lines: 10, chars: 80, isMarkdown: true, markdownIssues: [], sizeVerdict: 'compact', lastModified: null },
+      { relativePath: '.cursor/rules/py.md', kind: 'instruction', lines: 10, chars: 80, isMarkdown: true, markdownIssues: [], sizeVerdict: 'compact', lastModified: null },
+      { relativePath: '.cursor/skills/lint/SKILL.md', kind: 'skill', lines: 20, chars: 200, isMarkdown: true, markdownIssues: [], sizeVerdict: 'compact', lastModified: null },
     ];
     expect(computeProgressiveDisclosureScore(files)).toBe(100);
   });
@@ -235,28 +211,20 @@ describe('computeInstructionQualityScore', () => {
 describe('generateWorkspaceSuggestions', () => {
   it('suggests creating instructions when none exist', () => {
     const suggestions = generateWorkspaceSuggestions([], null, false);
-    expect(suggestions.some(s => s.includes('copilot-instructions.md'))).toBe(true);
+    expect(suggestions.some(s => s.includes('AGENTS.md') || s.includes('.cursor/rules'))).toBe(true);
   });
 
-  it('suggests hooks for claude workspace without hooks', () => {
+  it('suggests configuring hooks when no .cursor/hooks.json is present', () => {
     const files: ConfigFileInfo[] = [
-      { relativePath: 'CLAUDE.md', kind: 'claude-md', lines: 10, chars: 100, isMarkdown: true, markdownIssues: [], sizeVerdict: 'compact', lastModified: null },
-    ];
-    const suggestions = generateWorkspaceSuggestions(files, null, true);
-    expect(suggestions.some(s => s.includes('hooks'))).toBe(true);
-  });
-
-  it('suggests prompts when none exist', () => {
-    const files: ConfigFileInfo[] = [
-      { relativePath: '.github/copilot-instructions.md', kind: 'instruction', lines: 10, chars: 100, isMarkdown: true, markdownIssues: [], sizeVerdict: 'compact', lastModified: null },
+      { relativePath: 'AGENTS.md', kind: 'instruction', lines: 10, chars: 100, isMarkdown: true, markdownIssues: [], sizeVerdict: 'compact', lastModified: null },
     ];
     const suggestions = generateWorkspaceSuggestions(files, null, false);
-    expect(suggestions.some(s => s.includes('prompt'))).toBe(true);
+    expect(suggestions.some(s => s.includes('hooks'))).toBe(true);
   });
 
   it('suggests splitting oversized instruction files', () => {
     const files: ConfigFileInfo[] = [
-      { relativePath: '.github/copilot-instructions.md', kind: 'instruction', lines: 600, chars: 6000, isMarkdown: true, markdownIssues: [], sizeVerdict: 'oversized', lastModified: null },
+      { relativePath: 'AGENTS.md', kind: 'instruction', lines: 600, chars: 6000, isMarkdown: true, markdownIssues: [], sizeVerdict: 'oversized', lastModified: null },
     ];
     const suggestions = generateWorkspaceSuggestions(files, null, false);
     expect(suggestions.some(s => s.includes('600 lines'))).toBe(true);

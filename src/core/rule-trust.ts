@@ -7,9 +7,9 @@
  * Trust gate for locally-authored rule / metric markdown files.
  *
  * Built-in rules ship with the extension and are implicitly trusted.
- * Personal (`~/.ai-engineer-coach/rules|metrics/`) and project
- * (`<workspace>/.ai-engineer-coach/rules|metrics/`) files are NOT trusted by
- * default: a malicious repository could drop a `.ai-engineer-coach/rules/`
+ * Personal (`~/.cursor-engineering-coach/rules|metrics/`) and project
+ * (`<workspace>/.cursor-engineering-coach/rules|metrics/`) files are NOT trusted by
+ * default: a malicious repository could drop a `.cursor-engineering-coach/rules/`
  * directory whose DSL executes the moment the dashboard is opened.
  *
  * This module implements a "trust on first use" policy:
@@ -41,7 +41,7 @@ export interface ApprovedEntry {
 export type ApprovalMap = Record<string, ApprovedEntry>;
 
 /** Key used in `globalState` to persist the approval map. */
-const STORAGE_KEY = 'aiEngineerCoach.ruleTrust.v1';
+const STORAGE_KEY = 'cursorEngineeringCoach.ruleTrust.v1';
 
 /** Compute a stable content hash. */
 export function hashContent(content: string): string {

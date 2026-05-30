@@ -44,12 +44,10 @@ interface RequestBilling {
 }
 
 /** Harnesses that emit authoritative token totals at session shutdown
- *  (rather than per-request). For active sessions of these harnesses, we
- *  classify per-request data as `pending` rather than `partial`/`missing`
- *  because the real numbers will arrive when the session shuts down — the
- *  per-request output we have so far is just a placeholder. */
-function harnessUsesSessionAggregated(harness: string | undefined): boolean {
-  return harness === 'GitHub Copilot CLI' || harness === 'Codex';
+ *  (rather than per-request). Cursor records per-request token data, so this
+ *  is currently empty — kept as a hook for future workspace-storage formats. */
+function harnessUsesSessionAggregated(_harness: string | undefined): boolean {
+  return false;
 }
 function computeBilling(sessions: Session[]): Map<SessionRequest, RequestBilling> {
   const map = new Map<SessionRequest, RequestBilling>();

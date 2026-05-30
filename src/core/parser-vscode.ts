@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See LICENSE in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-/* VS Code and Copilot CLI session parsing. */
+/* Cursor IDE session parsing (Cursor uses the VS Code workspace storage format). */
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -11,42 +11,37 @@ import { Session, SessionRequest, ToolConfirmation } from './types';
 import { createRequest, createSession, detectDevcontainerFromRequests, extractSkillNameFromPath, ParseContext, prefetchCache } from './parser-shared';
 import { debugCore, warnCore } from './log';
 import { canonicalizeReasoningEffort, extractReasoningEffortFromModelId } from './helpers';
-import { parseCLIEventsFile } from './parser-vscode-cli';
-import { parseCLIWorkspaceName, parseWorkspaceName, parseWorkspaceFolderPath, parseCLIWorkspaceFolderPath, readFile, reconstructFromJsonl, stripImageData } from './parser-vscode-files';
+import { parseWorkspaceName, parseWorkspaceFolderPath, readFile, reconstructFromJsonl, stripImageData } from './parser-vscode-files';
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-export function harnessFromPath(logsDir: string): string {
-  if (logsDir.includes('Code - Insiders')) return 'Local Agent (Insiders)';
-  if (logsDir.includes('.copilot')) return 'GitHub Copilot CLI';
-  return 'Local Agent';
+/** All Cursor sessions report the same harness label. */
+export const CURSOR_HARNESS = 'Cursor';
+
+export function harnessFromPath(_logsDir: string): string {
+  return CURSOR_HARNESS;
 }
 
 export function findVsCodeDirs(): string[] {
   const dirs: string[] = [];
   const home = process.env.HOME || process.env.USERPROFILE || '';
 
-  const editionFolders = ['Code', 'Code - Insiders'];
+  // Cursor stable and (if installed) Cursor Nightly use the same workspace-storage layout.
+  const editionFolders = ['Cursor', 'Cursor Nightly'];
 
   for (const edition of editionFolders) {
-    let vsPath: string | undefined;
+    let dir: string | undefined;
     if (process.platform === 'darwin') {
-      vsPath = path.join(home, 'Library', 'Application Support', edition, 'User', 'workspaceStorage');
+      dir = path.join(home, 'Library', 'Application Support', edition, 'User', 'workspaceStorage');
     } else if (process.platform === 'win32') {
-      vsPath = path.join(process.env.APPDATA || '', edition, 'User', 'workspaceStorage');
+      dir = path.join(process.env.APPDATA || '', edition, 'User', 'workspaceStorage');
     } else {
-      vsPath = path.join(home, '.config', edition, 'User', 'workspaceStorage');
+      dir = path.join(home, '.config', edition, 'User', 'workspaceStorage');
     }
-    if (vsPath && fs.existsSync(vsPath) && !dirs.includes(vsPath)) dirs.push(vsPath);
+    if (dir && fs.existsSync(dir) && !dirs.includes(dir)) dirs.push(dir);
   }
-
-  // Copilot CLI paths
-  const cliActive = path.join(home, '.copilot', 'session-state');
-  const cliLegacy = path.join(home, '.copilot', 'history-session-state');
-  if (fs.existsSync(cliActive)) dirs.push(cliActive);
-  if (fs.existsSync(cliLegacy)) dirs.push(cliLegacy);
 
   return dirs;
 }
@@ -65,7 +60,7 @@ export function scanVsCodeDirs(logsDirs: string[]): {
       totalDirs += dirs.length;
       entries.push({ logsDir, dirEntries: dirs });
     } catch (e) {
-      debugCore('parser-vscode', `Cannot read logs dir ${logsDir}`, e);
+      debugCore('parser-cursor', `Cannot read logs dir ${logsDir}`, e);
       continue;
     }
   }
@@ -80,43 +75,56 @@ export interface WorkspaceParseProgress {
   total: number;
 }
 
-function resolveWorkspaceName(entryPath: string, wsId: string, isCLI: boolean): string {
+function resolveWorkspaceName(entryPath: string, wsId: string): string {
   const wsJsonPath = path.join(entryPath, 'workspace.json');
-  const wsYamlPath = path.join(entryPath, 'workspace.yaml');
   if (prefetchCache.has(wsJsonPath)) return parseWorkspaceName(wsJsonPath);
-  if (isCLI) return fs.existsSync(wsYamlPath) ? parseCLIWorkspaceName(wsYamlPath) : wsId;
   if (fs.existsSync(wsJsonPath)) return parseWorkspaceName(wsJsonPath);
-  if (fs.existsSync(wsYamlPath)) return parseCLIWorkspaceName(wsYamlPath);
   return wsId;
 }
 
 
 const INSTRUCTIONS_BYTES_CACHE = new Map<string, number | undefined>();
 
-function detectCustomInstructionsBytes(folderPath: string | null): number | undefined {
-  if (!folderPath) return undefined;
+function sizeOf(p: string): number {
   try {
-    const target = path.join(folderPath, '.github', 'copilot-instructions.md');
-    if (!fs.existsSync(target)) return 0;
-    const st = fs.statSync(target);
+    const st = fs.statSync(p);
     return Number.isFinite(st.size) ? st.size : 0;
   } catch {
     return 0;
   }
 }
 
-function resolveCustomInstructionsBytes(entryPath: string, isCLI: boolean): number | undefined {
+/**
+ * Total size in bytes of always-on instructions Cursor prepends per request.
+ * Sums `.cursorrules`, `AGENTS.md`, and every `.cursor/rules/*.md`.
+ */
+function detectCustomInstructionsBytes(folderPath: string | null): number | undefined {
+  if (!folderPath) return undefined;
+  try {
+    let total = 0;
+    total += sizeOf(path.join(folderPath, '.cursorrules'));
+    total += sizeOf(path.join(folderPath, 'AGENTS.md'));
+    const rulesDir = path.join(folderPath, '.cursor', 'rules');
+    try {
+      for (const entry of fs.readdirSync(rulesDir, { withFileTypes: true })) {
+        if (entry.isFile() && entry.name.endsWith('.md')) {
+          total += sizeOf(path.join(rulesDir, entry.name));
+        }
+      }
+    } catch { /* no rules dir */ }
+    return total;
+  } catch {
+    return 0;
+  }
+}
+
+function resolveCustomInstructionsBytes(entryPath: string): number | undefined {
   const cached = INSTRUCTIONS_BYTES_CACHE.get(entryPath);
   if (cached !== undefined || INSTRUCTIONS_BYTES_CACHE.has(entryPath)) return cached;
   let folder: string | null = null;
   try {
-    if (isCLI) {
-      const wsYaml = path.join(entryPath, 'workspace.yaml');
-      if (fs.existsSync(wsYaml)) folder = parseCLIWorkspaceFolderPath(wsYaml);
-    } else {
-      const wsJson = path.join(entryPath, 'workspace.json');
-      if (fs.existsSync(wsJson) || prefetchCache.has(wsJson)) folder = parseWorkspaceFolderPath(wsJson);
-    }
+    const wsJson = path.join(entryPath, 'workspace.json');
+    if (fs.existsSync(wsJson) || prefetchCache.has(wsJson)) folder = parseWorkspaceFolderPath(wsJson);
   } catch { /* ignore */ }
   const bytes = detectCustomInstructionsBytes(folder);
   INSTRUCTIONS_BYTES_CACHE.set(entryPath, bytes);
@@ -205,15 +213,13 @@ function yieldToLoop(): Promise<void> {
 function initializeWorkspaceEntry(
   logsDir: string,
   wsId: string,
-  harness: string,
   workspaces: ParseContext['workspaces'],
-): { entryPath: string; wsName: string; isCLI: boolean; customInstructionsBytes: number | undefined } {
+): { entryPath: string; wsName: string; customInstructionsBytes: number | undefined } {
   const entryPath = path.join(logsDir, wsId);
-  const isCLI = harness === 'GitHub Copilot CLI';
-  const wsName = resolveWorkspaceName(entryPath, wsId, isCLI);
-  const customInstructionsBytes = resolveCustomInstructionsBytes(entryPath, isCLI);
+  const wsName = resolveWorkspaceName(entryPath, wsId);
+  const customInstructionsBytes = resolveCustomInstructionsBytes(entryPath);
   workspaces.set(wsId, { id: wsId, name: wsName, path: entryPath });
-  return { entryPath, wsName, isCLI, customInstructionsBytes };
+  return { entryPath, wsName, customInstructionsBytes };
 }
 
 
@@ -224,23 +230,7 @@ export function processWorkspaceEntry(
   ctx: ParseContext,
 ): string {
   const { workspaces, sessions, editLocIndex, sessionSourceIndex } = ctx;
-  const { entryPath, wsName, isCLI, customInstructionsBytes } = initializeWorkspaceEntry(logsDir, wsId, harness, workspaces);
-
-  if (isCLI) {
-    const eventsFile = path.join(entryPath, 'events.jsonl');
-    const cliSession = parseCLIEventsFile(eventsFile, wsId, wsName, customInstructionsBytes);
-    if (cliSession) {
-      sessions.push(cliSession);
-      sessionSourceIndex.set(cliSession.sessionId, {
-        kind: 'cli-events',
-        filePath: eventsFile,
-        workspaceId: wsId,
-        workspaceName: wsName,
-        harness,
-      });
-    }
-    return wsName;
-  }
+  const { entryPath, wsName, customInstructionsBytes } = initializeWorkspaceEntry(logsDir, wsId, workspaces);
 
   const chatDir = path.join(entryPath, 'chatSessions');
   for (const sessionFile of listChatSessionFiles(chatDir)) {
@@ -255,19 +245,6 @@ export function processWorkspaceEntry(
         harness,
       });
     }
-  }
-
-  const eventsFile = path.join(entryPath, 'events.jsonl');
-  const cliSession = parseCLIEventsFile(eventsFile, wsId, wsName, customInstructionsBytes);
-  if (cliSession) {
-    sessions.push(cliSession);
-    sessionSourceIndex.set(cliSession.sessionId, {
-      kind: 'cli-events',
-      filePath: eventsFile,
-      workspaceId: wsId,
-      workspaceName: wsName,
-      harness,
-    });
   }
 
   const esDir = path.join(entryPath, 'chatEditingSessions');
@@ -286,23 +263,7 @@ export async function processWorkspaceEntryAsync(
   onProgress?: (progress: WorkspaceParseProgress) => void,
 ): Promise<string> {
   const { workspaces, sessions, editLocIndex, sessionSourceIndex } = ctx;
-  const { entryPath, wsName, isCLI, customInstructionsBytes } = initializeWorkspaceEntry(logsDir, wsId, harness, workspaces);
-
-  if (isCLI) {
-    const eventsFile = path.join(entryPath, 'events.jsonl');
-    const cliSession = parseCLIEventsFile(eventsFile, wsId, wsName, customInstructionsBytes);
-    if (cliSession) {
-      sessions.push(cliSession);
-      sessionSourceIndex.set(cliSession.sessionId, {
-        kind: 'cli-events',
-        filePath: eventsFile,
-        workspaceId: wsId,
-        workspaceName: wsName,
-        harness,
-      });
-    }
-    return wsName;
-  }
+  const { entryPath, wsName, customInstructionsBytes } = initializeWorkspaceEntry(logsDir, wsId, workspaces);
 
   const chatFiles = listChatSessionFiles(path.join(entryPath, 'chatSessions'));
   const editStateFiles = listEditStateFiles(path.join(entryPath, 'chatEditingSessions'));
@@ -335,19 +296,6 @@ export async function processWorkspaceEntryAsync(
     // Always yield after each file to keep the event loop responsive,
     // especially for workspaces with many large session files.
     await yieldToLoop();
-  }
-
-  const eventsFile = path.join(entryPath, 'events.jsonl');
-  const cliSession = parseCLIEventsFile(eventsFile, wsId, wsName, customInstructionsBytes);
-  if (cliSession) {
-    sessions.push(cliSession);
-    sessionSourceIndex.set(cliSession.sessionId, {
-      kind: 'cli-events',
-      filePath: eventsFile,
-      workspaceId: wsId,
-      workspaceName: wsName,
-      harness,
-    });
   }
 
   for (let i = 0; i < editStateFiles.length; i++) {
@@ -538,7 +486,13 @@ function extractCustomInstructions(contentRefs: RawContentRef[] | undefined): st
     if (typeof ref !== 'object' || !ref) continue;
     const ext = (ref.external || ref.fsPath || '');
     const lower = ext.toLowerCase();
-    if (lower.includes('.instructions.md') || lower.includes('copilot-instructions') || lower.includes('.prompt.md') || lower.includes('agents.md')) {
+    if (
+      lower.includes('agents.md') ||
+      lower.includes('.cursorrules') ||
+      lower.includes('/.cursor/rules/') ||
+      lower.includes('\\.cursor\\rules\\') ||
+      lower.endsWith('.mdc')
+    ) {
       const parts = ext.split('/');
       const fname = parts[parts.length - 1] || ext;
       if (fname && !instructions.includes(fname)) instructions.push(fname);

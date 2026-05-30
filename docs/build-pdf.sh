@@ -12,14 +12,14 @@
 #
 # Usage:
 #   cd docs && bash build-pdf.sh
-#   # produces ai-engineer-coach.pdf in the docs/ directory
+#   # produces cursor-engineering-coach.pdf in the docs/ directory
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONTENT_DIR="$SCRIPT_DIR/content"
 SCREENSHOT_DIR="$SCRIPT_DIR/public/screenshots"
-OUTPUT="$SCRIPT_DIR/ai-engineer-coach.pdf"
+OUTPUT="$SCRIPT_DIR/cursor-engineering-coach.pdf"
 TMPDIR_PDF="$(mktemp -d)"
 COMBINED="$TMPDIR_PDF/combined.md"
 
@@ -36,8 +36,9 @@ FILES=(
   "$CONTENT_DIR/_index.md"
   "$CONTENT_DIR/getting-started/_index.md"
   "$CONTENT_DIR/getting-started/installation.md"
-  "$CONTENT_DIR/getting-started/supported-tools.md"
+  "$CONTENT_DIR/getting-started/cursor-sources.md"
   "$CONTENT_DIR/features/_index.md"
+  "$CONTENT_DIR/features/chat.md"
   "$CONTENT_DIR/observe/_index.md"
   "$CONTENT_DIR/observe/dashboard.md"
   "$CONTENT_DIR/observe/timeline.md"
@@ -47,6 +48,9 @@ FILES=(
   "$CONTENT_DIR/measure/patterns.md"
   "$CONTENT_DIR/improve/_index.md"
   "$CONTENT_DIR/improve/anti-patterns.md"
+  "$CONTENT_DIR/improve/rule-editor.md"
+  "$CONTENT_DIR/improve/rule-playground.md"
+  "$CONTENT_DIR/improve/data-explorer.md"
   "$CONTENT_DIR/improve/skill-finder.md"
   "$CONTENT_DIR/improve/context-health.md"
   "$CONTENT_DIR/level-up/_index.md"
@@ -59,9 +63,9 @@ FILES=(
 # --- Title block for pandoc ---
 cat > "$COMBINED" <<'EOF'
 ---
-title: "AI Engineer Coach"
+title: "Cursor Engineering Coach"
 subtitle: "Documentation"
-author: "Microsoft"
+author: "Cursor Engineering Coach Contributors"
 ---
 
 EOF

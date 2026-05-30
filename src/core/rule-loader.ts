@@ -8,8 +8,8 @@
  *
  * Rules are loaded from three directories (lowest to highest precedence):
  *   1. Built-in:  dist/rules/          (shipped with the extension)
- *   2. Personal:  ~/.ai-engineer-coach/rules/  (user-level, shared across workspaces)
- *   3. Project:   <workspace>/.ai-engineer-coach/rules/ (workspace-specific)
+ *   2. Personal:  ~/.cursor-engineering-coach/rules/  (user-level, shared across workspaces)
+ *   3. Project:   <workspace>/.cursor-engineering-coach/rules/ (workspace-specific)
  *
  * The rule engine merges them so that project rules override personal rules
  * which override built-in rules (by matching on rule ID).
@@ -39,7 +39,7 @@ function resolveGate(explicit?: TrustGate): TrustGate | undefined {
 }
 
 /** Well-known directory name used for personal and project rule storage. */
-export const RULES_DIR_NAME = '.ai-engineer-coach/rules';
+export const RULES_DIR_NAME = '.cursor-engineering-coach/rules';
 
 /** Absolute path to the personal rules directory. */
 export function getPersonalRulesDir(): string {
@@ -89,7 +89,7 @@ export function registerAllBuiltinRules(): void {
 }
 
 /**
- * Load personal rules from ~/.ai-engineer-coach/rules/.
+ * Load personal rules from ~/.cursor-engineering-coach/rules/.
  * Can be called multiple times to reload (clears + re-registers).
  */
 export function loadPersonalRules(trustGate?: TrustGate): number {
@@ -100,7 +100,7 @@ export function loadPersonalRules(trustGate?: TrustGate): number {
 }
 
 /**
- * Load project rules from <workspaceRoot>/.ai-engineer-coach/rules/.
+ * Load project rules from <workspaceRoot>/.cursor-engineering-coach/rules/.
  * Can be called multiple times to reload (clears + re-registers).
  */
 export function loadProjectRules(workspaceRoot: string, trustGate?: TrustGate): number {
@@ -231,18 +231,18 @@ export function registerAllBuiltinMetrics(): number {
 }
 
 /**
- * Load personal .metric.md files from ~/.ai-engineer-coach/metrics/.
+ * Load personal .metric.md files from ~/.cursor-engineering-coach/metrics/.
  */
 export function loadPersonalMetrics(trustGate?: TrustGate): number {
-  const dir = path.join(os.homedir(), '.ai-engineer-coach', 'metrics');
+  const dir = path.join(os.homedir(), '.cursor-engineering-coach', 'metrics');
   return loadMetricsFromDir(dir, 'personal', resolveGate(trustGate), 'personal');
 }
 
 /**
- * Load project .metric.md files from <workspace>/.ai-engineer-coach/metrics/.
+ * Load project .metric.md files from <workspace>/.cursor-engineering-coach/metrics/.
  */
 export function loadProjectMetrics(workspaceRoot: string, trustGate?: TrustGate): number {
-  const dir = path.join(workspaceRoot, '.ai-engineer-coach', 'metrics');
+  const dir = path.join(workspaceRoot, '.cursor-engineering-coach', 'metrics');
   return loadMetricsFromDir(dir, 'project', resolveGate(trustGate), 'project');
 }
 
@@ -402,11 +402,11 @@ export async function registerAllBuiltinMetricsAsync(): Promise<number> {
 }
 
 export async function loadPersonalMetricsAsync(trustGate?: TrustGate): Promise<number> {
-  return loadMetricsFromDirAsync(path.join(os.homedir(), '.ai-engineer-coach', 'metrics'), 'personal', resolveGate(trustGate), 'personal');
+  return loadMetricsFromDirAsync(path.join(os.homedir(), '.cursor-engineering-coach', 'metrics'), 'personal', resolveGate(trustGate), 'personal');
 }
 
 export async function loadProjectMetricsAsync(workspaceRoot: string, trustGate?: TrustGate): Promise<number> {
-  return loadMetricsFromDirAsync(path.join(workspaceRoot, '.ai-engineer-coach', 'metrics'), 'project', resolveGate(trustGate), 'project');
+  return loadMetricsFromDirAsync(path.join(workspaceRoot, '.cursor-engineering-coach', 'metrics'), 'project', resolveGate(trustGate), 'project');
 }
 
 export async function loadAllMetricLayersAsync(workspaceRoot?: string, trustGate?: TrustGate): Promise<{ builtin: number; personal: number; project: number }> {

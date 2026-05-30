@@ -41,31 +41,22 @@ function getTrustedRoots(): string[] {
   const home = process.env.HOME || process.env.USERPROFILE || '';
   if (home) roots.push(path.resolve(home));
 
-  // VS Code extension storage paths
-  if (process.platform === 'darwin') {
-    if (home) roots.push(path.resolve(home, 'Library', 'Application Support', 'Code'));
-    if (home) roots.push(path.resolve(home, 'Library', 'Application Support', 'Code - Insiders'));
-  } else if (process.platform === 'win32') {
-    const appdata = process.env.APPDATA || '';
-    if (appdata) {
-      roots.push(path.resolve(appdata, 'Code'));
-      roots.push(path.resolve(appdata, 'Code - Insiders'));
+  // Cursor stores its workspace storage in the same OS-specific layout that
+  // VS Code uses (Cursor IDE is a fork). We accept both `Cursor` and
+  // `Cursor Nightly` editions on every platform.
+  const editions = ['Cursor', 'Cursor Nightly'];
+  for (const edition of editions) {
+    if (process.platform === 'darwin') {
+      if (home) roots.push(path.resolve(home, 'Library', 'Application Support', edition));
+    } else if (process.platform === 'win32') {
+      const appdata = process.env.APPDATA || '';
+      if (appdata) roots.push(path.resolve(appdata, edition));
+    } else {
+      if (home) roots.push(path.resolve(home, '.config', edition));
     }
-  } else {
-    if (home) roots.push(path.resolve(home, '.config', 'Code'));
-    if (home) roots.push(path.resolve(home, '.config', 'Code - Insiders'));
   }
 
-  // Standard session log locations
-  if (home) {
-    roots.push(path.resolve(home, '.copilot'));
-    roots.push(path.resolve(home, '.claude'));
-    roots.push(path.resolve(home, '.codex'));
-    roots.push(path.resolve(home, '.local', 'share', 'opencode'));
-    roots.push(path.resolve(home, '.config', 'github-copilot'));
-  }
-
-  // OS temp directory (used by tests and VS Code temp storage)
+  // OS temp directory (used by tests and IDE temp storage)
   const tmpDir = os.tmpdir();
   if (tmpDir) roots.push(path.resolve(tmpDir));
 

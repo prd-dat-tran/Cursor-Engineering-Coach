@@ -11,8 +11,8 @@ import { rpc, COLORS, Chart, trackChart, destroyCharts } from './shared';
 import { html, render, StatCard, ComponentChildren } from './render';
 import { renderContextManagement } from './page-context-mgmt';
 
-/* Harness colors */
-const HC: Record<string, string> = { 'Local Agent': '#007acc', 'Local Agent (Insiders)': '#24bfa5', 'Xcode': '#147efb', 'Claude Code': '#d97706', 'GitHub Copilot CLI': '#8b5cf6', 'Codex CLI': '#ec4899', 'OpenCode': '#10b981' };
+/* Harness colors (Cursor is the only source) */
+const HC: Record<string, string> = { 'Cursor': '#000000' };
 function hc(h: string): string { return HC[h] || COLORS.muted; }
 
 /** Active treemap chart reference + workspace data for review highlighting */
@@ -482,8 +482,6 @@ function renderTreemap(workspaces: WorkspaceConfigHealth[], container: HTMLEleme
     const uniqueHarnesses = [...new Set(w.harness.split(', '))].join(', ');
     const badges: string[] = [];
     if (w.hasInstructions) badges.push('Instructions');
-    if (w.hasPrompts) badges.push('Prompts');
-    if (w.hasAgents) badges.push('Agents');
     if (w.hasSkills) badges.push('Skills');
     if (w.hasHooks) badges.push('Hooks');
     return {
@@ -615,8 +613,6 @@ function showTileDetail(ws: WorkspaceConfigHealth, container: HTMLElement): void
   const uniqueHarness = [...new Set(ws.harness.split(', '))].join(', ');
   const badges: ComponentChildren[] = [];
   if (ws.hasInstructions) badges.push(bdg('Instructions', COLORS.blue));
-  if (ws.hasPrompts) badges.push(bdg('Prompts', COLORS.purple));
-  if (ws.hasAgents) badges.push(bdg('Agents', COLORS.cyan));
   if (ws.hasSkills) badges.push(bdg('Skills', COLORS.green));
   if (ws.hasHooks) badges.push(bdg('Hooks', COLORS.orange));
   if (ws.staleContext) badges.push(bdg(ws.staleDays != null ? `Stale (${ws.staleDays}d)` : 'No context', COLORS.red));
@@ -826,11 +822,8 @@ function bdg(label: string, color: string): ComponentChildren {
 function fKindIcon(kind: ConfigFileInfo['kind']): string {
   switch (kind) {
     case 'instruction': return '\u{1F4DC}';
-    case 'prompt': return '\u{1F4AC}';
-    case 'agent': return '\u{1F916}';
     case 'skill': return '\u26A1';
     case 'hook-config': return '\u{1F517}';
-    case 'claude-md': return '\u{1F4D6}';
     default: return '\u{1F4C4}';
   }
 }

@@ -155,7 +155,7 @@ describe('summary export', () => {
     });
 
     const markdown = renderSummaryMarkdown(report);
-    expect(markdown).toContain('# AI Engineer Coach Summary');
+    expect(markdown).toContain('# Cursor Engineering Coach Summary');
     expect(markdown).toContain('- Sessions: 7');
     expect(markdown).toContain('- AI-generated LoC: 1,200');
     expect(markdown).toContain('## Top Anti-Patterns');
@@ -168,8 +168,8 @@ describe('summary export', () => {
 
   it('uses date-stamped markdown and json filenames', () => {
     expect(getSummaryExportFilenames('2026-05-25T10:00:00.000Z')).toEqual({
-      markdown: 'ai-engineer-coach-summary-2026-05-25.md',
-      json: 'ai-engineer-coach-summary-2026-05-25.json',
+      markdown: 'cursor-engineering-coach-summary-2026-05-25.md',
+      json: 'cursor-engineering-coach-summary-2026-05-25.json',
     });
   });
 });

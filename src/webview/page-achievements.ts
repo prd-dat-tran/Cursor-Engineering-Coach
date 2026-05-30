@@ -569,7 +569,7 @@ function wireShareButtons(container: HTMLElement): void {
       const achId = btn.dataset.achId;
       const ach = ACHIEVEMENTS.find(a => a.id === achId);
       if (!ach) return;
-      const text = `I unlocked "${ach.title}" in AI Engineer Coach! ${ach.description}`;
+      const text = `I unlocked "${ach.title}" in Cursor Engineering Coach! ${ach.description}`;
       void navigator.clipboard.writeText(text).then(() => {
         render(html`${SVG.checkCircle}`, btn);
         btn.classList.add('ach-share-copied');

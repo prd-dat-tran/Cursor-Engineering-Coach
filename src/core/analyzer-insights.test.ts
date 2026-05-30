@@ -431,19 +431,18 @@ Verify the result with at least 3 test cases.
     it('identifies primary harness', () => {
       const ts = new Date('2024-03-15T10:00:00').getTime();
       const sessions = [
-        makeSession({ harness: 'Local Agent', requests: [makeRequest({ timestamp: ts })], lastMessageDate: ts }),
-        makeSession({ harness: 'Local Agent', requests: [makeRequest({ timestamp: ts })], lastMessageDate: ts }),
-        makeSession({ harness: 'Claude', requests: [makeRequest({ timestamp: ts })], lastMessageDate: ts }),
+        makeSession({ harness: 'Cursor', requests: [makeRequest({ timestamp: ts })], lastMessageDate: ts }),
+        makeSession({ harness: 'Cursor', requests: [makeRequest({ timestamp: ts })], lastMessageDate: ts }),
       ];
       const analyzer = createAnalyzer(sessions);
       const result = analyzer.getInsights().migrationReadiness;
-      expect(result.primaryHarness).toBe('Local Agent');
+      expect(result.primaryHarness).toBe('Cursor');
     });
 
     it('tracks used features', () => {
       const ts = new Date('2024-03-15T10:00:00').getTime();
       const session = makeSession({
-        harness: 'Local Agent',
+        harness: 'Cursor',
         requests: [
           makeRequest({
             timestamp: ts,

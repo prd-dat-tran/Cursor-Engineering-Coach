@@ -35,10 +35,11 @@ body:
     validations:
       required: true
   - type: input
-    id: vscode-version
+    id: cursor-version
     attributes:
-      label: VS Code Version
-      placeholder: e.g. 1.115.0
+      label: Cursor Version
+      description: From Cursor → Settings → About
+      placeholder: e.g. 1.5.0
     validations:
       required: true
   - type: input

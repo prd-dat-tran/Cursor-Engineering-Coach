@@ -43,7 +43,7 @@ async function exportSummaryFromLogs(): Promise<void> {
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: 'Exporting AI Engineer Coach summary',
+      title: 'Exporting Cursor Engineering Coach summary',
       cancellable: false,
     },
     async progress => {
@@ -101,7 +101,7 @@ export function activate(context: vscode.ExtensionContext) {
   installRuntimeDebugHooks();
   runtimeDebug('extension', 'activate', `runtimeLog=${getRuntimeDebugLogPath()}`);
 
-  const outputChannel = vscode.window.createOutputChannel('AI Engineer Coach');
+  const outputChannel = vscode.window.createOutputChannel('Cursor Engineering Coach');
   context.subscriptions.push(outputChannel);
   setOutputHook((msg) => outputChannel.appendLine(msg));
 
@@ -146,7 +146,7 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('aiEngineerCoach.open', async () => {
+    vscode.commands.registerCommand('cursorEngineeringCoach.open', async () => {
       runtimeDebug('extension', 'command-open');
       await ready;
       // Gate dashboard creation behind the approval review.
@@ -154,7 +154,7 @@ export function activate(context: vscode.ExtensionContext) {
       const { DashboardPanel } = await loadPanelModule();
       DashboardPanel.createOrShow(context.extensionUri, context);
     }),
-    vscode.commands.registerCommand('aiEngineerCoach.reload', async () => {
+    vscode.commands.registerCommand('cursorEngineeringCoach.reload', async () => {
       runtimeDebug('extension', 'command-reload');
       await ready;
       if (getPending().length > 0) await promptAndReload();
@@ -165,13 +165,13 @@ export function activate(context: vscode.ExtensionContext) {
         DashboardPanel.createOrShow(context.extensionUri, context);
       }
     }),
-    vscode.commands.registerCommand('aiEngineerCoach.exportSummary', async () => {
+    vscode.commands.registerCommand('cursorEngineeringCoach.exportSummary', async () => {
       runtimeDebug('extension', 'command-export-summary');
       await ready;
       if (getPending().length > 0) await promptAndReload();
       await exportSummaryFromLogs();
     }),
-    vscode.commands.registerCommand('aiEngineerCoach.reviewLocalRules', async () => {
+    vscode.commands.registerCommand('cursorEngineeringCoach.reviewLocalRules', async () => {
       runtimeDebug('extension', 'command-review-trust');
       await ready;
       if (getPending().length === 0) {
@@ -199,7 +199,7 @@ export function activate(context: vscode.ExtensionContext) {
   void ready.then(() => loadPanelModule()).then(({ DashboardSidebarProvider }) => {
     const sidebarProvider = new DashboardSidebarProvider(context.extensionUri);
     context.subscriptions.push(
-      vscode.window.registerWebviewViewProvider('aiEngineerCoach.welcome', sidebarProvider),
+      vscode.window.registerWebviewViewProvider('cursorEngineeringCoach.welcome', sidebarProvider),
     );
   });
 }

@@ -3,17 +3,17 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-VSIX="ai-engineer-coach-0.1.0.vsix"
+VSIX="cursor-engineering-coach-0.1.0.vsix"
 
 echo "==> Building extension..."
 npx vsce package --no-dependencies
 
-echo "==> Installing $VSIX into VS Code Insiders..."
-code-insiders --install-extension "$VSIX" --force
+echo "==> Installing $VSIX into Cursor..."
+cursor --install-extension "$VSIX" --force
 
-echo "==> Reloading VS Code Insiders..."
+echo "==> Reloading Cursor..."
 osascript -e '
-tell application "Visual Studio Code - Insiders"
+tell application "Cursor"
   activate
 end tell
 delay 0.3

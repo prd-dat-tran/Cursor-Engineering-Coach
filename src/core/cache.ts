@@ -16,7 +16,6 @@ import * as path from 'path';
 import { Session, Workspace } from './types';
 import { warnCore } from './log';
 import { parseSessionFile } from './parser-vscode';
-import { parseCLIEventsFile } from './parser-vscode-cli';
 
 export interface ParseResult {
   workspaces: Map<string, Workspace>;
@@ -26,7 +25,7 @@ export interface ParseResult {
 }
 
 export interface SessionSource {
-  kind: 'vscode-session-file' | 'cli-events';
+  kind: 'vscode-session-file';
   filePath: string;
   workspaceId: string;
   workspaceName: string;
@@ -88,7 +87,7 @@ export interface CacheData {
 
 /* ---- Paths ---- */
 
-const CACHE_DIR = path.join(process.env.HOME || process.env.USERPROFILE || '', '.copilot-analytics-cache');
+const CACHE_DIR = path.join(process.env.HOME || process.env.USERPROFILE || '', '.cursor-engineering-coach', 'cache');
 const CACHE_FILE = path.join(CACHE_DIR, 'parsed.json');
 const CACHE_META = path.join(CACHE_DIR, 'meta.json');
 
@@ -150,10 +149,6 @@ export function setMemoryCache(result: ParseResult, dirMetas: DirMetas): void {
 export function computeDirMetas(logsDirs: string[]): DirMetas {
   const metas: DirMetas = {};
   for (const logsDir of logsDirs) {
-    // Skip non-VS-Code dirs (Xcode / CLI) – they are always re-parsed
-    if (logsDir.includes(path.join('.config', 'github-copilot', 'xcode')) ||
-        logsDir.includes(path.join('.copilot', 'session-state')) ||
-        logsDir.includes(path.join('.copilot', 'history-session-state'))) continue;
     try {
       const entries = fs.readdirSync(logsDir, { withFileTypes: true });
       for (const e of entries) {
@@ -188,9 +183,6 @@ export async function computeDirMetasAsync(logsDirs: string[]): Promise<DirMetas
   // Collect all workspace paths first
   const wsPaths: string[] = [];
   for (const logsDir of logsDirs) {
-    if (logsDir.includes(path.join('.config', 'github-copilot', 'xcode')) ||
-        logsDir.includes(path.join('.copilot', 'session-state')) ||
-        logsDir.includes(path.join('.copilot', 'history-session-state'))) continue;
     try {
       const entries = await fs.promises.readdir(logsDir, { withFileTypes: true });
       for (const e of entries) {
@@ -416,9 +408,6 @@ export async function loadSessionFromDisk(sessionId: string): Promise<Session | 
     }
     if (!source) return null;
 
-    if (source.kind === 'cli-events') {
-      return parseCLIEventsFile(source.filePath, source.workspaceId, source.workspaceName);
-    }
     return parseSessionFile(source.filePath, source.workspaceId, source.workspaceName, source.harness);
   } catch {
     return null;

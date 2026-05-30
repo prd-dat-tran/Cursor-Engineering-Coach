@@ -133,7 +133,6 @@ export interface ExtensionMethodMap extends RpcMethodMap {
   getWorkspaceDeps: { params: { limit?: number } | undefined; result: { deps: { workspace: string; dependencies: string[]; devDependencies: string[] }[] } };
   getSdlcToolAnalysis: { params: { filter?: DateFilter } | Record<string, unknown>; result: { mcpServers: unknown[] } };
   getSdlcRepoScan: { params: Record<string, unknown> | undefined; result: { repos: unknown[] } };
-  getSdlcGitHubData: { params: Record<string, unknown>; result: unknown };
   saveModelBudgets: { params: { budgets: Record<string, number> }; result: { ok: boolean } };
   loadModelBudgets: { params: Record<string, unknown> | undefined; result: Record<string, number> };
 }

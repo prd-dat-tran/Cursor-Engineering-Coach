@@ -19,7 +19,7 @@ export function getDashboardHtml(webview: vscode.Webview, extensionUri: vscode.U
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} data:; font-src ${webview.cspSource}; require-trusted-types-for 'script'; trusted-types coach-html default;">
 <link href="${String(styleUri)}" rel="stylesheet">
-<title>AI Engineer Coach</title>
+<title>Cursor Engineering Coach</title>
 </head>
 <body>
 <div id="app">

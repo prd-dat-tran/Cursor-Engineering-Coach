@@ -306,9 +306,9 @@ const LLM_FAMILY = 'gpt-4.1';
 const LLM_REQUEST_TIMEOUT_MS = 90_000;
 
 /**
- * Pick a Copilot chat model. Tries the preferred family first, then a short
- * fallback list, then any available model. Throws a descriptive error when
- * nothing is available so callers can surface a useful message.
+ * Pick a Cursor chat model via the VS Code Language Model API. Tries the preferred
+ * family first, then a short fallback list, then any available model. Throws a
+ * descriptive error when nothing is available so callers can surface a useful message.
  */
 async function selectModel(): Promise<vscode.LanguageModelChat> {
   const families = [LLM_FAMILY, 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4'];
@@ -318,7 +318,7 @@ async function selectModel(): Promise<vscode.LanguageModelChat> {
   }
   const any = await vscode.lm.selectChatModels({});
   if (any.length > 0) return any[0];
-  throw new Error('No language model available. Make sure GitHub Copilot is installed and signed in.');
+  throw new Error('No language model available. Make sure Cursor IDE is signed in and a chat model is enabled.');
 }
 
 /** Race a promise against a timeout. Rejects with a clear message on timeout. */

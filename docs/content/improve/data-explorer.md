@@ -20,6 +20,6 @@ All distributions respect the active date and workspace filters, so you can comp
 
 ## Use it when you are
 
-- **Designing a rule** -- Check that the field you want to key off is actually populated for your harness
+- **Designing a rule** -- Check that the field you want to key off is actually populated for your sessions
 - **Debugging a false positive** -- See the real distribution of a threshold before deciding where to set it
-- **Exploring harness differences** -- Flip between workspaces or harnesses to see which features show up where
+- **Exploring workspace differences** -- Flip between workspaces to see which features show up where

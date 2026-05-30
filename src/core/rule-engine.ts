@@ -40,7 +40,7 @@ export function registerBuiltinRuleSource(id: string, source: string): void {
 }
 
 /**
- * Register a personal rule source (from ~/.ai-engineer-coach/rules/).
+ * Register a personal rule source (from ~/.cursor-engineering-coach/rules/).
  */
 export function registerPersonalRuleSource(id: string, source: string, filePath: string): void {
   PERSONAL_RULE_SOURCES[id] = { source, filePath };
@@ -48,7 +48,7 @@ export function registerPersonalRuleSource(id: string, source: string, filePath:
 }
 
 /**
- * Register a project rule source (from <workspace>/.ai-engineer-coach/rules/).
+ * Register a project rule source (from <workspace>/.cursor-engineering-coach/rules/).
  */
 export function registerProjectRuleSource(id: string, source: string, filePath: string): void {
   PROJECT_RULE_SOURCES[id] = { source, filePath };

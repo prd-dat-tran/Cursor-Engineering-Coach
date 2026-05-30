@@ -18,7 +18,7 @@ Detects sessions with only a single message, indicating missed refinement opport
 {{count}} sessions ({{pct}}) have only 1 message. You may be missing refinement opportunities.
 
 # How to Improve
-Use follow-up messages to refine Copilot's responses. Iterating produces much better results than one-shot prompts.
+Use follow-up messages to refine Cursor's responses. Iterating produces much better results than one-shot prompts.
 
 # Examples
 {{extra.workspace}}: "{{message}}..."

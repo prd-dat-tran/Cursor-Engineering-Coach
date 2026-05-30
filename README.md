@@ -1,34 +1,28 @@
-<h1 align="center">AI Engineer Coach</h1>
+<h1 align="center">Cursor Engineering Coach</h1>
 
 <p align="center">
-<strong>better agentic engineering.</strong><br>
-Analyze your AI coding assistant usage — any harness, one dashboard.
+<strong>better agentic engineering — for Cursor.</strong><br>
+Analyze your Cursor IDE usage and turn it into an actionable coaching dashboard.
 </p>
 
 <p align="center">
 <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
-<img alt="VS Code 1.115+" src="https://img.shields.io/badge/VS%20Code-1.115%2B-007ACC">
+<img alt="Cursor IDE" src="https://img.shields.io/badge/Cursor-IDE-000000">
 </p>
 
 <br>
-
-<p align="center">
-  
-https://github.com/user-attachments/assets/9f0239bf-20e0-459f-b137-17cce0edd1b2
-
-</p>
 
 ---
 
 ## What it does
 
-AI Engineer Coach reads your local AI session logs and turns them into actionable insights — no data leaves your machine.
+Cursor Engineering Coach reads your local Cursor session logs and turns them into actionable insights — no data leaves your machine.
 
-- **Track progress** -- practice scores, weekly trends, daily activity charts
-- **Detect anti-patterns** -- 45 rules across prompt quality, session hygiene, code review, tool mastery, and context management
-- **Measure output** -- AI-generated code volume by language, workspace, model, and harness
-- **Discover skills** -- find repeated prompts and turn them into reusable skills
-- **Score context health** — agentic readiness checks, instruction-file audits, workspace context maps
+- **Track progress** — practice scores, weekly trends, daily activity charts
+- **Detect anti-patterns** — 45 rules across prompt quality, session hygiene, code review, tool mastery, and context management
+- **Measure output** — generated code volume by language, workspace, and model
+- **Discover skills** — find repeated prompts and turn them into reusable Cursor rules and skills
+- **Score context health** — agentic readiness checks, rules-file audits, workspace context maps
 
 <details>
 <summary><strong>Screenshots</strong></summary>
@@ -52,43 +46,43 @@ AI Engineer Coach reads your local AI session logs and turns them into actionabl
 
 ## Installation
 
-Choose one of these paths.
+Cursor Engineering Coach ships as a Cursor extension. Choose one of these paths.
 
-### Path 1 -- Prebuilt VSIX (easiest)
+### Path 1 — Prebuilt VSIX (easiest)
 
 Prerequisites:
 
-- VS Code
+- Cursor IDE
 - Access to the repository Releases page
 
 Steps:
 
-1. Download the latest `ai-engineer-coach-*.vsix` from Releases.
-2. Install it in VS Code:
+1. Download the latest `cursor-engineering-coach-*.vsix` from Releases.
+2. Install it in Cursor:
 
 **macOS / Linux**
 
 ```bash
-code --install-extension ai-engineer-coach-*.vsix
+cursor --install-extension cursor-engineering-coach-*.vsix
 ```
 
 **Windows / PowerShell**
 
 ```powershell
-code --install-extension (Get-ChildItem . -Filter 'ai-engineer-coach-*.vsix' | Select-Object -First 1).FullName
+cursor --install-extension (Get-ChildItem . -Filter 'cursor-engineering-coach-*.vsix' | Select-Object -First 1).FullName
 ```
 
-### Path 2 -- Dev Container build (no local Node.js/npm)
+### Path 2 — Dev Container build (no local Node.js/npm)
 
 Prerequisites:
 
-- VS Code
+- Cursor IDE
 - Dev Containers extension
 - Docker or Podman
 
 Steps:
 
-1. Clone the repo and open it in VS Code.
+1. Clone the repo and open it in Cursor.
 2. Reopen in container.
 3. Run:
 
@@ -99,18 +93,18 @@ npm run package
 
 4. Install the generated `.vsix` using one of the commands above.
 
-### Path 3 -- Local build
+### Path 3 — Local build
 
 Prerequisites:
 
-- VS Code
+- Cursor IDE
 - Node.js and npm
 
 Steps:
 
 ```bash
-git clone https://github.com/microsoft/ai-engineering-coach.git
-cd ai-engineering-coach
+git clone https://github.com/prd-dat-tran/Cursor-Engineering-Coach.git
+cd Cursor-Engineering-Coach
 npm ci
 npm run package
 ```
@@ -124,8 +118,8 @@ If you do not have permission to publish a Release artifact, open a PR with your
 After install:
 
 1. Open the command palette (`Cmd+Shift+P` / `Ctrl+Shift+P`)
-2. Run **AI Engineer Coach: Open Dashboard**
-3. Navigate pages from the sidebar, filter by workspace or harness
+2. Run **Cursor Engineering Coach: Open Dashboard**
+3. Navigate pages from the sidebar, filter by workspace at the bottom
 
 ---
 
@@ -137,14 +131,14 @@ After install:
 | ------------------ | ------------------------------------------------------------------------------------- |
 | **Dashboard**      | Practice scores with week-over-week trends, daily activity chart, top workspace stats |
 | **Timeline**       | Gantt-style session timeline with per-day drill-down and overlap detection            |
-| **Coding Moments** | Screenshot gallery from AI coding sessions with story reels and workspace filtering   |
+| **Coding Moments** | Screenshot gallery from your Cursor sessions with story reels and workspace filtering |
 
 ### Measure
 
 | Page         | Description                                                                                 |
 | ------------ | ------------------------------------------------------------------------------------------- |
 | **Output**   | Generated code volume by language, model usage table _(token breakdown temporarily hidden)_ |
-| **Burndown** | Monthly AI token budget progress with projections _(temporarily disabled)_                  |
+| **Burndown** | Monthly AI usage budget progress with projections _(temporarily disabled)_                  |
 | **Patterns** | 7×24 activity heatmap and work-life balance signals                                         |
 
 ### Improve
@@ -155,8 +149,8 @@ After install:
 | **Rule Editor**     | Create, edit, and tune detection rules visually or as raw markdown. Live-test against your data                                            |
 | **Rule Playground** | Interactive REPL for the rule DSL with field browser, function catalog, and metric list                                                    |
 | **Data Explorer**   | Browse session fields, view distributions, run ad-hoc filters                                                                              |
-| **Skill Finder**    | Discover repeated prompt patterns and matching community skills from the open-source catalog                                               |
-| **Context Health**  | Overall context score, agentic readiness checklist, workspace context map, AI-powered instruction-file review                              |
+| **Skill Finder**    | Discover repeated prompt patterns and matching community Cursor rules and skills                                                           |
+| **Context Health**  | Overall context score, agentic readiness checklist, workspace context map, AI-powered rules-file review                                    |
 
 ### Level Up
 
@@ -164,33 +158,23 @@ After install:
 | ------------------- | -------------------------------------------------------------------------------- |
 | **Learning Center** | Personalized quizzes and code-comparison rounds generated from your actual usage |
 | **Achievements**    | XP-based progression with Bronze → Silver → Gold → Diamond tiers                 |
-| **Agentic SDLC**    | How you use AI across the full software-development lifecycle                    |
-| **Share**           | Generate a shareable stat card and export Markdown/JSON summaries               |
+| **Agentic SDLC**    | How you use Cursor across the full software-development lifecycle                |
+| **Share**           | Generate a shareable stat card and export Markdown/JSON summaries                |
 
 ---
 
 ## Privacy
 
-- **Read-only** — the extension never modifies your session files
+- **Read-only** — the extension never modifies your Cursor session files
 - **Local analysis** — all parsing and analytics run entirely on your machine
-- **No proprietary telemetry** — the extension does not phone home or collect usage data
-- **Optional AI features** — some features (rule compiler, skill finder, context review) use the VS Code built-in Copilot language model API when explicitly invoked by the user
+- **No telemetry** — the extension does not phone home or collect usage data
+- **Optional AI features** — some features (rule compiler, skill finder, context review) use Cursor's built-in language model API when explicitly invoked by the user
 
 ---
 
-## Code of Conduct
+## Contributing
 
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
-
-## Trademarks
-
-This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft
-trademarks or logos is subject to and must follow
-[Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
-Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
-Any use of third-party trademarks or logos are subject to those third-party's policies.
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, and [docs/AUTHORING_RULES.md](docs/AUTHORING_RULES.md) if you want to add new detection rules or metrics.
 
 ## License
 
@@ -198,4 +182,4 @@ Any use of third-party trademarks or logos are subject to those third-party's po
 
 ## Disclaimer
 
-This project is an open-source community effort by Microsoft employees. It is **not** an official Microsoft product and is not part of any Microsoft service or support offering. It is provided as-is with no warranties or guarantees.
+This project is an open-source community fork of [microsoft/AI-Engineering-Coach](https://github.com/microsoft/AI-Engineering-Coach), retargeted to work exclusively with Cursor IDE. It is **not** an official Cursor product and is not affiliated with Anysphere or Microsoft. It is provided as-is with no warranties or guarantees.

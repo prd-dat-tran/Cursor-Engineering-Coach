@@ -29,7 +29,7 @@ describe('RuleEngine facade', () => {
   it('paths.personal() returns an absolute path', () => {
     const p = RuleEngine.paths.personal();
     expect(p.length).toBeGreaterThan(0);
-    expect(p.endsWith(path.join('.ai-engineer-coach', 'rules'))).toBe(true);
+    expect(p.endsWith(path.join('.cursor-engineering-coach', 'rules'))).toBe(true);
   });
 
   it('testMarkdown() evaluates a tiny rule without throwing', () => {

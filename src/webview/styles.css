@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See LICENSE in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-/* AI Engineer Coach -- VS Code Native Theme */
+/* Cursor Engineering Coach -- VS Code Native Theme */
 
 :root {
   --canvas: var(--vscode-editor-background, #1e1e1e);
@@ -2001,7 +2001,7 @@ h2 {
 }
 
 /* Partial-data badge — request had output tokens captured but no input
-   (e.g. VS Code copilot/auto). Orange to signal "incomplete but not missing". */
+   (e.g. Cursor's auto-completion source). Orange to signal "incomplete but not missing". */
 .partial-badge {
   display: inline-block;
   padding: 1px 6px;

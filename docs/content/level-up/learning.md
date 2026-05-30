@@ -6,13 +6,13 @@ description: "Personalized quizzes and coding challenges from your real usage"
 
 # Learning Center
 
-The Learning Center is a personalized upskilling program built from your actual Copilot usage. The skill tree adapts to your languages, dependencies, and projects, so everything you learn is directly applicable to your work.
+The Learning Center is a personalized upskilling program built from your actual Cursor usage. The skill tree adapts to your languages, dependencies, and projects, so everything you learn is directly applicable to your work.
 
 ![Learning Center](/screenshots/screen-learning.png)
 
 ## How It Works
 
-AI Engineer Coach analyzes the languages and technologies you work with, then generates targeted exercises. You can explore freely, but you level up only by passing quizzes.
+Cursor Engineering Coach analyzes the languages and technologies you work with, then generates targeted exercises. You can explore freely, but you level up only by passing quizzes.
 
 ## Quiz Types
 

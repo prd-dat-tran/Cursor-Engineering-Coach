@@ -213,7 +213,7 @@ export async function renderRuleEditor(container: HTMLElement, currentFilter: Da
                 <span class="rule-help-precedence">Highest priority</span>
               </div>
               <p>Workspace-specific rules. Shared with your team via version control.</p>
-              <code class="rule-help-path">${'<workspace>'}/.ai-engineer-coach/rules/*.md</code>
+              <code class="rule-help-path">${'<workspace>'}/.cursor-engineering-coach/rules/*.md</code>
               ${renderLayerStatus(layers, 'project')}
             </div>
             <div class="rule-help-layer">
@@ -222,7 +222,7 @@ export async function renderRuleEditor(container: HTMLElement, currentFilter: Da
                 <span class="rule-help-precedence">Medium priority</span>
               </div>
               <p>Your personal rules. Applied across all workspaces on this machine.</p>
-              <code class="rule-help-path">~/.ai-engineer-coach/rules/*.md</code>
+              <code class="rule-help-path">~/.cursor-engineering-coach/rules/*.md</code>
               ${renderLayerStatus(layers, 'personal')}
             </div>
             <div class="rule-help-layer">

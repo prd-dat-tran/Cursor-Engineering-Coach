@@ -26,7 +26,7 @@ import { createRequest, createSession } from './parser-shared';
 const tempDirs: string[] = [];
 
 function makeTempDir(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-engineer-coach-cache-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cursor-engineering-coach-cache-'));
   tempDirs.push(dir);
   return dir;
 }
@@ -123,15 +123,6 @@ describe('computeDirMetas', () => {
 
     const metas = computeDirMetas([logsDir]);
     expect(metas[wsDir].editCount).toBe(2);
-  });
-
-  it('skips Xcode and CLI directories', () => {
-    const logsDir = makeTempDir();
-    const xcodeDir = path.join(logsDir, '.config', 'github-copilot', 'xcode');
-    fs.mkdirSync(path.join(xcodeDir, 'workspace1', 'chatSessions'), { recursive: true });
-
-    const metas = computeDirMetas([xcodeDir]);
-    expect(Object.keys(metas)).toHaveLength(0);
   });
 
   it('handles non-existent logsDirs gracefully', () => {

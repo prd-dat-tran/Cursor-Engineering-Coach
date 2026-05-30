@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See LICENSE in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-/* Shared constants for AI Engineer Coach */
+/* Shared constants for Cursor Engineering Coach */
 
 /* ---- Model multipliers for premium request cost ---- */
 /* https://docs.github.com/en/copilot/concepts/billing/copilot-requests#model-multipliers */
@@ -95,8 +95,8 @@ export const LOW_MARKDOWN_RATIO = 0.05;              // <5% markdown LoC → lik
 export const LOW_MARKDOWN_MIN_LOC = 100;             // min total AI LoC in a workspace to flag
 export const LOW_MARKDOWN_MIN_WORKSPACES = 1;        // min workspaces with low markdown to flag
 export const OVERSIZED_INSTRUCTION_LINES = 500;      // instruction file too large (lines)
-export const COPILOT_INSTRUCTION_MAX_CHARS = 4000;   // Copilot code review truncation limit
-export const CLAUDE_MD_RECOMMENDED_LINES = 200;      // CLAUDE.md recommended max lines
+export const CURSOR_RULE_FILE_MAX_CHARS = 6000;      // .cursor/rules/*.md soft cap before context bloat
+export const CURSOR_RULE_RECOMMENDED_LINES = 200;    // AGENTS.md / .cursor/rules recommended max lines
 
 /* ---- Flow state thresholds ---- */
 export const FLOW_RAPID_FOLLOWUP_SEC = 30;            // follow-up within 30s = rapid (in the zone)

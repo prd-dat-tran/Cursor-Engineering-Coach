@@ -1,12 +1,12 @@
 ---
 title: "Timeline"
 weight: 20
-description: "Gantt-style visualization of your coding sessions"
+description: "Gantt-style visualization of your Cursor sessions"
 ---
 
 # Timeline
 
-The Timeline view displays your AI coding sessions as a Gantt chart, giving you a visual overview of when you worked and how your sessions overlapped.
+The Timeline view displays your Cursor sessions as a Gantt chart, giving you a visual overview of when you worked and how your sessions overlapped.
 
 ![Timeline View](/screenshots/screen-timeline.png)
 
@@ -24,7 +24,7 @@ You can navigate between days using the date selector.
 
 ## List View
 
-Switch to the List tab for a tabular view of all sessions. Each row shows the workspace, harness, start time, duration, request count, and estimated lines of code.
+Switch to the List tab for a tabular view of all sessions. Each row shows the workspace, start time, duration, request count, and estimated lines of code.
 
 ## What Sessions Tell You
 

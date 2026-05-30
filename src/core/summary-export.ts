@@ -207,7 +207,7 @@ export function renderSummaryJson(report: SummaryExportReport): string {
 
 export function renderSummaryMarkdown(report: SummaryExportReport): string {
   const lines: string[] = [
-    '# AI Engineer Coach Summary',
+    '# Cursor Engineering Coach Summary',
     '',
     `Generated: ${report.generatedAt}`,
     `Filter: ${summarizeFilter(report.filter)}`,
@@ -263,7 +263,7 @@ export function renderSummaryMarkdown(report: SummaryExportReport): string {
 export function getSummaryExportFilenames(generatedAt: string | Date = new Date()): { markdown: string; json: string } {
   const date = toIsoString(generatedAt).slice(0, 10);
   return {
-    markdown: `ai-engineer-coach-summary-${date}.md`,
-    json: `ai-engineer-coach-summary-${date}.json`,
+    markdown: `cursor-engineering-coach-summary-${date}.md`,
+    json: `cursor-engineering-coach-summary-${date}.json`,
   };
 }

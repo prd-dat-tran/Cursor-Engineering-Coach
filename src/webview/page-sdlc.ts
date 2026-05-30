@@ -25,7 +25,6 @@ interface RepoScan {
   remote: string | null;
   contextFiles: string[];
   workflows: string[];
-  agenticWorkflows: string[];
 }
 
 
@@ -59,7 +58,7 @@ function getMcpBonus(mcpCount: number): number {
   return 0;
 }
 
-function getPhaseScore(dist: Record<WorkType, number>, total: number, mcpCount: number, hasAw: boolean, hasWorkflows: boolean, hasContext: boolean): { label: string; score: number; color: string } {
+function getPhaseScore(dist: Record<WorkType, number>, total: number, mcpCount: number, hasWorkflows: boolean, hasContext: boolean): { label: string; score: number; color: string } {
   if (total === 0) return { label: 'No data', score: 0, color: COLORS.muted };
   const reviewBonus = (dist['code review'] ?? 0) > 0 ? 15 : 0;
   const testBonus = (dist['test'] ?? 0) > 0 ? 15 : 0;
@@ -72,9 +71,8 @@ function getPhaseScore(dist: Record<WorkType, number>, total: number, mcpCount: 
     + configBonus
     + getDiversityBonus(diverse)
     + getMcpBonus(mcpCount)
-    + (hasAw ? 15 : 0)
-    + (hasWorkflows ? 10 : 0)
-    + (hasContext ? 10 : 0);
+    + (hasWorkflows ? 15 : 0)
+    + (hasContext ? 15 : 0);
   const color = score >= 70 ? COLORS.green : score >= 40 ? COLORS.yellow : COLORS.red;
   const label = score >= 70 ? 'Excellent' : score >= 40 ? 'Good' : 'Needs Improvement';
   return { label, score, color };
@@ -106,23 +104,20 @@ export async function renderSdlc(container: HTMLElement, filter: DateFilter): Pr
   // MCP server analysis — only show SDLC-relevant servers
   const mcpServers = (toolAnalysis.mcpServers || []).filter(s => s.isSdlcRelevant);
 
-  // Repo scan results — top 20, repos with agentic workflows first, then most recently active
+  // Repo scan results — top 20 by activity
   const allRepos = repoScan.repos || [];
-  const reposWithAw = allRepos.filter(r => r.agenticWorkflows.length > 0);
-  const reposWithoutAw = allRepos.filter(r => r.agenticWorkflows.length === 0);
-  const repos = [...reposWithAw, ...reposWithoutAw].slice(0, 20);
+  const repos = allRepos.slice(0, 20);
 
   // Aggregate counts
-  const awCount = allRepos.filter(r => r.agenticWorkflows.length > 0).length;
   const wfCount = allRepos.filter(r => r.workflows.length > 0).length;
   const ctxCount = allRepos.filter(r => r.contextFiles.length > 0).length;
 
   const finalScore = getPhaseScore(
     workTypeDistribution, sessions.total, mcpServers.length,
-    awCount > 0, wfCount > 0, ctxCount > 0
+    wfCount > 0, ctxCount > 0
   );
 
-  const recs = generateRecommendations(workTypeDistribution, classifiedTotal, mcpServers, awCount, wfCount, ctxCount);
+  const recs = generateRecommendations(workTypeDistribution, classifiedTotal, mcpServers, wfCount, ctxCount);
 
   render(html`
     <div class="sdlc-page">
@@ -147,9 +142,8 @@ export async function renderSdlc(container: HTMLElement, filter: DateFilter): Pr
       <div class="sdlc-stats">
         <div class="sdlc-stat"><div class="sdlc-stat-val">${sessions.total}</div><div class="sdlc-stat-lbl">Total Sessions</div></div>
         <div class="sdlc-stat"><div class="sdlc-stat-val" style=${'color:' + COLORS.blue}>${mcpServers.length}</div><div class="sdlc-stat-lbl">MCP Servers</div></div>
-        <div class="sdlc-stat"><div class="sdlc-stat-val" style=${'color:' + COLORS.green}>${awCount}</div><div class="sdlc-stat-lbl">Agentic Workflows</div></div>
         <div class="sdlc-stat"><div class="sdlc-stat-val" style=${'color:' + COLORS.blue}>${wfCount}</div><div class="sdlc-stat-lbl">CI/CD Workflows</div></div>
-        <div class="sdlc-stat"><div class="sdlc-stat-val" style=${'color:' + COLORS.purple}>${ctxCount}</div><div class="sdlc-stat-lbl">Context Configs</div></div>
+        <div class="sdlc-stat"><div class="sdlc-stat-val" style=${'color:' + COLORS.purple}>${ctxCount}</div><div class="sdlc-stat-lbl">Cursor Configs</div></div>
       </div>
 
       <div class="sdlc-columns">
@@ -199,22 +193,21 @@ export async function renderSdlc(container: HTMLElement, filter: DateFilter): Pr
 
         <!-- Sidebar -->
         <div class="sdlc-sidebar">
-          <!-- GitHub Config per Repo -->
+          <!-- Repo Configuration -->
           <div class="sdlc-section">
-            <h3 class="sdlc-section-title">${SVG.robot} GitHub Configuration</h3>
+            <h3 class="sdlc-section-title">${SVG.robot} Repository Configuration</h3>
             ${repos.length === 0
-              ? html`<div class="sdlc-empty">No workspace repos resolved. Open projects in VS Code to scan.</div>`
+              ? html`<div class="sdlc-empty">No workspace repos resolved. Open projects in Cursor to scan.</div>`
               : html`<div class="sdlc-ghaw-list">
                   ${repos.map(r => {
-                    const hasAny = r.agenticWorkflows.length > 0 || r.workflows.length > 0 || r.contextFiles.length > 0;
+                    const hasAny = r.workflows.length > 0 || r.contextFiles.length > 0;
                     return html`
                     <div class=${'sdlc-ghaw-item' + (hasAny ? ' sdlc-ghaw-active' : '')}>
                       <div class="sdlc-ghaw-info">
                         <div class="sdlc-ghaw-name">${r.workspace}</div>
-                        ${r.agenticWorkflows.length > 0 && html`<div class="sdlc-ghaw-detail sdlc-ghaw-aw">${SVG.bolt} <strong>Agentic Workflows</strong> (.github/aw): ${r.agenticWorkflows.join(', ')}</div>`}
-                        ${r.workflows.length > 0 && html`<div class="sdlc-ghaw-detail sdlc-ghaw-wf">${SVG.gear} <strong>Workflows</strong> (.github/workflows): ${r.workflows.join(', ')}</div>`}
-                        ${r.contextFiles.length > 0 && html`<div class="sdlc-ghaw-detail sdlc-ghaw-ctx">${SVG.pencilDoc} <strong>Context Files</strong>: ${r.contextFiles.join(', ')}</div>`}
-                        ${!hasAny && html`<div class="sdlc-ghaw-detail">No .github/ config found</div>`}
+                        ${r.workflows.length > 0 && html`<div class="sdlc-ghaw-detail sdlc-ghaw-wf">${SVG.gear} <strong>CI/CD Workflows</strong> (.github/workflows): ${r.workflows.join(', ')}</div>`}
+                        ${r.contextFiles.length > 0 && html`<div class="sdlc-ghaw-detail sdlc-ghaw-ctx">${SVG.pencilDoc} <strong>Cursor Context</strong>: ${r.contextFiles.join(', ')}</div>`}
+                        ${!hasAny && html`<div class="sdlc-ghaw-detail">No Cursor config or workflows found</div>`}
                       </div>
                     </div>`;
                   })}
@@ -246,31 +239,27 @@ export async function renderSdlc(container: HTMLElement, filter: DateFilter): Pr
 
 function generateRecommendations(
   dist: Record<WorkType, number>, total: number,
-  mcpServers: McpServer[], awCount: number, wfCount: number, ctxCount: number,
+  mcpServers: McpServer[], wfCount: number, ctxCount: number,
 ): { icon: ComponentChildren; title: string; description: string }[] {
   const recs: { icon: ComponentChildren; title: string; description: string }[] = [];
-  if (total === 0) return [{ icon: SVG.lightbulb, title: 'Start using AI', description: 'Begin using GitHub Copilot to see SDLC insights.' }];
+  if (total === 0) return [{ icon: SVG.lightbulb, title: 'Start using Cursor', description: 'Open a project in Cursor and start chatting with the agent to see SDLC insights.' }];
 
   const reviewPct = (dist['code review'] ?? 0) / total * 100;
   if (reviewPct < 5) {
-    recs.push({ icon: SVG.warning, title: 'Add AI Reviews', description: 'Less than 5% of sessions involve code review. Use Copilot as a reviewer for PRs.' });
+    recs.push({ icon: SVG.warning, title: 'Add AI Reviews', description: 'Less than 5% of sessions involve code review. Use Cursor in Ask mode as a reviewer for PRs.' });
   }
 
   const testPct = (dist['test'] ?? 0) / total * 100;
   if (testPct < 10) {
-    recs.push({ icon: SVG.warning, title: 'More AI Testing', description: 'Low test session ratio. Ask Copilot to write tests alongside features.' });
+    recs.push({ icon: SVG.warning, title: 'More AI Testing', description: 'Low test session ratio. Ask Cursor to write tests alongside features.' });
   }
 
   if (mcpServers.length === 0) {
-    recs.push({ icon: SVG.globe, title: 'Add SDLC MCP Servers', description: 'Connect GitHub, Atlassian, or Azure DevOps MCP servers for deeper integration.' });
-  }
-
-  if (awCount === 0) {
-    recs.push({ icon: SVG.bolt, title: 'Enable Agentic Workflows', description: 'Set up GitHub Agentic Workflows in .github/aw/ for automated agent-driven tasks.' });
+    recs.push({ icon: SVG.globe, title: 'Add SDLC MCP Servers', description: 'Wire GitHub, Linear, Atlassian, or Sentry MCP servers into .cursor/mcp.json for deeper integration.' });
   }
 
   if (ctxCount === 0) {
-    recs.push({ icon: SVG.pencilDoc, title: 'Add Context Files', description: 'Create .github/agents/ or copilot-instructions.md to give Copilot project-specific guidance.' });
+    recs.push({ icon: SVG.pencilDoc, title: 'Add Context Files', description: 'Create AGENTS.md or .cursor/rules/<topic>.md files to give Cursor project-specific guidance.' });
   }
 
   if (wfCount === 0) {

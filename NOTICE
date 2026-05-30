@@ -1,10 +1,13 @@
 NOTICES
 
-This repository incorporates material from the third-party open source projects
-listed below. The original copyright notices and the licenses under which
-Microsoft received such material are set forth below. Microsoft reserves all
-other rights not specifically granted herein, whether by implication, estoppel,
-or otherwise.
+Cursor Engineering Coach is a fork of microsoft/AI-Engineering-Coach
+(https://github.com/microsoft/AI-Engineering-Coach), originally created by
+Microsoft Corporation and licensed under the MIT License. The upstream project's
+copyright and license terms continue to apply to all unmodified files.
+
+This repository also incorporates material from the third-party open source
+projects listed below. The original copyright notices and the licenses under
+which the material was received are set forth below.
 
 ----------------------------------------------------------------------
 

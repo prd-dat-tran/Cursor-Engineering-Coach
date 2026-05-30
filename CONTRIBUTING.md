@@ -1,16 +1,7 @@
-# Contributing to AI Engineer Coach
+# Contributing to Cursor Engineering Coach
 
-This project welcomes contributions and suggestions. Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
-
-When you submit a pull request, a CLA bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
-
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+This project welcomes contributions and suggestions. By submitting a pull request, you agree that
+your contribution is licensed under the project's [MIT License](LICENSE).
 
 ## How to Contribute
 
@@ -25,8 +16,8 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
 ## Reporting Issues
 
-Please use [GitHub Issues](https://github.com/microsoft/ai-engineer-coach/issues) to report bugs or
-request features. Before filing a new issue, please check if one already exists.
+Please use [GitHub Issues](https://github.com/prd-dat-tran/Cursor-Engineering-Coach/issues) to report
+bugs or request features. Before filing a new issue, please check if one already exists.
 
 ## Security
 
@@ -35,10 +26,16 @@ If you discover a security vulnerability, please follow the instructions in [SEC
 
 ## Creating Rules and Metrics
 
-Detection rules and metrics are the primary extensibility surface of AI Engineer Coach. Each one is
-a self-contained markdown file with YAML frontmatter and a small DSL — no code changes required to
-ship a new one. Built-in rules live in [`src/core/rules/`](src/core/rules/) and metrics in
-[`src/core/metrics/`](src/core/metrics/).
+Detection rules and metrics are the primary extensibility surface of Cursor Engineering Coach. Each
+one is a self-contained markdown file with YAML frontmatter and a small DSL — no code changes
+required to ship a new one. Built-in rules live in [`src/core/rules/`](src/core/rules/) and metrics
+in [`src/core/metrics/`](src/core/metrics/).
 
 See [docs/AUTHORING_RULES.md](docs/AUTHORING_RULES.md) for the full authoring guide: file format,
 annotated rule and metric examples, the local testing workflow, and links to the DSL reference.
+
+## Upstream
+
+This project is a fork of [microsoft/AI-Engineering-Coach](https://github.com/microsoft/AI-Engineering-Coach).
+If you find a bug that also affects the upstream extension, consider filing it there as well so both
+communities benefit.

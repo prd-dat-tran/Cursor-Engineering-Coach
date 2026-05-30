@@ -359,52 +359,6 @@ describe('getTokenCoverage', () => {
     expect(data.timeline.cells['OpenCode']['2025-06']!.countedRequests).toBe(1);
   });
 
-  it('classifies active CLI sessions without shutdown as pending, not partial', () => {
-    // Copilot CLI emits per-request output tokens via assistant.message events
-    // but only emits authoritative input/output totals at session.shutdown.
-    // An active CLI session with no shutdown yet should NOT be counted as
-    // partial — those requests are still pending the shutdown event.
-    const baseCli = createSession({
-      sessionId: 's-cli-active',
-      workspaceId: 'ws-1',
-      workspaceName: 'wp',
-      harness: 'GitHub Copilot CLI',
-      requests: [
-        req({ requestId: 'cli-1', completionTokens: 100, promptTokens: null, modelId: 'gpt-5.4' }),
-        req({ requestId: 'cli-2', completionTokens: 200, promptTokens: null, modelId: 'gpt-5.4' }),
-      ],
-    });
-    const cliActive: Session = { ...baseCli, endReason: 'active' };
-
-    // For comparison: Local Agent active session with output-only data should
-    // remain `partial` because per-request data IS the final form there.
-    const baseLa = createSession({
-      sessionId: 's-la-active',
-      workspaceId: 'ws-2',
-      workspaceName: 'wp',
-      harness: 'Local Agent (Insiders)',
-      requests: [req({ requestId: 'la-1', completionTokens: 50, promptTokens: null })],
-    });
-    const laActive: Session = { ...baseLa, endReason: 'active' };
-
-    const data = new Analyzer([cliActive, laActive]).getTokenCoverage();
-    // CLI requests: pending (excluded from missing% denominator)
-    // LA request:   partial (kept in denominator, but counts as not missing)
-    expect(data.pendingRequests).toBe(2);
-    expect(data.partialRequests).toBe(1);
-    expect(data.countedRequests).toBe(0);
-    expect(data.missingRequests).toBe(0);
-
-    const cliRow = data.byHarness.find(h => h.harness === 'GitHub Copilot CLI')!;
-    expect(cliRow.pendingRequests).toBe(2);
-    expect(cliRow.partialRequests).toBe(0);
-    expect(cliRow.missingPct).toBe(0); // pending excluded from denom
-
-    const laRow = data.byHarness.find(h => h.harness === 'Local Agent (Insiders)')!;
-    expect(laRow.partialRequests).toBe(1);
-    expect(laRow.pendingRequests).toBe(0);
-  });
-
   it('finalized CLI sessions still get full coverage from session-aggregated totals', () => {
     // Once a CLI session shuts down it gets modelUsage; coverage should be 100%.
     const sessions = [

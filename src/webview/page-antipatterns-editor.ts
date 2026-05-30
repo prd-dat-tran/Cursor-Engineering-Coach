@@ -10,7 +10,7 @@ import { rpc } from './shared';
 import { html, render, type ComponentChildren } from './render';
 import { DSL_CHEATSHEET } from './dsl-cheatsheet';
 
-const RULE_EDITOR_SYSTEM_PROMPT = `You are an expert at writing detection rules for the AI Engineer Coach VS Code extension.
+const RULE_EDITOR_SYSTEM_PROMPT = `You are an expert at writing detection rules for the Cursor Engineering Coach VS Code extension.
 Rules are markdown files with YAML frontmatter and a Detection Logic block using a custom DSL.
 
 ${DSL_CHEATSHEET}

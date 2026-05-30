@@ -12,17 +12,17 @@ thresholds:
 ---
 
 # Description
-Detects when no requests use Copilot skills, missing out on specialized domain knowledge.
+Detects when no requests use Cursor skills, missing out on specialized domain knowledge.
 
 # When Triggered
-No requests use Copilot skills. Skills provide specialized domain knowledge beyond general coding.
+No requests use Cursor skills. Skills provide specialized domain knowledge beyond general coding.
 
 # How to Improve
-Explore available skills in your IDE. Skills can help with specific frameworks, cloud providers, and development workflows.
+Explore available skills in Cursor. Skills can help with specific frameworks, cloud providers, and development workflows. Drop reusable instructions into `.cursor/rules/` or `.cursor/skills/`.
 
 # Examples
-Skills extend Copilot with domain expertise
-Check VS Code extensions for available skills
+Skills extend Cursor with domain expertise
+Check the Cursor community catalog for available skills
 
 # Detection Logic
 ```detect

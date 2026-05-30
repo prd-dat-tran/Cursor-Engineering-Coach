@@ -10,8 +10,8 @@ import * as path from 'path';
 import { ConfigFileInfo, HookCoverageInfo, Workspace } from './types';
 import { fileUriToPath } from './helpers';
 import {
-  OVERSIZED_INSTRUCTION_LINES, COPILOT_INSTRUCTION_MAX_CHARS,
-  CLAUDE_MD_RECOMMENDED_LINES,
+  OVERSIZED_INSTRUCTION_LINES,
+  CURSOR_RULE_FILE_MAX_CHARS,
 } from './constants';
 
 interface FilePattern {
@@ -25,22 +25,12 @@ interface FilePattern {
 }
 
 const KNOWN_FILES: FilePattern[] = [
-  { relativePath: '.github/copilot-instructions.md', kind: 'instruction' },
-  { relativePath: '.github/instructions', kind: 'instruction', isDir: true, dirGlob: /\.instructions\.md$/i },
-  { relativePath: '.github/prompts', kind: 'prompt', isDir: true, dirGlob: /\.prompt\.md$/i, recurse: true },
-  { relativePath: 'prompts', kind: 'prompt', isDir: true, dirGlob: /\.prompt\.md$/i, recurse: true },
-  { relativePath: '.github/agents', kind: 'agent', isDir: true, dirGlob: /\.md$/i, recurse: true, fileValidator: isAgentProfileFile },
-  { relativePath: 'agents', kind: 'agent', isDir: true, dirGlob: /\.md$/i, recurse: true, fileValidator: isAgentProfileFile },
-  { relativePath: '.github/skills', kind: 'skill', isDir: true, dirGlob: /SKILL\.md$/i, recurse: true },
-  { relativePath: '.claude/skills', kind: 'skill', isDir: true, dirGlob: /SKILL\.md$/i, recurse: true, skipWhenRootIsHome: true },
-  { relativePath: '.agents/skills', kind: 'skill', isDir: true, dirGlob: /SKILL\.md$/i, recurse: true, skipWhenRootIsHome: true },
   { relativePath: 'AGENTS.md', kind: 'instruction' },
-  { relativePath: 'CLAUDE.md', kind: 'claude-md' },
-  { relativePath: '.claude/settings.json', kind: 'hook-config' },
-  { relativePath: '.claude/settings.local.json', kind: 'hook-config' },
-  { relativePath: 'CLAUDE.local.md', kind: 'claude-md' },
-  { relativePath: '.cursorrules', kind: 'other' },
-  { relativePath: '.gemini/settings.json', kind: 'other' },
+  { relativePath: '.cursorrules', kind: 'instruction' },
+  { relativePath: '.cursor/rules', kind: 'instruction', isDir: true, dirGlob: /\.md$/i, recurse: true },
+  { relativePath: '.cursor/skills', kind: 'skill', isDir: true, dirGlob: /SKILL\.md$/i, recurse: true },
+  { relativePath: '.cursor/hooks.json', kind: 'hook-config' },
+  { relativePath: '.cursor/mcp.json', kind: 'other' },
 ];
 
 const CLOUD_PATH_PATTERNS = [
@@ -72,14 +62,12 @@ function firstStringProperty(value: Record<string, unknown>, ...keys: string[]):
   return '';
 }
 
-export function resolveWorkspaceRoot(id: string, ws: Workspace): string | null {
-  if (id.startsWith('claude-')) {
-    return resolveClaudeRoot(ws.path);
-  }
-  if (id.startsWith('codex-') || id.startsWith('opencode-')) {
-    return fs.existsSync(ws.path) ? ws.path : null;
-  }
-  return resolveVsCodeRoot(ws.path) ?? resolveCLIRoot(ws.path);
+export function resolveWorkspaceRoot(_id: string, ws: Workspace): string | null {
+  // Cursor workspaces use the same workspaceStorage layout as VS Code: each
+  // storage directory contains a workspace.json with a `folder` URI pointing to
+  // the project root. Fall back to the path the parser already resolved if the
+  // workspace.json is missing or stale.
+  return resolveVsCodeRoot(ws.path) ?? (fs.existsSync(ws.path) ? ws.path : null);
 }
 
 function resolveVsCodeRoot(storagePath: string): string | null {
@@ -89,31 +77,6 @@ function resolveVsCodeRoot(storagePath: string): string | null {
   const raw = firstStringProperty(data, 'folder', 'workspace');
   const decoded = fileUriToPath(raw).replace(/\/+$/, '');
   return decoded && fs.existsSync(decoded) ? decoded : null;
-}
-
-function resolveCLIRoot(storagePath: string): string | null {
-  const wsYaml = path.join(storagePath, 'workspace.yaml');
-  try {
-    const raw = fs.readFileSync(wsYaml, 'utf-8');
-    const cwdMatch = raw.match(/^cwd:\s*(.+)$/m);
-    if (cwdMatch) {
-      const cwd = cwdMatch[1].trim();
-      if (fs.existsSync(cwd)) return cwd;
-    }
-  } catch { /* ignore */ }
-  return null;
-}
-
-function resolveClaudeRoot(projectDir: string): string | null {
-  try {
-    const files = fs.readdirSync(projectDir).filter(f => f.endsWith('.jsonl'));
-    if (files.length === 0) return null;
-    const firstLine = fs.readFileSync(path.join(projectDir, files[0]), 'utf-8').split('\n')[0];
-    const parsed = JSON.parse(firstLine) as unknown;
-    if (!isRecord(parsed) || typeof parsed.cwd !== 'string') return null;
-    return fs.existsSync(parsed.cwd) ? parsed.cwd : null;
-  } catch { /* ignore */ }
-  return null;
 }
 
 export function isCloudPath(p: string): boolean {
@@ -210,37 +173,14 @@ function scanDirRecursive(
   }
 }
 
-function isAgentProfileFile(fullPath: string, relativePath: string): boolean {
-  const fileName = path.basename(relativePath).toLowerCase();
-  if (!fileName.endsWith('.md')) return false;
-  if (fileName === 'readme.md' || fileName === '_index.md') return false;
-  if (fileName.endsWith('.agent.md')) return true;
-
-  let content: string;
-  try {
-    content = fs.readFileSync(fullPath, 'utf-8');
-  } catch {
-    return false;
-  }
-
-  const trimmed = content.trimStart();
-  if (!trimmed.startsWith('---')) return false;
-  const frontmatterEnd = trimmed.indexOf('\n---', 3);
-  if (frontmatterEnd < 0) return false;
-
-  const frontmatter = trimmed.slice(0, frontmatterEnd + 4);
-  const body = trimmed.slice(frontmatterEnd + 4).trim();
-  return /(^|\n)description\s*:/i.test(frontmatter) && body.length > 0;
-}
-
 export function scanPersonalSkillFiles(): ConfigFileInfo[] {
   const home = process.env.HOME || process.env.USERPROFILE || '';
   if (!home) return [];
   const files: ConfigFileInfo[] = [];
+  // Cursor stores user-level skills under ~/.cursor/skills/<name>/SKILL.md
+  // (alongside ~/.cursor/rules/ and ~/.cursor-engineering-coach/).
   const roots = [
-    path.join(home, '.copilot', 'skills'),
-    path.join(home, '.claude', 'skills'),
-    path.join(home, '.agents', 'skills'),
+    path.join(home, '.cursor', 'skills'),
   ];
   for (const root of roots) {
     if (!fs.existsSync(root)) continue;
@@ -277,10 +217,7 @@ function analyzeFile(fullPath: string, relativePath: string, kind: ConfigFileInf
     sizeVerdict = 'moderate';
   }
 
-  if (relativePath === '.github/copilot-instructions.md' && chars > COPILOT_INSTRUCTION_MAX_CHARS) {
-    sizeVerdict = 'oversized';
-  }
-  if ((relativePath === 'CLAUDE.md' || relativePath === 'CLAUDE.local.md') && lines > CLAUDE_MD_RECOMMENDED_LINES) {
+  if (isCursorRuleFile(relativePath) && chars > CURSOR_RULE_FILE_MAX_CHARS) {
     sizeVerdict = 'oversized';
   }
 
@@ -318,38 +255,45 @@ function checkMarkdownQuality(content: string, relativePath: string): string[] {
     issues.push('Unclosed code block (```) detected -- ensure all code fences are properly paired');
   }
 
-  if (relativePath === '.github/copilot-instructions.md' && content.length > COPILOT_INSTRUCTION_MAX_CHARS) {
-    issues.push(`File exceeds ${COPILOT_INSTRUCTION_MAX_CHARS} characters -- Copilot code review truncates beyond this limit`);
-  }
-
-  if ((relativePath === 'CLAUDE.md' || relativePath === 'CLAUDE.local.md') && lines.length > CLAUDE_MD_RECOMMENDED_LINES) {
-    issues.push(`File exceeds ${CLAUDE_MD_RECOMMENDED_LINES} lines -- keep CLAUDE.md lean and use @import for domain-specific rules`);
+  if (isCursorRuleFile(relativePath) && content.length > CURSOR_RULE_FILE_MAX_CHARS) {
+    issues.push(`File exceeds ${CURSOR_RULE_FILE_MAX_CHARS} characters -- Cursor truncates oversized rule files and they bloat every request's context window. Split scoped rules into .cursor/rules/<topic>.md files.`);
   }
 
   return issues;
 }
 
+function isCursorRuleFile(relativePath: string): boolean {
+  return (
+    relativePath === 'AGENTS.md' ||
+    relativePath === '.cursorrules' ||
+    relativePath.startsWith('.cursor/rules/')
+  );
+}
+
 export function analyzeHookCoverage(rootPath: string): HookCoverageInfo | null {
-  const settingsPath = path.join(rootPath, '.claude', 'settings.json');
-  const localSettingsPath = path.join(rootPath, '.claude', 'settings.local.json');
+  const hooksPath = path.join(rootPath, '.cursor', 'hooks.json');
+  if (!fs.existsSync(hooksPath)) return null;
+
+  const data = readJsonFile(hooksPath);
+  if (!isRecord(data) || !isRecord(data.hooks)) return null;
+
   const hookEvents: string[] = [];
-
-  for (const p of [settingsPath, localSettingsPath]) {
-    if (!fs.existsSync(p)) continue;
-    const data = readJsonFile(p);
-    if (!isRecord(data) || !isRecord(data.hooks)) continue;
-    for (const event of Object.keys(data.hooks)) {
-      if (!hookEvents.includes(event)) hookEvents.push(event);
-    }
+  for (const event of Object.keys(data.hooks)) {
+    if (!hookEvents.includes(event)) hookEvents.push(event);
   }
-
   if (hookEvents.length === 0) return null;
 
+  // Cursor uses camelCase event names (beforeToolUse / afterToolUse / sessionStart),
+  // but we still recognize legacy PascalCase names for forward-compatibility with
+  // configs that were migrated from other AI tools.
+  const has = (name: string): boolean =>
+    hookEvents.some(e => e.toLowerCase() === name.toLowerCase());
+
   return {
-    hasPreToolUse: hookEvents.includes('PreToolUse'),
-    hasPostToolUse: hookEvents.includes('PostToolUse'),
-    hasSessionStart: hookEvents.includes('SessionStart'),
-    hasPermissionRequest: hookEvents.includes('PermissionRequest'),
+    hasPreToolUse: has('beforeToolUse') || has('PreToolUse'),
+    hasPostToolUse: has('afterToolUse') || has('PostToolUse'),
+    hasSessionStart: has('sessionStart') || has('SessionStart'),
+    hasPermissionRequest: has('permissionRequest') || has('PermissionRequest'),
     totalHooks: hookEvents.length,
     hookEvents,
   };
@@ -358,10 +302,9 @@ export function analyzeHookCoverage(rootPath: string): HookCoverageInfo | null {
 export function computeProgressiveDisclosureScore(files: ConfigFileInfo[]): number {
   let score = 0;
 
-  const hasInstructions = files.some(f => f.kind === 'instruction' || f.kind === 'claude-md');
-  if (hasInstructions) score += 25;
+  const instructionFiles = files.filter(f => f.kind === 'instruction');
+  if (instructionFiles.length > 0) score += 25;
 
-  const instructionFiles = files.filter(f => f.kind === 'instruction' || f.kind === 'claude-md');
   const allCompact = instructionFiles.length > 0 && instructionFiles.every(f => f.sizeVerdict !== 'oversized');
   if (allCompact && instructionFiles.length > 0) score += 25;
   else if (instructionFiles.some(f => f.sizeVerdict === 'moderate')) score += 10;
@@ -369,11 +312,11 @@ export function computeProgressiveDisclosureScore(files: ConfigFileInfo[]): numb
   const hasSkills = files.some(f => f.kind === 'skill');
   if (hasSkills) score += 25;
 
-  const scopedInstructionFiles = files.filter(f => f.kind === 'instruction' && f.relativePath.includes('instructions/'));
-  const hasPrompts = files.some(f => f.kind === 'prompt');
-  const hasAgents = files.some(f => f.kind === 'agent');
-  if (scopedInstructionFiles.length >= 2 || (hasSkills && hasPrompts) || hasAgents) score += 25;
-  else if (scopedInstructionFiles.length >= 1 || hasPrompts) score += 10;
+  // Scoped rules under .cursor/rules/ act as the progressive-disclosure layer
+  // (per-domain or per-folder rules rather than one giant AGENTS.md).
+  const scopedRuleFiles = files.filter(f => f.kind === 'instruction' && f.relativePath.startsWith('.cursor/rules/'));
+  if (scopedRuleFiles.length >= 2 || (hasSkills && scopedRuleFiles.length >= 1)) score += 25;
+  else if (scopedRuleFiles.length >= 1) score += 10;
 
   return score;
 }
@@ -397,23 +340,21 @@ export function computeInstructionQualityScore(files: ConfigFileInfo[]): number 
 export function generateWorkspaceSuggestions(
   files: ConfigFileInfo[],
   hookCoverage: HookCoverageInfo | null,
-  isClaudeWorkspace: boolean,
+  _isLegacyClaudeWorkspace: boolean,
 ): string[] {
   const suggestions: string[] = [];
 
-  const hasAnyInstructions = files.some(f => f.kind === 'instruction' || f.kind === 'claude-md');
+  const hasAnyInstructions = files.some(f => f.kind === 'instruction');
   if (!hasAnyInstructions) {
-    suggestions.push('Create a .github/copilot-instructions.md file with project conventions -- this is the single most impactful context file for GitHub Copilot.');
+    suggestions.push('Create an AGENTS.md (or .cursor/rules/*.md) file with project conventions -- this is the single most impactful context file Cursor will inject into every chat.');
   }
 
   for (const f of files) {
     if (f.sizeVerdict === 'oversized') {
       if (f.kind === 'instruction' && f.lines > OVERSIZED_INSTRUCTION_LINES) {
-        suggestions.push(`${f.relativePath} has ${f.lines} lines -- split domain-specific rules into .github/instructions/*.instructions.md files or .github/skills/*/SKILL.md for progressive disclosure.`);
-      } else if (f.kind === 'claude-md') {
-        suggestions.push(`${f.relativePath} has ${f.lines} lines (recommended: <${CLAUDE_MD_RECOMMENDED_LINES}). Use @import syntax to load domain-specific rules from sub-files.`);
-      } else if (f.relativePath === '.github/copilot-instructions.md' && f.chars > COPILOT_INSTRUCTION_MAX_CHARS) {
-        suggestions.push(`${f.relativePath} exceeds ${COPILOT_INSTRUCTION_MAX_CHARS} chars -- Copilot code review silently truncates beyond this. Move scoped rules to .github/instructions/*.instructions.md.`);
+        suggestions.push(`${f.relativePath} has ${f.lines} lines -- split domain-specific rules into .cursor/rules/<topic>.md files or .cursor/skills/<name>/SKILL.md for progressive disclosure.`);
+      } else if (isCursorRuleFile(f.relativePath) && f.chars > CURSOR_RULE_FILE_MAX_CHARS) {
+        suggestions.push(`${f.relativePath} exceeds ${CURSOR_RULE_FILE_MAX_CHARS} chars -- oversized rule files bloat every Cursor request. Move scoped rules to .cursor/rules/<topic>.md.`);
       }
     }
   }
@@ -424,25 +365,14 @@ export function generateWorkspaceSuggestions(
 
   const hasSkills = files.some(f => f.kind === 'skill');
   if (!hasSkills && files.some(f => f.kind === 'instruction' && f.lines > 100)) {
-    suggestions.push('Consider extracting domain-specific knowledge into .github/skills/*/SKILL.md files. Skills use progressive disclosure: only the name/description is loaded initially, full instructions load only when matched.');
+    suggestions.push('Consider extracting domain-specific knowledge into .cursor/skills/<name>/SKILL.md files. Skills use progressive disclosure: only the name/description is loaded initially, full instructions load only when matched.');
   }
 
-  const hasPrompts = files.some(f => f.kind === 'prompt');
-  if (!hasPrompts) {
-    suggestions.push('Save reusable prompts as .github/prompts/*.prompt.md files. These can be invoked with /promptName in chat.');
-  }
-
-  if (isClaudeWorkspace) {
-    const hasClaudeMd = files.some(f => f.kind === 'claude-md' && f.relativePath === 'CLAUDE.md');
-    if (!hasClaudeMd) {
-      suggestions.push('Create a CLAUDE.md file for Claude Code instructions. Focus on deviations from standard practices -- Claude already knows common conventions.');
-    }
-    if (!hookCoverage) {
-      suggestions.push('No hooks configured in .claude/settings.json. Hooks enforce deterministic boundaries: PreToolUse for security (block sensitive file edits), PostToolUse for auto-formatting (Prettier, Ruff).');
-    } else {
-      if (!hookCoverage.hasPreToolUse) suggestions.push('Add a PreToolUse hook to enforce security boundaries (e.g., block edits to .env, migrations/, or .git/ files).');
-      if (!hookCoverage.hasPostToolUse) suggestions.push('Add a PostToolUse hook for auto-formatting (run Prettier/Ruff after file writes) and audit logging.');
-    }
+  if (!hookCoverage) {
+    suggestions.push('No hooks configured in .cursor/hooks.json. Hooks enforce deterministic boundaries: beforeToolUse for security (block sensitive file edits), afterToolUse for auto-formatting (Prettier, Ruff).');
+  } else {
+    if (!hookCoverage.hasPreToolUse) suggestions.push('Add a beforeToolUse hook to enforce security boundaries (e.g., block edits to .env, migrations/, or .git/ files).');
+    if (!hookCoverage.hasPostToolUse) suggestions.push('Add an afterToolUse hook for auto-formatting (run Prettier/Ruff after file writes) and audit logging.');
   }
 
   return suggestions;

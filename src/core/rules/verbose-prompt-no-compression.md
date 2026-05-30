@@ -19,7 +19,7 @@ Detects user prompts that are unusually long and full of low-signal "fluff" word
 {{count}} verbose prompts ({{pct}}) of length ≥{{thresholds.minMessageLength}} chars contained 2+ filler words. These prompts could be rewritten to half the size with no loss of meaning.
 
 # How to Improve
-Be terse and structured. Replace "please could you kindly write a function that basically just adds two numbers" with "write add(a,b)". Use bullet points instead of paragraphs. Drop pleasantries — Copilot doesn't care, and you pay for every token. Consider installing a compression skill like `caveman/cavecrew` to compress sub-agent results.
+Be terse and structured. Replace "please could you kindly write a function that basically just adds two numbers" with "write add(a,b)". Use bullet points instead of paragraphs. Drop pleasantries — Cursor doesn't care, and you pay for every token. Consider installing a compression skill or rule to compress sub-agent results.
 
 # Examples
 "{{messageText | truncate:80}}" ({{messageLength}} chars)

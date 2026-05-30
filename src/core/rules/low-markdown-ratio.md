@@ -23,7 +23,7 @@ Detects workspaces that produce almost no markdown output, suggesting specs, pla
 {{count}} workspace(s) produce almost no markdown ({{extra.overallPct}}% of AI output). {{extra.totalCodeLoc}} LoC of code vs {{extra.totalMdLoc}} LoC of markdown. This suggests you skip writing specs, plans, and documentation before coding.
 
 # How to Improve
-Adopt spec-driven development: ask Copilot to draft a spec, plan, or design doc before writing code. Even a short markdown outline dramatically improves code quality and reduces iteration cycles. Try starting sessions with "Write a brief spec for..." or "Draft an implementation plan for...".
+Adopt spec-driven development: ask Cursor to draft a spec, plan, or design doc before writing code. Even a short markdown outline dramatically improves code quality and reduces iteration cycles. Try starting sessions with "Write a brief spec for..." or "Draft an implementation plan for...".
 
 # Examples
 {{extra.workspace}}: {{extra.codeLoc}} code LoC, {{extra.mdLoc}} markdown LoC ({{extra.ratioPct}}%)

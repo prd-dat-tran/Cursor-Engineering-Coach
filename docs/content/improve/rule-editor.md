@@ -10,7 +10,7 @@ The Rule Editor turns anti-pattern detection into an open, editable system. Ever
 
 ## Layout
 
-The page lists every rule grouped by practice category. Each row shows the rule name, group, severity, scope (requests or sessions), and a layer badge indicating whether the rule is built-in, a user override, or a fresh user-authored rule stored under `.ai-engineer-coach/rules/` in your home directory or workspace root.
+The page lists every rule grouped by practice category. Each row shows the rule name, group, severity, scope (requests or sessions), and a layer badge indicating whether the rule is built-in, a user override, or a fresh user-authored rule stored under `.cursor-engineering-coach/rules/` in your home directory or workspace root.
 
 Use the filter bar to search by tag or group, and click any rule to open its detail view.
 
@@ -55,4 +55,4 @@ check: ratio > thresholds.maxRatio AND count > thresholds.minSample
 examples: "{{messageText | truncate:80}}" ({{messageLength}} chars)
 ```
 
-The full function catalog, field schema, and metric list are browsable inside the [Rule Playground](/improve/rule-playground/) or via the **DSL Reference** modal (accessible from both Rule Editor and Rule Playground). The DSL Reference includes four tabs: Fields, Functions, Metrics, and Parser Coverage (showing which fields each harness parser can populate).
+The full function catalog, field schema, and metric list are browsable inside the [Rule Playground](/improve/rule-playground/) or via the **DSL Reference** modal (accessible from both Rule Editor and Rule Playground). The DSL Reference includes four tabs: Fields, Functions, Metrics, and Parser Coverage (showing which fields the Cursor parser populates).

@@ -9,7 +9,6 @@ import * as vscode from 'vscode';
 import { Analyzer } from '../core/analyzer';
 import { saveSidebarStats } from '../core/cache';
 import { clearCache, findLogsDirs, parseAllLogsViaWorker, ParseResult } from '../core/parser';
-import { hasExternalHarnessSources } from '../core/parser-harnesses';
 import { runtimeDebug } from '../core/runtime-debug';
 import { WebviewMessage } from '../core/types';
 import { panelCache } from './panel-cache';
@@ -24,7 +23,7 @@ export { DashboardSidebarProvider } from './panel-sidebar';
 
 export class DashboardPanel {
   private static instance: DashboardPanel | undefined;
-  private static readonly viewType = 'aiEngineerCoach';
+  private static readonly viewType = 'cursorEngineeringCoach';
 
   private readonly panel: vscode.WebviewPanel;
   private readonly extensionUri: vscode.Uri;
@@ -77,7 +76,7 @@ export class DashboardPanel {
 
     const panel = vscode.window.createWebviewPanel(
       DashboardPanel.viewType,
-      'AI Engineer Coach',
+      'Cursor Engineering Coach',
       column,
       {
         enableScripts: true,
@@ -204,16 +203,11 @@ export class DashboardPanel {
       if (this.disposed) return;
 
       const dirs = findLogsDirs();
-      const hasExternal = hasExternalHarnessSources();
-      runtimeDebug('panel', 'logs-dirs-found', `count=${dirs.length} external=${hasExternal}`);
-      // External harnesses (Claude Code, Codex, OpenCode) are collected by the
-      // parse worker independently of `dirs`, so only abort when no source of
-      // any kind is present. Otherwise a host with e.g. only Claude Code logs
-      // (and no VS Code/Copilot directories) would never load.
-      if (dirs.length === 0 && !hasExternal) {
+      runtimeDebug('panel', 'logs-dirs-found', `count=${dirs.length}`);
+      if (dirs.length === 0) {
         runtimeDebug('panel', 'loadData-no-dirs');
         if (!this.disposed) {
-          try { this.panel.webview.html = getErrorHtml('No AI coding session logs found. Looked for VS Code, GitHub Copilot (CLI and Xcode), Claude Code, Codex, and OpenCode sessions.'); } catch { /* disposed */ }
+          try { this.panel.webview.html = getErrorHtml('No Cursor session logs found. Looked in the Cursor workspaceStorage directory (~/Library/Application Support/Cursor/User/workspaceStorage on macOS, ~/.config/Cursor/User/workspaceStorage on Linux, %APPDATA%\\Cursor\\User\\workspaceStorage on Windows).'); } catch { /* disposed */ }
         }
         return;
       }

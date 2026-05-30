@@ -38,7 +38,7 @@ export async function exportSummaryFiles(
     canSelectMany: false,
     defaultUri,
     openLabel: 'Export Summary',
-    title: 'Choose a folder for the AI Engineer Coach summary',
+    title: 'Choose a folder for the Cursor Engineering Coach summary',
   });
 
   const folder = folders?.[0];
@@ -58,7 +58,7 @@ export async function exportSummaryFiles(
   };
 
   const action = await vscode.window.showInformationMessage(
-    `Exported AI Engineer Coach summary to ${folder.fsPath}`,
+    `Exported Cursor Engineering Coach summary to ${folder.fsPath}`,
     'Open Folder',
   );
   if (action === 'Open Folder') {

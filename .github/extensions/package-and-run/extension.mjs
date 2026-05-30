@@ -12,14 +12,14 @@ const session = await joinSession({
     {
       name: "package_extension",
       description:
-        "Package the AI Engineer Coach VS Code extension, install it in VS Code, and optionally launch VS Code in the current directory. Runs scripts/test-local.sh under the hood.",
+        "Package the Cursor Engineering Coach extension, install it in Cursor, and optionally launch Cursor in the current directory. Runs scripts/test-local.sh under the hood.",
       parameters: {
         type: "object",
         properties: {
           launch: {
             type: "boolean",
             description:
-              "Whether to launch VS Code after installing. Defaults to true.",
+              "Whether to launch Cursor after installing. Defaults to true.",
           },
         },
       },

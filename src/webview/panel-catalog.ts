@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See LICENSE in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-export const CATALOG_BASE = 'https://awesome-copilot.github.com';
+export const CATALOG_BASE = 'https://github.com/PatrickJS/awesome-cursorrules';
 
 export interface RawCatalogItem {
   kind: 'skill' | 'agent' | 'instruction' | 'hook';

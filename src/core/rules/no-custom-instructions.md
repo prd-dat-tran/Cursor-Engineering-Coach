@@ -19,7 +19,7 @@ Detects when very few requests use custom instructions, missing out on personali
 Only {{extra.usagePct}}% of requests use custom instructions ({{extra.withInstructions}}/{{total}}). Missing out on personalized responses.
 
 # How to Improve
-Create a .github/copilot-instructions.md or .instructions.md file in your workspace to give Copilot persistent context about your project conventions, stack, and coding style.
+Create a `.cursor/rules/*.md` rule file or an `AGENTS.md` in your workspace to give Cursor persistent context about your project conventions, stack, and coding style.
 
 # Examples
 {{extra.withInstructions}} of {{total}} requests had custom instructions

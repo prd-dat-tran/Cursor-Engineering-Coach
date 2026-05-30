@@ -13,13 +13,13 @@ thresholds:
 ---
 
 # Description
-Detects requests that have no file references, meaning Copilot cannot see the relevant code context.
+Detects requests that have no file references, meaning Cursor cannot see the relevant code context.
 
 # When Triggered
-{{pct}} of requests have no file references. Copilot gives better answers with file context.
+{{pct}} of requests have no file references. Cursor gives better answers with file context.
 
 # How to Improve
-Use #file to reference relevant files, or open files in the editor so Copilot can use them as context.
+Use `@file` to reference relevant files, or open files in the editor so Cursor can use them as context.
 
 # Examples
 "{{message}}..."

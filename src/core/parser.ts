@@ -13,9 +13,6 @@ import { ParseContext, prefetchCache } from './parser-shared';
 import { getMemoryCache, setMemoryCache, computeDirMetasAsync, loadCacheData, saveCacheData, findStaleDirs, clearCache, stripSessionsForMemory } from './cache';
 import type { DirMetas, ParseResult, SessionSource } from './cache';
 import { findVsCodeDirs, scanVsCodeDirs, processWorkspaceEntry, processWorkspaceEntryAsync, harnessFromPath } from './parser-vscode';
-import { findXcodeDirs, parseXcodeDatabases, parseXcodeDatabasesAsync } from './parser-xcode';
-import { collectExternalHarnessesAsync, collectExternalHarnessesSync, EXTERNAL_HARNESS_SET } from './parser-harnesses';
-import { warnCore } from './log';
 
 export type { ParseResult };
 export { clearCache };
@@ -46,14 +43,13 @@ export type ProgressCallback = (p: LoadProgress) => void;
 export const LOAD_PHASES = [
   'Discovering log directories',
   'Checking cache',
-  'Parsing session logs',
-  'Scanning external harnesses',
+  'Parsing Cursor sessions',
   'Preparing analytics',
   'Ready',
 ] as const;
 
-const PHASE_STARTS = [0, 2, 10, 75, 85, 95];
-const PHASE_WIDTHS = [2, 8, 65, 10, 10, 5];
+const PHASE_STARTS = [0, 2, 10, 85, 95];
+const PHASE_WIDTHS = [2, 8, 75, 10, 5];
 
 function computeTotalLoc(sessions: import('./types').Session[]): number {
   let total = 0;
@@ -99,17 +95,7 @@ function pct(phase: number, intraPhase: number): number {
 }
 
 export function findLogsDirs(): string[] {
-  return [...findVsCodeDirs(), ...findXcodeDirs()];
-}
-
-function partitionDirs(logsDirs: string[]): { vsCodeDirs: string[]; xcodeDirs: string[] } {
-  const vsCodeDirs: string[] = [];
-  const xcodeDirs: string[] = [];
-  for (const d of logsDirs) {
-    if (d.includes(path.join('.config', 'github-copilot', 'xcode'))) xcodeDirs.push(d);
-    else vsCodeDirs.push(d);
-  }
-  return { vsCodeDirs, xcodeDirs };
+  return findVsCodeDirs();
 }
 
 const PREFETCH_TIMEOUT_MS = 15_000;
@@ -249,19 +235,17 @@ async function reportWorkspaceProgress(
   if (shouldYield) await yieldToLoop();
 }
 
-async function tryMemoryCache(
+function tryMemoryCache(
   currentMetas: DirMetas,
-  onProgress: ProgressCallback | undefined,
+  _onProgress: ProgressCallback | undefined,
   report: ReportProgress,
-): Promise<CacheHitResult | null> {
+): CacheHitResult | null {
   const mem = getMemoryCache();
   if (!mem) return null;
 
   const { stale, removed } = findStaleDirs(currentMetas, mem.dirMetas);
   if (stale.size !== 0 || removed.size !== 0) return null;
 
-  mem.result.sessions = mem.result.sessions.filter(s => !EXTERNAL_HARNESS_SET.has(s.harness));
-  await collectExternalHarnesses(mem.result.workspaces, mem.result.sessions, onProgress);
   report({
     phase: 1, detail: 'Loaded from memory', pct: pct(1, 1),
     sessions: mem.result.sessions.length,
@@ -276,7 +260,7 @@ async function tryMemoryCache(
 
 async function tryDiskCache(
   currentMetas: DirMetas,
-  onProgress: ProgressCallback | undefined,
+  _onProgress: ProgressCallback | undefined,
   report: ReportProgress,
 ): Promise<CacheHitResult | null> {
   const cached = await loadCacheData();
@@ -285,8 +269,6 @@ async function tryDiskCache(
   const { stale, removed } = findStaleDirs(currentMetas, cached.dirMetas);
   if (stale.size !== 0 || removed.size !== 0) return null;
 
-  cached.result.sessions = cached.result.sessions.filter(s => !EXTERNAL_HARNESS_SET.has(s.harness));
-  await collectExternalHarnesses(cached.result.workspaces, cached.result.sessions, onProgress);
   setMemoryCache(cached.result, currentMetas);
   report({
     phase: 1, detail: 'Loaded from cache', pct: pct(1, 1),
@@ -417,49 +399,6 @@ async function processWorkspaces(
   }
 }
 
-async function collectXcode(
-  xcodeDirs: string[],
-  workspaces: Map<string, Workspace>,
-  sessions: import('./types').Session[],
-  onProgress?: ProgressCallback,
-): Promise<void> {
-  if (xcodeDirs.length === 0) return;
-  if (onProgress) onProgress({ phase: 3, detail: 'Xcode', pct: pct(3, 0), sessions: sessions.length });
-  await yieldToLoop();
-  for (const xcodeBase of xcodeDirs) {
-    try {
-      for (const s of await parseXcodeDatabasesAsync(xcodeBase)) {
-        sessions.push(s);
-        if (!workspaces.has(s.workspaceId)) {
-          workspaces.set(s.workspaceId, { id: s.workspaceId, name: s.workspaceName, path: xcodeBase });
-        }
-      }
-    } catch (e) {
-      warnCore('parser', 'Xcode scan failed', e);
-    }
-  }
-  await yieldToLoop();
-}
-
-async function collectExternalHarnesses(
-  workspaces: Map<string, Workspace>,
-  sessions: import('./types').Session[],
-  onProgress?: ProgressCallback,
-): Promise<void> {
-  await collectExternalHarnessesAsync(workspaces, sessions, {
-    onHarnessStart: (name, index, total, sessionCount) => {
-      if (onProgress) onProgress({ phase: 3, detail: name, pct: pct(3, index / total), sessions: sessionCount });
-    },
-    onHarnessDetail: (name, detail, sessionCount) => {
-      if (onProgress) onProgress({ phase: 3, detail: `${name} ${detail}`, pct: pct(3, 0.3), sessions: sessionCount });
-    },
-    onHarnessError: (name, error) => {
-      warnCore('parser', `${name} scan failed`, error);
-    },
-    yieldToLoop,
-  });
-}
-
 export function parseAllLogs(logsDirs: string[]): ParseResult {
   const workspaces = new Map<string, Workspace>();
   const sessions: import('./types').Session[] = [];
@@ -467,24 +406,12 @@ export function parseAllLogs(logsDirs: string[]): ParseResult {
   const sessionSourceIndex = new Map<string, SessionSource>();
   const ctx: ParseContext = { workspaces, sessions, editLocIndex, sessionSourceIndex, aiLoc: 0 };
 
-  const { vsCodeDirs, xcodeDirs } = partitionDirs(logsDirs);
-  const { entries } = scanVsCodeDirs(vsCodeDirs);
+  const { entries } = scanVsCodeDirs(logsDirs);
 
   for (const { logsDir, dirEntries } of entries) {
     const harness = harnessFromPath(logsDir);
     for (const d of dirEntries) processWorkspaceEntry(logsDir, d.name, harness, ctx);
   }
-
-  for (const xcodeBase of xcodeDirs) {
-    for (const s of parseXcodeDatabases(xcodeBase)) {
-      sessions.push(s);
-      if (!workspaces.has(s.workspaceId)) {
-        workspaces.set(s.workspaceId, { id: s.workspaceId, name: s.workspaceName, path: xcodeBase });
-      }
-    }
-  }
-
-  collectExternalHarnessesSync(workspaces, sessions);
 
   stripSessionsForMemory(sessions);
   return { workspaces, sessions, editLocIndex, sessionSourceIndex };
@@ -503,7 +430,7 @@ export async function parseAllLogsAsyncDetailed(
   await yieldToLoop();
   const currentMetas = await computeDirMetasAsync(logsDirs);
 
-  const memoryHit = await tryMemoryCache(currentMetas, onProgress, report);
+  const memoryHit = tryMemoryCache(currentMetas, onProgress, report);
   if (memoryHit) return memoryHit;
 
   report({ phase: 1, detail: 'Loading disk cache', pct: pct(1, 0.5) });
@@ -523,7 +450,7 @@ export async function parseAllLogsAsyncDetailed(
     const freshSessions: import('./types').Session[] = [];
     const freshSessionSourceIndex = new Map<string, SessionSource>();
     for (const s of cachedSessions) {
-      if (affectedWsIds.has(s.workspaceId) || EXTERNAL_HARNESS_SET.has(s.harness)) {
+      if (affectedWsIds.has(s.workspaceId)) {
         for (const r of s.requests) staleRequestIds.add(r.requestId);
       } else {
         freshSessions.push(s);
@@ -582,10 +509,6 @@ export async function parseAllLogsAsyncDetailed(
       }
     }
 
-    const { xcodeDirs } = partitionDirs(logsDirs);
-    await collectXcode(xcodeDirs, workspaces, freshSessions, onProgress);
-    await collectExternalHarnesses(workspaces, freshSessions, onProgress);
-
     const result: ParseResult = { workspaces, sessions: freshSessions, editLocIndex, sessionSourceIndex: freshSessionSourceIndex };
     stripSessionsForMemory(result.sessions);
     setMemoryCache(result, currentMetas);
@@ -600,13 +523,9 @@ export async function parseAllLogsAsyncDetailed(
   const sessionSourceIndex = new Map<string, SessionSource>();
   const ctx: ParseContext = { workspaces, sessions, editLocIndex, sessionSourceIndex, aiLoc: 0 };
 
-  const { vsCodeDirs, xcodeDirs } = partitionDirs(logsDirs);
-  const { entries, totalDirs } = scanVsCodeDirs(vsCodeDirs);
+  const { entries, totalDirs } = scanVsCodeDirs(logsDirs);
 
   await processWorkspaces(entries, totalDirs, ctx, onProgress);
-
-  await collectXcode(xcodeDirs, workspaces, sessions, onProgress);
-  await collectExternalHarnesses(workspaces, sessions, onProgress);
 
   const result: ParseResult = { workspaces, sessions, editLocIndex, sessionSourceIndex };
   stripSessionsForMemory(result.sessions);

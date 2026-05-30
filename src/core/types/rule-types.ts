@@ -10,8 +10,8 @@ import { PracticeGroup } from './analytics-types';
 /**
  * Where a rule was loaded from, in order of precedence (lowest to highest):
  * - 'built-in': shipped with the extension (dist/rules/)
- * - 'personal': user-level rules (~/.ai-engineer-coach/rules/)
- * - 'project':  workspace-level rules (.ai-engineer-coach/rules/ in the workspace root)
+ * - 'personal': user-level rules (~/.cursor-engineering-coach/rules/)
+ * - 'project':  workspace-level rules (.cursor-engineering-coach/rules/ in the workspace root)
  */
 export type RuleSource = 'built-in' | 'personal' | 'project';
 

@@ -386,35 +386,3 @@ export function parseWorkspaceFolderPath(wsJsonPath: string): string | null {
   }
 }
 
-export function parseCLIWorkspaceName(wsYamlPath: string): string {
-  try {
-    const raw = readFile(wsYamlPath);
-    const cwdMatch = raw.match(/^cwd:\s*(.+)$/m);
-    if (cwdMatch) {
-      const cwd = cwdMatch[1].trim();
-      return cwd.replace(/\/+$/, '').split('/').pop() || 'unknown';
-    }
-    return 'unknown';
-  } catch (e) {
-    debugCore('parser-vscode', `Could not parse CLI workspace name from ${wsYamlPath}`, e);
-    return 'unknown';
-  }
-}
-
-/** Returns the absolute folder path captured in a Copilot CLI `workspace.yaml`
- *  (the `cwd:` line). Returns null if the file is missing or has no usable
- *  cwd. Used by the `customInstructionsBytes` resolver and any other CLI
- *  per-workspace fs probes. */
-export function parseCLIWorkspaceFolderPath(wsYamlPath: string): string | null {
-  try {
-    const raw = readFile(wsYamlPath);
-    const cwdMatch = raw.match(/^cwd:\s*(.+)$/m);
-    if (!cwdMatch) return null;
-    const cwd = cwdMatch[1].trim();
-    if (!cwd.startsWith('/') && !/^[A-Za-z]:/.test(cwd)) return null;
-    return cwd.replace(/\/+$/, '');
-  } catch (e) {
-    debugCore('parser-vscode', `Could not parse CLI workspace cwd from ${wsYamlPath}`, e);
-    return null;
-  }
-}

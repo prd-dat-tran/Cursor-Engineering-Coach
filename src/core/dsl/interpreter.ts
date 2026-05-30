@@ -549,13 +549,13 @@ function computeMdRatio(
 
 /* ── Devcontainer stats ── */
 
-const VSCODE_HARNESSES = new Set(['VS Code', 'VS Code Insiders', 'Local Agent', 'Local Agent (Insiders)']);
+const IDE_HARNESSES = new Set(['Cursor']);
 
 function computeDevcontainerStats(
   sessions: Record<string, unknown>[],
   reqs: Record<string, unknown>[],
 ): { terminalReqs: number; vscodeReqs: number; sandboxedTerminalReqs: number; totalTerminalReqs: number; terminalRate: number; vscodeSessionCount: number } {
-  const vscodeSessions = sessions.filter(s => VSCODE_HARNESSES.has(asStr(s.harness)));
+  const vscodeSessions = sessions.filter(s => IDE_HARNESSES.has(asStr(s.harness)));
   const sessionIsContained = new Map<string, boolean>();
   for (const s of vscodeSessions) {
     sessionIsContained.set(String(s.sessionId), s.hasDevcontainer === true);
@@ -685,7 +685,7 @@ function computeReasoningEffortStats(
   };
 }
 
-/* ── Instruction-bloat (oversized .github/copilot-instructions.md) ── */
+/* ── Instruction-bloat (oversized Cursor rule files: AGENTS.md, .cursorrules, .cursor/rules/*.md) ── */
 
 function computeInstructionBloatStats(
   sessions: Record<string, unknown>[],

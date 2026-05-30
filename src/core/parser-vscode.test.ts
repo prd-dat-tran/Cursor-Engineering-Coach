@@ -8,11 +8,10 @@ import * as os from 'os';
 import * as path from 'path';
 import { describe, it, expect } from 'vitest';
 import { reconstructFromJsonl } from './parser-vscode-files';
-import { parseCLIEventsFile } from './parser-vscode-cli';
 import { parseSessionFile, harnessFromPath, scanVsCodeDirs } from './parser-vscode';
 
 function withTempFile(name: string, content: string, run: (filePath: string) => void): void {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-engineer-coach-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cursor-engineering-coach-'));
   const filePath = path.join(dir, name);
   try {
     fs.writeFileSync(filePath, content, 'utf-8');
@@ -47,189 +46,7 @@ describe('reconstructFromJsonl', () => {
   });
 });
 
-describe('parseCLIEventsFile', () => {
-  it('converts CLI events into a session with tool usage and timing', () => {
-    const lines = [
-      JSON.stringify({
-        type: 'session.start',
-        timestamp: '2024-06-10T10:00:00.000Z',
-        data: { sessionId: 'cli-session-1', startTime: '2024-06-10T10:00:00.000Z', selectedModel: 'gpt-4.1' },
-      }),
-      JSON.stringify({
-        type: 'user.message',
-        timestamp: '2024-06-10T10:00:01.000Z',
-        data: { content: 'Write tests for parser.' },
-      }),
-      JSON.stringify({
-        id: 'assistant-1',
-        type: 'assistant.message',
-        timestamp: '2024-06-10T10:00:04.000Z',
-        data: {
-          content: 'Added tests.',
-          modelId: 'gpt-4.1',
-          outputTokens: 321,
-          toolRequests: [{ toolName: 'read_file' }, { toolName: 'apply_patch' }],
-        },
-      }),
-    ].join('\n');
-
-    withTempFile('events.jsonl', lines, (filePath) => {
-      const session = parseCLIEventsFile(filePath, 'ws-1', 'demo-workspace');
-      expect(session).not.toBeNull();
-      expect(session).toMatchObject({
-        sessionId: 'cli-session-1',
-        workspaceId: 'ws-1',
-        workspaceName: 'demo-workspace',
-        harness: 'GitHub Copilot CLI',
-        requestCount: 1,
-      });
-      expect(session?.requests[0]).toMatchObject({
-        requestId: 'assistant-1',
-        messageText: 'Write tests for parser.',
-        responseText: 'Added tests.',
-        modelId: 'gpt-4.1',
-        completionTokens: 321,
-        toolsUsed: ['read_file', 'apply_patch'],
-      });
-      expect(session?.requests[0].totalElapsed).toBe(3000);
-    });
-  });
-
-  it('returns null when no assistant responses are present', () => {
-    const lines = [
-      JSON.stringify({ type: 'session.start', timestamp: '2024-06-10T10:00:00.000Z', data: { sessionId: 'cli-session-2' } }),
-      JSON.stringify({ type: 'user.message', timestamp: '2024-06-10T10:00:01.000Z', data: { content: 'Hello' } }),
-    ].join('\n');
-
-    withTempFile('events-empty.jsonl', lines, (filePath) => {
-      expect(parseCLIEventsFile(filePath, 'ws-2', 'demo-workspace')).toBeNull();
-    });
-  });
-
-  it('captures session.shutdown modelMetrics into Session.modelUsage', () => {
-    const lines = [
-      JSON.stringify({
-        type: 'session.start',
-        timestamp: '2024-06-10T10:00:00.000Z',
-        data: { sessionId: 'cli-shutdown-1', startTime: '2024-06-10T10:00:00.000Z', selectedModel: 'gpt-5.5' },
-      }),
-      JSON.stringify({ type: 'user.message', timestamp: '2024-06-10T10:00:01.000Z', data: { content: 'hi' } }),
-      JSON.stringify({
-        id: 'assistant-1',
-        type: 'assistant.message',
-        timestamp: '2024-06-10T10:00:02.000Z',
-        data: { content: 'reply', modelId: 'gpt-5.5', outputTokens: 50 },
-      }),
-      JSON.stringify({
-        type: 'session.shutdown',
-        timestamp: '2024-06-10T10:05:00.000Z',
-        data: {
-          modelMetrics: {
-            'gpt-5.5': {
-              usage: {
-                inputTokens: 1234,
-                outputTokens: 567,
-                cacheReadTokens: 800,
-                cacheWriteTokens: 100,
-                reasoningTokens: 0,
-              },
-            },
-          },
-        },
-      }),
-    ].join('\n');
-
-    withTempFile('events-shutdown.jsonl', lines, (filePath) => {
-      const session = parseCLIEventsFile(filePath, 'ws-3', 'demo-workspace');
-      expect(session).not.toBeNull();
-      expect(session?.modelUsage).toBeDefined();
-      expect(session?.modelUsage?.['gpt-5.5']).toMatchObject({
-        inputTokens: 1234,
-        outputTokens: 567,
-        cacheReadTokens: 800,
-        cacheWriteTokens: 100,
-      });
-    });
-  });
-
-  it('does not set modelUsage when no session.shutdown event is present', () => {
-    const lines = [
-      JSON.stringify({
-        type: 'session.start',
-        timestamp: '2024-06-10T10:00:00.000Z',
-        data: { sessionId: 'cli-no-shutdown', startTime: '2024-06-10T10:00:00.000Z', selectedModel: 'gpt-5.5' },
-      }),
-      JSON.stringify({ type: 'user.message', timestamp: '2024-06-10T10:00:01.000Z', data: { content: 'hi' } }),
-      JSON.stringify({
-        id: 'a1', type: 'assistant.message', timestamp: '2024-06-10T10:00:02.000Z',
-        data: { content: 'reply', modelId: 'gpt-5.5', outputTokens: 50 },
-      }),
-    ].join('\n');
-
-    withTempFile('events-no-shutdown.jsonl', lines, (filePath) => {
-      const session = parseCLIEventsFile(filePath, 'ws-4', 'demo-workspace');
-      expect(session?.modelUsage).toBeUndefined();
-    });
-  });
-
-  it('marks user-aborted turns (no assistant.message ever fired) as endState=errored', () => {
-    // Real-world pattern from `local-cli` workspace: user typed "hi", model
-    // turn started, user aborted (Ctrl+C) before any response chunk, then
-    // session shut down with totalPremiumRequests=0. There is no token data
-    // to capture for this turn — mark it `errored` so the analyzer excludes
-    // it from the missing-token denominator.
-    const lines = [
-      JSON.stringify({
-        type: 'session.start',
-        timestamp: '2024-06-10T10:00:00.000Z',
-        data: { sessionId: 'cli-aborted', startTime: '2024-06-10T10:00:00.000Z', selectedModel: 'gpt-4.1' },
-      }),
-      JSON.stringify({ type: 'user.message', timestamp: '2024-06-10T10:00:01.000Z', data: { content: 'hi' } }),
-      JSON.stringify({ type: 'assistant.turn_start', timestamp: '2024-06-10T10:00:02.000Z', data: { modelId: 'gpt-4.1' } }),
-      JSON.stringify({ type: 'abort', timestamp: '2024-06-10T10:00:03.000Z', data: {} }),
-      JSON.stringify({
-        type: 'session.shutdown',
-        timestamp: '2024-06-10T10:00:04.000Z',
-        data: { totalPremiumRequests: 0, modelMetrics: {} },
-      }),
-    ].join('\n');
-
-    withTempFile('events-aborted.jsonl', lines, (filePath) => {
-      const session = parseCLIEventsFile(filePath, 'ws-5', 'local-cli');
-      expect(session?.requests).toHaveLength(1);
-      expect(session?.requests[0].isCanceled).toBe(true);
-      expect(session?.requests[0].endState).toBe('errored');
-    });
-  });
-
-  it('does NOT mark canceled turns as errored when assistant produced output (partial response)', () => {
-    // If the user aborts mid-stream after the model produced output tokens
-    // or tool calls, we want the request to surface as partial/missing — not
-    // silently excluded from the coverage denominator.
-    const lines = [
-      JSON.stringify({
-        type: 'session.start',
-        timestamp: '2024-06-10T10:00:00.000Z',
-        data: { sessionId: 'cli-partial', startTime: '2024-06-10T10:00:00.000Z', selectedModel: 'gpt-4.1' },
-      }),
-      JSON.stringify({ type: 'user.message', timestamp: '2024-06-10T10:00:01.000Z', data: { content: 'long task' } }),
-      JSON.stringify({
-        id: 'a1', type: 'assistant.message', timestamp: '2024-06-10T10:00:02.000Z',
-        data: { content: 'partial response', modelId: 'gpt-4.1', outputTokens: 20 },
-      }),
-      JSON.stringify({ type: 'abort', timestamp: '2024-06-10T10:00:03.000Z', data: {} }),
-    ].join('\n');
-
-    withTempFile('events-partial-abort.jsonl', lines, (filePath) => {
-      const session = parseCLIEventsFile(filePath, 'ws-6', 'demo');
-      expect(session?.requests).toHaveLength(1);
-      expect(session?.requests[0].isCanceled).toBe(true);
-      expect(session?.requests[0].endState).toBeUndefined();
-    });
-  });
-});
-
-describe('parseSessionFile (VS Code chat) — endState', () => {
+describe('parseSessionFile (Cursor chat) — endState', () => {
   function withChatSession(requests: unknown[], run: (filePath: string) => void): void {
     const data = { sessionId: 'sess-test', requesterUsername: 'u', responderUsername: 'b', requests };
     withTempFile('chat.json', JSON.stringify(data), run);
@@ -240,7 +57,7 @@ describe('parseSessionFile (VS Code chat) — endState', () => {
       { requestId: 'r1', timestamp: 1000, message: { text: 'hi' }, response: [], result: {} },
     ];
     withChatSession(reqs, (filePath) => {
-      const sess = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent');
+      const sess = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(sess?.requests[0].endState).toBe('pending');
     });
   });
@@ -253,7 +70,7 @@ describe('parseSessionFile (VS Code chat) — endState', () => {
       },
     ];
     withChatSession(reqs, (filePath) => {
-      const sess = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent');
+      const sess = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(sess?.requests[0].endState).toBe('errored');
     });
   });
@@ -267,7 +84,7 @@ describe('parseSessionFile (VS Code chat) — endState', () => {
       },
     ];
     withChatSession(reqs, (filePath) => {
-      const sess = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent');
+      const sess = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(sess?.requests[0].endState).toBeUndefined();
     });
   });
@@ -284,7 +101,7 @@ describe('parseSessionFile (VS Code chat) — endState', () => {
       },
     ];
     withChatSession(reqs, (filePath) => {
-      const sess = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent');
+      const sess = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(sess?.requests[0].endState).toBe('no-data');
     });
   });
@@ -300,7 +117,7 @@ describe('parseSessionFile (VS Code chat) — endState', () => {
       },
     ];
     withChatSession(reqs, (filePath) => {
-      const sess = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent');
+      const sess = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(sess?.requests[0].endState).toBeUndefined();
     });
   });
@@ -363,20 +180,16 @@ describe('parseSessionFile token extraction', () => {
 });
 
 describe('harnessFromPath', () => {
-  it('returns Insiders for Insiders paths', () => {
-    expect(harnessFromPath('/home/user/Library/Application Support/Code - Insiders/User/workspaceStorage')).toBe('Local Agent (Insiders)');
+  it('always returns Cursor for Cursor stable paths', () => {
+    expect(harnessFromPath('/home/user/Library/Application Support/Cursor/User/workspaceStorage')).toBe('Cursor');
   });
 
-  it('returns CLI for .copilot paths', () => {
-    expect(harnessFromPath('/home/user/.copilot/session-state')).toBe('GitHub Copilot CLI');
-  });
-
-  it('returns Local Agent for standard VS Code paths', () => {
-    expect(harnessFromPath('/home/user/Library/Application Support/Code/User/workspaceStorage')).toBe('Local Agent');
+  it('always returns Cursor for Cursor Nightly paths', () => {
+    expect(harnessFromPath('/home/user/Library/Application Support/Cursor Nightly/User/workspaceStorage')).toBe('Cursor');
   });
 });
 
-describe('parseSessionFile — basic VS Code session', () => {
+describe('parseSessionFile — basic Cursor session', () => {
   it('parses a minimal JSON session file with a single request', () => {
     const data = {
       sessionId: 'test-session',
@@ -392,7 +205,7 @@ describe('parseSessionFile — basic VS Code session', () => {
       }],
     };
     withTempFile('basic-session.json', JSON.stringify(data), (filePath) => {
-      const session = parseSessionFile(filePath, 'ws', 'my-project', 'Local Agent');
+      const session = parseSessionFile(filePath, 'ws', 'my-project', 'Cursor');
       expect(session).not.toBeNull();
       expect(session!.sessionId).toBe('test-session');
       expect(session!.workspaceName).toBe('my-project');
@@ -404,7 +217,7 @@ describe('parseSessionFile — basic VS Code session', () => {
 
   it('returns null for invalid JSON', () => {
     withTempFile('bad.json', '{not valid json', (filePath) => {
-      expect(parseSessionFile(filePath, 'ws', 'wp', 'Local Agent')).toBeNull();
+      expect(parseSessionFile(filePath, 'ws', 'wp', 'Cursor')).toBeNull();
     });
   });
 
@@ -421,7 +234,7 @@ describe('parseSessionFile — basic VS Code session', () => {
       }],
     };
     withTempFile('agent-session.json', JSON.stringify(data), (filePath) => {
-      const session = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent');
+      const session = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(session).not.toBeNull();
       expect(session!.requests[0].agentName).toBe('GitHub Copilot');
       // Without inputState.mode.id, agentMode is cleared to '' so the
@@ -444,7 +257,7 @@ describe('parseSessionFile — basic VS Code session', () => {
       }],
     };
     withTempFile('mode-agent.json', JSON.stringify(data), (filePath) => {
-      const session = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent');
+      const session = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(session!.requests[0].agentMode).toBe('agent');
     });
   });
@@ -463,7 +276,7 @@ describe('parseSessionFile — basic VS Code session', () => {
       }],
     };
     withTempFile('mode-plan.json', JSON.stringify(data), (filePath) => {
-      const session = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent');
+      const session = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(session!.requests[0].agentMode).toBe('plan');
     });
   });
@@ -482,7 +295,7 @@ describe('parseSessionFile — basic VS Code session', () => {
       }],
     };
     withTempFile('mode-ask.json', JSON.stringify(data), (filePath) => {
-      const session = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent');
+      const session = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(session!.requests[0].agentMode).toBe('ask');
     });
   });
@@ -500,7 +313,7 @@ describe('parseSessionFile — basic VS Code session', () => {
       }],
     };
     withTempFile('mode-custom.json', JSON.stringify(data), (filePath) => {
-      const session = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent');
+      const session = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(session!.requests[0].agentMode).toBe('MERs Agent');
     });
   });
@@ -518,7 +331,7 @@ describe('parseSessionFile — basic VS Code session', () => {
       }],
     };
     withTempFile('slash.json', JSON.stringify(data), (filePath) => {
-      const session = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent');
+      const session = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(session!.requests[0].slashCommand).toBe('explain');
     });
   });
@@ -536,7 +349,7 @@ describe('parseSessionFile — basic VS Code session', () => {
       }],
     };
     withTempFile('edit.json', JSON.stringify(data), (filePath) => {
-      const session = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent');
+      const session = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(session!.requests[0].editedFiles).toContain('/src/main.ts');
     });
   });
@@ -556,7 +369,7 @@ describe('parseSessionFile — basic VS Code session', () => {
       }}),
     ].join('\n');
     withTempFile('test.jsonl', lines, (filePath) => {
-      const session = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent');
+      const session = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(session).not.toBeNull();
       expect(session!.sessionId).toBe('jsonl-test');
     });
@@ -565,7 +378,7 @@ describe('parseSessionFile — basic VS Code session', () => {
 
 describe('scanVsCodeDirs', () => {
   it('scans directories and returns entries', () => {
-    const logsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-engineer-coach-vscode-'));
+    const logsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cursor-engineering-coach-vscode-'));
     try {
       fs.mkdirSync(path.join(logsDir, 'workspace1'));
       fs.mkdirSync(path.join(logsDir, 'workspace2'));
@@ -616,7 +429,7 @@ describe('parseSessionFile — skill detection', () => {
       }],
     };
     withTempFile('skill-promptfile.json', JSON.stringify(data), (filePath) => {
-      const session = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent (Insiders)');
+      const session = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(session).not.toBeNull();
       const skills = session!.requests[0].skillsUsed;
       expect(skills).toContain('azure-cosmos-py');
@@ -647,7 +460,7 @@ describe('parseSessionFile — skill detection', () => {
       }],
     };
     withTempFile('skill-toolcall.json', JSON.stringify(data), (filePath) => {
-      const session = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent (Insiders)');
+      const session = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(session).not.toBeNull();
       const skills = session!.requests[0].skillsUsed;
       expect(skills).toContain('fastapi-router-py');
@@ -681,7 +494,7 @@ describe('parseSessionFile — skill detection', () => {
       }],
     };
     withTempFile('skill-dedup.json', JSON.stringify(data), (filePath) => {
-      const session = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent (Insiders)');
+      const session = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(session).not.toBeNull();
       const skills = session!.requests[0].skillsUsed;
       expect(skills).toContain('copilot-sdk');
@@ -708,7 +521,7 @@ describe('parseSessionFile — skill detection', () => {
       }],
     };
     withTempFile('skill-xml.json', JSON.stringify(data), (filePath) => {
-      const session = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent');
+      const session = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(session).not.toBeNull();
       const skills = session!.requests[0].skillsUsed;
       expect(skills).toContain('azure-cosmos-py');
@@ -737,7 +550,7 @@ describe('parseSessionFile — skill detection', () => {
       }],
     };
     withTempFile('skill-args-obj.json', JSON.stringify(data), (filePath) => {
-      const session = parseSessionFile(filePath, 'ws', 'wp', 'Local Agent');
+      const session = parseSessionFile(filePath, 'ws', 'wp', 'Cursor');
       expect(session).not.toBeNull();
       expect(session!.requests[0].skillsUsed).toContain('playwright-cli');
     });

@@ -15,7 +15,7 @@ This is a quick map of the docs tree so readers and agents can see the available
 - [Features](/features/)
 - [Getting Started](/getting-started/)
   - [Installation](/getting-started/installation/)
-  - [Supported Tools](/getting-started/supported-tools/)
+  - [Cursor Sources](/getting-started/cursor-sources/)
 - [Improve](/improve/)
   - [Anti-Patterns](/improve/anti-patterns/)
   - [Context Health](/improve/context-health/)

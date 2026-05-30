@@ -43,8 +43,7 @@ type CustomPanelMethodName =
   | 'reviewContextFiles'
   | 'getWorkspaceDeps'
   | 'getSdlcToolAnalysis'
-  | 'getSdlcRepoScan'
-  | 'getSdlcGitHubData';
+  | 'getSdlcRepoScan';
 
 type RequestHandler = (msg: RequestMessage) => void | Promise<void>;
 type QuizDifficulty = 'easy' | 'medium' | 'hard';
@@ -94,6 +93,31 @@ function readJsonRecord(filePath: string): Record<string, unknown> | undefined {
   return isRecord(parsed) ? parsed : undefined;
 }
 
+function isValidCatalogPath(catalogPath: string): boolean {
+  if (!catalogPath) return false;
+  if (catalogPath.includes('..')) return false;
+  if (catalogPath.startsWith('/') || catalogPath.startsWith('\\')) return false;
+  return true;
+}
+
+async function fetchCatalogContent(catalogPath: string): Promise<string> {
+  const rawUrl = `https://raw.githubusercontent.com/PatrickJS/awesome-cursorrules/main/${catalogPath}`;
+  const parsedUrl = new URL(rawUrl);
+  if (parsedUrl.hostname !== 'raw.githubusercontent.com' || !parsedUrl.pathname.startsWith('/PatrickJS/awesome-cursorrules/')) {
+    throw new Error('Invalid catalog URL');
+  }
+  const response = await fetch(parsedUrl.toString());
+  if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+  return await response.text();
+}
+
+function slugify(title: string): string {
+  return title.toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replaceAll(/-+/g, '-')
+    .replaceAll(/^-|-$/g, '');
+}
+
 export class PanelRequestService {
   private matchesWorkspace(session: { workspaceId: string; workspaceName: string }, workspaceId?: string): boolean {
     if (!workspaceId) return true;
@@ -117,7 +141,6 @@ export class PanelRequestService {
     getWorkspaceDeps: this.handleGetWorkspaceDeps.bind(this),
     getSdlcToolAnalysis: this.handleGetSdlcToolAnalysis.bind(this),
     getSdlcRepoScan: this.handleGetSdlcRepoScan.bind(this),
-    getSdlcGitHubData: this.handleGetSdlcGitHubData.bind(this),
   };
 
   constructor(
@@ -296,7 +319,7 @@ Generate 3 ${context.difficulty} interview-style questions tailored to this deve
       query: prompt,
     }).then(
       () => postResponse(this.webview, msg.id, { ok: true }),
-      () => postError(this.webview, msg.id, 'Failed to open Copilot Chat'),
+      () => postError(this.webview, msg.id, 'Failed to open Cursor Chat'),
     );
   }
 
@@ -309,8 +332,8 @@ Generate 3 ${context.difficulty} interview-style questions tailored to this deve
     const examples = Array.isArray(params.examples) ? (params.examples as string[]).slice(0, 5) : [];
     const skillDraft = isString(params.skillDraft) ? params.skillDraft : '';
 
-    const systemPrompt = `You are an expert at writing SKILL.md files for VS Code GitHub Copilot.
-A skill file is a markdown instruction file that teaches Copilot how to handle a specific repeated workflow pattern.
+    const systemPrompt = `You are an expert at writing SKILL.md files for Cursor IDE.
+A skill file is a markdown instruction file that teaches Cursor how to handle a specific repeated workflow pattern. They live under .cursor/skills/<name>/SKILL.md and are progressively loaded by Cursor when the description matches the current task.
 
 Generate a professional, production-ready SKILL.md file. Include:
 1. YAML frontmatter with: name, description, and an applyTo glob pattern
@@ -625,32 +648,27 @@ Respond with a JSON object: {"items":[{"title":"...","url":"https://...","type":
     const catalogPath = isString(params.path) ? params.path : '';
     const kind = isString(params.kind) ? params.kind : 'skill';
     const title = isString(params.title) ? params.title : '';
-    if (!catalogPath || catalogPath.includes('..') || catalogPath.startsWith('/') || catalogPath.startsWith('\\')) {
+    if (!isValidCatalogPath(catalogPath)) {
       postError(this.webview, msg.id, 'Invalid catalog path');
       return;
     }
 
     try {
-      const rawUrl = `https://raw.githubusercontent.com/github/awesome-copilot/main/${catalogPath}`;
-      const parsedUrl = new URL(rawUrl);
-      if (parsedUrl.hostname !== 'raw.githubusercontent.com' || !parsedUrl.pathname.startsWith('/github/awesome-copilot/')) {
-        postError(this.webview, msg.id, 'Invalid catalog URL');
-        return;
-      }
-      const response = await fetch(parsedUrl.toString());
-      if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
-      const content = await response.text();
-
+      const content = await fetchCatalogContent(catalogPath);
       const homeDir = process.env.HOME || process.env.USERPROFILE;
       if (!homeDir) throw new Error('Cannot determine home directory');
-      const subDir = kind === 'agent' ? 'agents' : 'skills';
-      const slug = title.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/-+/g, '-').replaceAll(/^-|-$/g, '');
+
+      const slug = slugify(title);
       const filename = catalogPath.split('/').pop() || `${slug}.md`;
       if (slug.includes('..') || filename.includes('..')) throw new Error('Invalid path');
 
-      const targetUri = vscode.Uri.file(`${homeDir}/.agents/${subDir}/${slug}/${filename}`);
+      const isSkill = kind === 'skill';
+      const targetPath = isSkill
+        ? `${homeDir}/.cursor/skills/${slug}/${filename}`
+        : `${homeDir}/.cursor/rules/${slug}.md`;
+      const targetUri = vscode.Uri.file(targetPath);
       await vscode.workspace.fs.writeFile(targetUri, Buffer.from(content, 'utf8'));
-      postResponse(this.webview, msg.id, { content, filename: `${slug}/${filename}` });
+      postResponse(this.webview, msg.id, { content, filename: isSkill ? `${slug}/${filename}` : `${slug}.md` });
     } catch (error: unknown) {
       postError(this.webview, msg.id, error instanceof Error ? error.message : 'Install failed');
     }
@@ -769,19 +787,19 @@ Here are the top ${clusterSummaries.length} groups of similar prompts this devel
     const context = this.getUserContext();
     const workspace = isOptionalString(params.workspace) ? params.workspace : undefined;
 
-    const systemPrompt = `You are an expert at recommending GitHub Copilot customization files (skills, agents, instructions, hooks) for developers.
+    const systemPrompt = `You are an expert at recommending Cursor IDE customization files (rules, skills, hooks) for developers.
 
 You will receive:
-1. The developer's context: languages, harnesses, topics, and which workspace they are currently analyzing
+1. The developer's context: languages, topics, and which workspace they are currently analyzing
 2. Their TOP REPEATED WORKFLOW PATTERNS with example prompts — these show exactly what tasks the developer performs repeatedly
-3. The FULL community catalog (${candidates.length} items) of skills, agents, instructions, and hooks
+3. The FULL community catalog (${candidates.length} items) of Cursor rules, skills, and hooks
 
 Your job:
 1. Study the workflow patterns and example prompts carefully. These tell you EXACTLY what this developer does day-to-day.
 2. Consider the specific workspace being analyzed: ${workspace ? `"${workspace}"` : 'all workspaces'}.
 3. From the FULL catalog, find items that DIRECTLY help with the developer's actual repeated tasks or tech stack.
-4. REJECT items that don't match. A .NET skill is useless for someone building VS Code extensions. A React skill is useless for someone writing Python CLIs.
-5. For each pick, write a concrete reason referencing the developer's ACTUAL workflow patterns. Example: "You repeatedly package VS Code extensions (seen 47 times) — this skill automates VSIX packaging."
+4. REJECT items that don't match. A .NET rule is useless for someone building VS Code extensions. A React rule is useless for someone writing Python CLIs.
+5. For each pick, write a concrete reason referencing the developer's ACTUAL workflow patterns. Example: "You repeatedly package VS Code extensions (seen 47 times) — this rule pins your TypeScript + esbuild conventions."
 
 Respond with a JSON object: {"items":[{"id":"...","reason":"specific sentence referencing their actual workflow patterns"}]}
 Max 5 items. If fewer genuinely match, return fewer. If NOTHING matches well, return empty items array. Do NOT pad with generic picks.`;
@@ -792,7 +810,6 @@ Max 5 items. If fewer genuinely match, return fewer. If NOTHING matches well, re
 
     const userPrompt = `Developer context:
 - Languages: ${context.languages.join(', ') || 'unknown'}
-- Harnesses: ${context.harnesses.join(', ') || 'unknown'}
 - Common topics: ${context.topics.join(', ') || 'unknown'}
 - Analyzing workspace: ${workspace || 'all workspaces'}${clusterSection}
 
@@ -850,7 +867,7 @@ ${JSON.stringify(candidates)}`;
       }
 
       const categories = ['clarity', 'specificity', 'structure', 'completeness', 'staleness', 'redundancy', 'actionability'];
-      const systemPrompt = `You are an expert at evaluating AI coding assistant context files (instruction files, CLAUDE.md, copilot-instructions.md, .prompt.md, agent definitions, skills, etc.).
+      const systemPrompt = `You are an expert at evaluating Cursor IDE context files (AGENTS.md, .cursorrules, .cursor/rules/*.md, .cursor/skills/*/SKILL.md, .cursor/hooks.json, etc.).
 
 You will receive workspace data including:
 - The file tree structure (top 2 levels)
@@ -1089,16 +1106,22 @@ ${contextSection}`;
 
   private getRepoContextFiles(rootPath: string): string[] {
     const contextFiles = this.readDirectoryEntries(
-      path.join(rootPath, '.github', 'agents'),
-      entry => entry.endsWith('.yml') || entry.endsWith('.yaml') || entry.endsWith('.md'),
-      entry => `agents/${entry}`,
+      path.join(rootPath, '.cursor', 'rules'),
+      entry => entry.endsWith('.md') || entry.endsWith('.mdc'),
+      entry => `rules/${entry}`,
     );
 
-    if (this.hasFile(path.join(rootPath, '.github', 'copilot-setup-steps.yml'))) {
-      contextFiles.push('copilot-setup-steps.yml');
+    if (this.hasFile(path.join(rootPath, 'AGENTS.md'))) {
+      contextFiles.push('AGENTS.md');
     }
-    if (this.hasFile(path.join(rootPath, '.github', 'copilot-instructions.md'))) {
-      contextFiles.push('copilot-instructions.md');
+    if (this.hasFile(path.join(rootPath, '.cursorrules'))) {
+      contextFiles.push('.cursorrules');
+    }
+    if (this.hasFile(path.join(rootPath, '.cursor', 'hooks.json'))) {
+      contextFiles.push('hooks.json');
+    }
+    if (this.hasFile(path.join(rootPath, '.cursor', 'mcp.json'))) {
+      contextFiles.push('mcp.json');
     }
 
     return contextFiles;
@@ -1111,101 +1134,18 @@ ${contextSection}`;
     );
   }
 
-  private getRepoAgenticWorkflows(rootPath: string): string[] {
-    return this.readDirectoryEntries(
-      path.join(rootPath, '.github', 'aw'),
-      entry => entry.endsWith('.yml') || entry.endsWith('.yaml') || entry.endsWith('.md'),
-    );
-  }
-
   private scanWorkspaceRepo(workspace: { workspaceName: string; rootPath: string }): {
     workspace: string;
     remote: string | null;
     contextFiles: string[];
     workflows: string[];
-    agenticWorkflows: string[];
   } {
     return {
       workspace: workspace.workspaceName,
       remote: this.getGitHubRemote(workspace.rootPath),
       contextFiles: this.getRepoContextFiles(workspace.rootPath),
       workflows: this.getRepoWorkflows(workspace.rootPath),
-      agenticWorkflows: this.getRepoAgenticWorkflows(workspace.rootPath),
     };
-  }
-
-  private async getGitHubAccessToken(requestAuth: boolean): Promise<string | undefined> {
-    try {
-      const session = await vscode.authentication.getSession('github', ['repo', 'read:org'], { createIfNone: requestAuth });
-      return session?.accessToken;
-    } catch {
-      return undefined;
-    }
-  }
-
-  private isCopilotLogin(login: string | undefined): boolean {
-    return login?.toLowerCase()?.includes('copilot') === true ||
-      login === 'github-actions[bot]' ||
-      login?.startsWith('copilot-swe-agent') === true;
-  }
-
-  private async fetchCopilotPrStats(owner: string, repo: string, headers: Record<string, string>): Promise<{
-    total: number;
-    assignedToCopilot: number;
-    reviewedByCopilot: number;
-  }> {
-    const stats = { total: 0, assignedToCopilot: 0, reviewedByCopilot: 0 };
-    try {
-      const prResponse = await fetch(
-        `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls?state=all&per_page=50&sort=updated&direction=desc`,
-        { headers },
-      );
-      if (!prResponse.ok) return stats;
-
-      const prs = await prResponse.json() as Array<{
-        user?: { login?: string };
-        assignees?: Array<{ login?: string }>;
-        requested_reviewers?: Array<{ login?: string }>;
-      }>;
-      stats.total = prs.length;
-      for (const pr of prs) {
-        const isCopilotAuthor = this.isCopilotLogin(pr.user?.login);
-        const isCopilotAssignee = pr.assignees?.some(assignee => this.isCopilotLogin(assignee.login)) === true;
-        if (isCopilotAuthor || isCopilotAssignee) stats.assignedToCopilot++;
-
-        const isCopilotReviewer = pr.requested_reviewers?.some(reviewer => this.isCopilotLogin(reviewer.login)) === true;
-        if (isCopilotReviewer) stats.reviewedByCopilot++;
-      }
-    } catch {
-      // Ignore GitHub API failures.
-    }
-    return stats;
-  }
-
-  private async fetchGitHubCount(url: string, headers: Record<string, string>): Promise<number | null> {
-    try {
-      const response = await fetch(url, { headers });
-      if (!response.ok) return null;
-      const data = await response.json() as { total_count?: number } | Array<unknown>;
-      if (Array.isArray(data)) return data.length;
-      return isRecord(data) && isNumber(data.total_count) ? data.total_count : 0;
-    } catch {
-      return null;
-    }
-  }
-
-  private async fetchCollaboratorStats(owner: string, repo: string, headers: Record<string, string>): Promise<Array<{ total: number; withCopilot: number }>> {
-    try {
-      const collabResponse = await fetch(
-        `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/collaborators?per_page=100`,
-        { headers },
-      );
-      if (!collabResponse.ok) return [];
-      const collaborators = await collabResponse.json() as Array<{ login?: string }>;
-      return [{ total: collaborators.length, withCopilot: 0 }];
-    } catch {
-      return [];
-    }
   }
 
   private handleGetSdlcToolAnalysis(msg: RequestMessage): void {
@@ -1299,52 +1239,4 @@ ${contextSection}`;
     postResponse(this.webview, msg.id, { repos });
   }
 
-  private async handleGetSdlcGitHubData(msg: RequestMessage): Promise<void> {
-    const params = (msg.params ?? {}) as Record<string, unknown>;
-    const owner = isString(params.owner) ? params.owner : '';
-    const repo = isString(params.repo) ? params.repo : '';
-    if (!owner || !repo) {
-      postError(this.webview, msg.id, 'Missing owner/repo');
-      return;
-    }
-
-    const token = await this.getGitHubAccessToken(params.requestAuth === true);
-    if (!token) {
-      postResponse(this.webview, msg.id, {
-        authRequired: true,
-        error: 'GitHub authentication required. Sign in to see PR and agent data.',
-      });
-      return;
-    }
-
-    if (owner === '_auth_') {
-      postResponse(this.webview, msg.id, { authRequired: false });
-      return;
-    }
-
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-    };
-    const previewHeaders: Record<string, string> = {
-      ...headers,
-      'X-GitHub-Api-Version': '2026-03-10',
-    };
-
-    const results = {
-      copilotPrs: await this.fetchCopilotPrStats(owner, repo, headers),
-      codingAgentRuns: await this.fetchGitHubCount(
-        `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/copilot/coding-agent/runs?per_page=100`,
-        previewHeaders,
-      ),
-      agentTasks: await this.fetchGitHubCount(
-        `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/agent-tasks?per_page=100`,
-        previewHeaders,
-      ),
-      collaborators: await this.fetchCollaboratorStats(owner, repo, headers),
-    };
-
-    postResponse(this.webview, msg.id, results);
-  }
 }

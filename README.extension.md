@@ -1,32 +1,32 @@
-<h1 align="center">AI Engineer Coach</h1>
+<h1 align="center">Cursor Engineering Coach</h1>
 
 <p align="center">
-Analyze your AI coding assistant usage across VS Code, GitHub Copilot for Xcode, Claude, Codex, OpenCode, and GitHub Copilot CLI.
+Analyze your Cursor IDE usage — chat sessions, agent runs, generated code, and context health.
 </p>
 
 <p align="center">
 <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
-<img alt="VS Code 1.85+" src="https://img.shields.io/badge/VS%20Code-1.85%2B-007ACC">
+<img alt="Cursor IDE" src="https://img.shields.io/badge/Cursor-IDE-000000">
 </p>
 
 ## Highlights
 
-The extension is organized into three sections: **Observe**, **Measure**, and **Improve**.
+The extension is organized into four sections: **Observe**, **Measure**, **Improve**, and **Level Up**.
 
 ### Observe
 
 | Page | What it shows |
 | --- | --- |
-| **Dashboard** | Practice scores with week-over-week and month-over-month trends, skill finder summary, daily activity chart with per-harness breakdown, and top workspace stats |
+| **Dashboard** | Practice scores with week-over-week and month-over-month trends, skill finder summary, daily activity chart, and top workspace stats |
 | **Timeline** | Gantt-style session timeline with per-day drill-down, session overlap detection, and a searchable list view |
-| **Coding Moments** | Screenshot gallery from AI coding sessions with story reels, workspace filtering, and progressive image loading |
+| **Coding Moments** | Screenshot gallery from your Cursor sessions with story reels, workspace filtering, and progressive image loading |
 
 ### Measure
 
 | Page | What it shows |
 | --- | --- |
 | **Output** | Two tabs -- **Code Output** (generated code volume by language and workspace) and **Token Usage** (model usage table with per-model token breakdown) *(Token Usage temporarily hidden)* |
-| **Burndown** | Monthly token budget progress with projection *(temporarily disabled)* |
+| **Burndown** | Monthly usage budget progress with projection *(temporarily disabled)* |
 | **Patterns** | 7x24 activity heatmap and work-life balance signals |
 
 ### Improve
@@ -34,8 +34,8 @@ The extension is organized into three sections: **Observe**, **Measure**, and **
 | Page | What it shows |
 | --- | --- |
 | **Anti-Patterns** | Five practice score cards (Prompt Quality, Session Hygiene, Code Review, Tool Mastery, Context Management) with detailed findings, severity ratings, concrete actions, and example prompts |
-| **Skill Finder** | AI-powered analysis of repeated prompts to discover custom skill opportunities, plus matching community skills and agents from the open-source catalog |
-| **Context Health** | Overall context score, agentic readiness checklist, per-harness context provision breakdown, workspace context map (treemap colored by instruction quality), and AI-powered context file review |
+| **Skill Finder** | Analysis of repeated prompts to discover custom Cursor rule and skill opportunities, plus matching community entries from the open-source catalog |
+| **Context Health** | Overall context score, agentic readiness checklist, workspace context map (treemap colored by rules-file quality), and AI-powered rules-file review |
 | **Rule Editor** | Create, edit, and live-test detection rules as markdown with form-based or raw-source editing and AI-assisted drafting |
 | **Rule Playground** | Interactive REPL for the rule DSL with field browser, function catalog, and metric list |
 | **Data Explorer** | Browse request and session fields, view distributions, and run ad-hoc filters |
@@ -46,34 +46,25 @@ The extension is organized into three sections: **Observe**, **Measure**, and **
 | --- | --- |
 | **Learning Center** | Personalized quizzes and code-comparison rounds generated from your actual usage |
 | **Achievements** | XP-based progression with Bronze, Silver, Gold, and Diamond tiers |
-| **Agentic SDLC** | Track how you use AI across the full software-development lifecycle |
+| **Agentic SDLC** | Track how you use Cursor across the full software-development lifecycle |
 | **Share** | Generate a shareable stat card and export Markdown/JSON summaries |
 
-## Supported Harnesses
+## Cursor Session Sources
 
-| Harness | Default location |
+Cursor Engineering Coach reads the following data from your local machine. No network requests are made.
+
+| Source | Default location |
 | --- | --- |
-| **Local Agent** | macOS: `~/Library/Application Support/Code/User/workspaceStorage/`<br>Linux: `~/.config/Code/User/workspaceStorage/`<br>Windows: `%APPDATA%\Code\User\workspaceStorage\` |
-| **Local Agent (Insiders)** | macOS: `~/Library/Application Support/Code - Insiders/User/workspaceStorage/`<br>Linux: `~/.config/Code - Insiders/User/workspaceStorage/`<br>Windows: `%APPDATA%\Code - Insiders\User\workspaceStorage\` |
-| **Xcode Copilot Chat** | `~/.config/github-copilot/xcode/` (requires `sqlite3`) |
-| **Claude** | macOS/Linux: `~/.claude/projects/`<br>Windows: `%USERPROFILE%\.claude\projects\` |
-| **Codex** | macOS/Linux: `~/.codex/sessions/`<br>Windows: `%USERPROFILE%\.codex\sessions\` |
-| **OpenCode** | macOS/Linux: `~/.local/share/opencode/`<br>Windows: `%USERPROFILE%\.local\share\opencode\` |
-| **GitHub Copilot CLI** | `~/.copilot/session-state/` and `~/.copilot/history-session-state/` |
-
-### Chat
-
-Type `@aicoach` in any VS Code chat panel for conversational access to all coaching data. Slash commands `/summary`, `/improve`, `/compare`, and `/flow` give quick access to common analyses. The participant orchestrates multiple backend tools automatically to answer complex questions.
+| **Cursor IDE** | macOS: `~/Library/Application Support/Cursor/User/workspaceStorage/`<br>Linux: `~/.config/Cursor/User/workspaceStorage/`<br>Windows: `%APPDATA%\Cursor\User\workspaceStorage\` |
+| **Cursor Rules** | `<workspace>/.cursor/rules/*.md` and `<workspace>/AGENTS.md` |
+| **MCP Servers** | `<workspace>/.cursor/mcp.json` and the global Cursor MCP config |
 
 ## Getting Started
 
 1. Open the command palette (`Cmd+Shift+P` / `Ctrl+Shift+P`).
-2. Run **AI Engineer Coach: Open Dashboard**.
-3. Use the sidebar to navigate pages. Filter by workspace or harness at the bottom.
-4. Run **AI Engineer Coach: Reload Data** to re-parse after new sessions.
-5. Type `@aicoach` in VS Code chat for conversational coaching.
-
-
+2. Run **Cursor Engineering Coach: Open Dashboard**.
+3. Use the sidebar to navigate pages. Filter by workspace at the bottom.
+4. Run **Cursor Engineering Coach: Reload Data** to re-parse after new sessions.
 
 ## License
 
@@ -81,4 +72,4 @@ Type `@aicoach` in any VS Code chat panel for conversational access to all coach
 
 ## Disclaimer
 
-This project is an open-source community effort by Microsoft employees. It is **not** an official Microsoft product and is not part of any Microsoft service or support offering. It is provided as-is with no warranties or guarantees.
+This project is an open-source community fork of [microsoft/AI-Engineering-Coach](https://github.com/microsoft/AI-Engineering-Coach), retargeted to work exclusively with Cursor IDE. It is **not** an official Cursor product and is not affiliated with Anysphere or Microsoft. It is provided as-is with no warranties or guarantees.
