@@ -1,0 +1,101 @@
+---
+description: TypeScript style, ESLint guardrails, and file-header conventions for everything under src/.
+globs: src/**/*.ts
+alwaysApply: false
+---
+
+# TypeScript Conventions (src/**/*.ts)
+
+This rule kicks in when you touch any TypeScript file under `src/`. It encodes
+choices the codebase has already made — match them rather than introduce a
+second style.
+
+## File header
+
+Every source file starts with the Microsoft MIT header. **Keep it.**
+
+```ts
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See LICENSE in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+```
+
+Follow it with a short `/* ... */` summary of what the file does (e.g.
+`/* Parser orchestration and cache-backed entry points. */`). This summary is
+the first thing future agents read — write it for them.
+
+## ESLint contract
+
+`eslint.config.mjs` enables `tseslint.configs.recommendedTypeChecked` and a
+strict set of project rules. The ones that bite most often:
+
+- `@typescript-eslint/no-floating-promises` → always `await` or `void` a
+  fire-and-forget promise. Webview RPC handlers in particular.
+- `@typescript-eslint/no-misused-promises` → never pass an `async` function
+  where a `void`-returning callback is expected (e.g. event listeners). Wrap
+  with `() => { void asyncFn(); }`.
+- `@typescript-eslint/no-unsafe-*` (argument / assignment / member-access /
+  call / return) → narrow `unknown` with typeguards from
+  [@src/webview/panel-shared.ts](mdc:src/webview/panel-shared.ts)
+  (`isString`, `isNumber`, `isRecord`, `isOptionalString`) before you touch
+  fields. Do **not** cast through `any`.
+- `@typescript-eslint/restrict-template-expressions` → only stringify
+  primitives in template literals. For objects use `JSON.stringify` or a
+  formatter.
+- `complexity: ["warn", { max: 20 }]` and `max-depth: ["warn", { max: 4 }]`
+  → if you hit the warning, extract helpers. The pattern in the codebase is
+  small private `function helperX(...)` defined just above the function that
+  uses them.
+- `unicorn/no-array-for-each` → prefer `for (const x of xs)` over
+  `xs.forEach(...)`.
+- `import-x/order` → groups in this order: `builtin, external, internal,
+  parent, sibling`. Add blank lines between groups if needed.
+- `import-x/no-cycle` → if you must reference back to the same module,
+  extract the shared piece into a third file (look at how `types/` and
+  `helpers.ts` are used).
+
+Treat all the above as **errors during agent edits**, even when configured as
+`warn`. The CI is lenient; review reads warnings as bugs.
+
+## Webview-specific lint
+
+In `src/webview/`, `no-restricted-imports` discourages importing `rawHtml`
+from `./shared`. Use `safeNumber()`, `safeCssClass()`, or `safeCssValue()`
+instead. The `no-unsanitized/{property,method}` rules warn on raw `innerHTML`;
+prefer the Preact + htm render path in
+[@src/webview/render.ts](mdc:src/webview/render.ts).
+
+## Style
+
+- **Modules over classes.** Most files export plain functions. Use a class
+  only when there is real state to manage (`Analyzer`, `AnalyzerBase`,
+  `DashboardPanel`) — see [@src/core/analyzer-base.ts](mdc:src/core/analyzer-base.ts).
+- **Single-quote strings, semicolons, 2-space indent.** Match the
+  surrounding file; do not reformat.
+- **Types live in `src/core/types/`.** New shared shapes go in
+  `analytics-types.ts`, `config-types.ts`, `rpc-types.ts`,
+  `session-types.ts`, etc. — pick the closest match, do not invent a new
+  `*-types.ts` for one interface.
+- **Async I/O over sync.** Disk reads inside the extension host go through
+  `fs.promises` or workers. Sync `fs.readFileSync` is acceptable inside
+  parsers that run *in a worker* (e.g. `parse-worker.ts`); avoid it on the
+  main thread.
+- **Comments earn their keep.** No "// increment the counter" narration.
+  Explain *why* (constraint, trade-off, non-obvious invariant) or delete the
+  comment. JSDoc on exported functions is welcome when the name alone is
+  ambiguous.
+- **Error logging.** Use the `runtimeDebug(component, event, detail)`
+  helper from [@src/core/runtime-debug.ts](mdc:src/core/runtime-debug.ts);
+  it writes to `~/.cursor-engineering-coach/cache/runtime.log` and the
+  `Cursor Engineering Coach` output channel. Prefer it over `console.log`
+  for anything that should survive a session.
+
+## Imports of VS Code API
+
+Only files in `src/extension.ts`, `src/chat/`, `src/mcp/`, `src/webview/`,
+and the worker entry points should `import * as vscode from 'vscode'`. Pure
+analytics modules under `src/core/` (excluding workers) must stay
+runtime-agnostic so they can be unit-tested under Vitest without mocking the
+VS Code API. If you find yourself wanting `vscode` inside `src/core/`,
+extract the boundary into a callback parameter.

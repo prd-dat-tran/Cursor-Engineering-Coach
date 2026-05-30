@@ -1,0 +1,150 @@
+---
+description: Rules for the analytics engine — parsers, analyzers, cache, workers, and the rule/metric DSL host. Auto-attaches when editing src/core/**.
+globs: src/core/**/*.ts
+alwaysApply: false
+---
+
+# Core Engine (src/core/**)
+
+`src/core/` is the **runtime-agnostic** brain of the extension. It must run
+unchanged in:
+
+1. The VS Code extension host (`src/extension.ts`).
+2. Worker threads ([@src/core/parse-worker.ts](mdc:src/core/parse-worker.ts),
+   [@src/core/warm-up-worker.ts](mdc:src/core/warm-up-worker.ts),
+   [@src/core/cache-write-worker.ts](mdc:src/core/cache-write-worker.ts)).
+3. The Vitest unit test runner.
+
+That means: **no `import * as vscode from 'vscode'` in `src/core/`** (with
+the narrow exception of files explicitly used only inside the extension
+host wiring; if you find one, treat it as a bug to push out, not a pattern
+to imitate). Pass capabilities in as plain functions or values.
+
+## Module map (memorize this)
+
+- **Parsers** — read Cursor's on-disk session logs:
+  - [@src/core/parser.ts](mdc:src/core/parser.ts) — orchestrator. Owns
+    `findLogsDirs`, `parseAllLogsViaWorker`, the `LOAD_PHASES` constant,
+    and the memory/disk cache flow.
+  - [@src/core/parser-vscode.ts](mdc:src/core/parser-vscode.ts) — the
+    only IDE parser. Probes `Cursor` and `Cursor Nightly` workspace
+    storage. Owns `harnessFromPath` (always returns `'Cursor'`),
+    workspace name resolution, and custom-instruction byte counting for
+    `AGENTS.md`, `.cursorrules`, and `.cursor/rules/*.md`.
+  - [@src/core/parser-vscode-files.ts](mdc:src/core/parser-vscode-files.ts) —
+    file-level helpers (image extraction, workspace folder lookups).
+  - [@src/core/parser-shared.ts](mdc:src/core/parser-shared.ts) — trusted
+    root probing, prefetch cache, shared `ParseContext`.
+- **Cache** — [@src/core/cache.ts](mdc:src/core/cache.ts). On-disk JSON
+  at `~/.cursor-engineering-coach/cache/`. Memory cache via
+  `getMemoryCache` / `setMemoryCache`. Staleness checked by per-directory
+  mtime/size metas.
+- **Analyzers** — `analyzer-*.ts`. Each takes parsed sessions and produces
+  a typed shape consumed by the webview RPC layer:
+  - `analyzer.ts` is the umbrella the panel uses
+    (`new Analyzer(sessions, editLocIndex, workspaces)`).
+  - `analyzer-base.ts` is the shared filter / request-session map.
+  - One file per domain (`flow`, `patterns`, `config`, `consumption`,
+    `production`, `dashboard`, `insights`, `timeline`, `workflows`,
+    `images`, `context`). Extend the matching file; do not start a
+    parallel one.
+- **DSL** — [@src/core/dsl/](mdc:src/core/dsl/). Lexer → parser →
+  interpreter for the constrained expression language used in rule and
+  metric `.md` files. `schema.ts` is the source of truth for available
+  fields and primitives.
+- **Rules & metrics** — `rule-engine.ts`, `rule-loader.ts`,
+  `rule-parser.ts`, `rule-pipeline.ts`, `rule-trust.ts`,
+  `metric-engine.ts`, `detector-registry.ts`,
+  `detectors/scoring.ts`. Built-in rules live as Markdown in
+  `src/core/rules/`.
+- **Workers** — see [@AGENTS.md](mdc:AGENTS.md) for the contract.
+- **Types** — `src/core/types/`. Group by domain; reuse aggressively.
+
+## Patterns to imitate
+
+### Analyzer
+
+Extend `AnalyzerBase`, share the precomputed `requestSessionMap`, and
+filter through `filterRequests` / `filterSessions` rather than re-walking
+sessions:
+
+```12:30:src/core/analyzer-base.ts
+export class AnalyzerBase {
+  protected readonly sessions: Session[];
+  protected readonly editLocIndex: Map<string, Map<string, number>>;
+  protected readonly requestSessionMap: Map<SessionRequest, Session>;
+
+  constructor(sessions: Session[], editLocIndex: Map<string, Map<string, number>>, sharedMap?: Map<SessionRequest, Session>) {
+    this.sessions = sessions;
+    this.editLocIndex = editLocIndex;
+    if (sharedMap) {
+      this.requestSessionMap = sharedMap;
+    } else {
+      this.requestSessionMap = AnalyzerBase.buildRequestSessionMap(sessions);
+    }
+  }
+```
+
+Return shapes that match a type in `src/core/types/`. If the shape is new,
+add it there first, then implement.
+
+### Parser
+
+Parsers receive a `ParseContext` (prefetch cache + trusted roots) and emit
+the same `Session` / `SessionRequest` shapes regardless of source. The only
+harness label is `'Cursor'`. Do not branch on Copilot / Claude / Codex /
+Xcode / CLI — those code paths were removed.
+
+### Cache
+
+Always touch the cache through `cache.ts`'s exports. Direct `fs` reads of
+the cache directory are forbidden outside that module. New session sources
+must extend the `SessionSource` union and the cache shape; remember to
+bump the cache version constant when you change the on-disk layout.
+
+### Trust gate
+
+Rule and metric loaders use the trust gate to refuse any file that hasn't
+been approved by the user. **Never load user-provided rule content
+directly.** Use `loadAllRuleLayersAsync` / `loadAllMetricLayersAsync`,
+and surface new pending files through the existing
+`reviewLocalRules` command UI in
+[@src/extension.ts](mdc:src/extension.ts).
+
+## Workers
+
+When you add a worker, follow the existing recipe:
+
+1. Validate `workerData` with a typeguard (`isXxxWorkerData`) — the
+   sandbox passes `unknown`.
+2. Log failures with `console.warn('[xxx-worker]', e)`; the parent
+   surfaces them.
+3. Update [@AGENTS.md](mdc:AGENTS.md) — that file is a deliberately tiny
+   worker map and must stay current.
+
+## Don'ts
+
+- ❌ Add a parser for any other AI tool or IDE.
+- ❌ Reference `'Local Agent'`, `'Local Agent (Insiders)'`, `'GitHub Copilot CLI'`, `'Codex'`, `'Xcode'`, `'Claude Code'`, `'OpenCode'`. They are gone.
+- ❌ Block the main thread with sync `fs` calls or heavy parsing — push to a worker.
+- ❌ Mutate cached `Session[]` after returning them; downstream analyzers assume immutability.
+- ❌ Add a new `*-types.ts` file when an existing one fits. Extend instead.
+- ❌ Reach into another analyzer's internals. Compose via `Analyzer`.
+
+## Sync `.cursor/` when you change core
+
+The module map and data flow in
+[@.cursor/context/architecture.md](mdc:.cursor/context/architecture.md)
+mirror this directory. When you:
+
+- Add a new analyzer family, parser, or worker → update the matching
+  section of `architecture.md` *and* the workers table (and
+  [@AGENTS.md](mdc:AGENTS.md) for workers).
+- Change the cache key / on-disk format → bump the cache version in
+  `cache.ts` **and** update the *Persistence* section of
+  `architecture.md` and the carry-overs in
+  [@.cursor/context/prd.md](mdc:.cursor/context/prd.md).
+- Change anything about how the parser discovers logs (paths probed,
+  IDE flavors supported) → update both `architecture.md` and the
+  scope guardrails in `prd.md`. This is the boundary where the
+  Cursor-only invariant lives.

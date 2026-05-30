@@ -1,0 +1,136 @@
+---
+description: Webview UI rules — Preact+htm rendering, RPC contract between extension host and webview, sanitization, and the page module pattern. Auto-attaches under src/webview/**.
+globs: src/webview/**/*.ts
+alwaysApply: false
+---
+
+# Webview & RPC (src/webview/**)
+
+The webview is a **sandboxed browser context** loaded into a
+`vscode.WebviewPanel`. It has no Node, no `fs`, and no direct VS Code API.
+Everything dynamic flows through RPC over `postMessage`.
+
+## Rendering: Preact + htm only
+
+Use the tagged-template renderer in
+[@src/webview/render.ts](mdc:src/webview/render.ts). Never write to
+`innerHTML`, `outerHTML`, `document.write`, or `insertAdjacentHTML`. ESLint
+catches the obvious cases; this rule covers the subtle ones.
+
+```ts
+import { html, render } from './render';
+import { StatCard, CanvasEl } from './render';
+
+function MyCard({ value, label }: { value: string; label: string }) {
+  return html`<div class="card"><b>${value}</b> ${label}</div>`;
+}
+
+render(html`<${MyCard} value=${42} label="requests" />`, container);
+```
+
+- **String interpolation in `html\`...\`` is auto-escaped.** That's why
+  `${untrustedSessionPrompt}` is safe inside text nodes.
+- For numbers / CSS class names / inline-style values that must round-trip
+  through attributes, use the helpers in `./shared`:
+  `safeNumber()`, `safeCssClass()`, `safeCssValue()`. Do **not** import
+  `rawHtml` — ESLint discourages it and reviewers will reject it.
+- Reusable building blocks (`StatCard`, `CanvasEl`, `ScoreRing`,
+  `PctBadge`, `LoadingScreen`, `ErrorMsg`, `withErrorBoundary`) live in
+  `render.ts`. Add new shared atoms there, not in page modules.
+
+## Page module pattern
+
+Every top-level page exports `renderXxx(container, filter)`:
+
+```ts
+export async function renderMyPage(
+  container: HTMLElement,
+  filter: DateFilter,
+): Promise<void> {
+  const data = await rpc<MyShape>('getMyData', filter);
+  render(html`...`, container);
+}
+```
+
+- Wire the page into [@src/webview/app.ts](mdc:src/webview/app.ts) by
+  adding an entry to the page dispatcher and importing it at the top.
+- Wrap page renders with `withErrorBoundary(name, container, () => ...)` so
+  a single page's failure does not nuke the whole panel.
+- Keep page modules **render-only**. Business logic lives in
+  `src/core/analyzer-*.ts` and is exposed via RPC.
+- One page per file. Resist multi-page mega-modules.
+
+## RPC contract
+
+The webview ↔ host RPC has two halves:
+
+1. **Pure analytics** — registered in
+   [@src/webview/panel-rpc.ts](mdc:src/webview/panel-rpc.ts) (`getRpcHandler`).
+   Signature is defined by `RpcMethodMap` in
+   [@src/core/types/rpc-types.ts](mdc:src/core/types/rpc-types.ts) — add
+   your method to that type first, then implement.
+2. **Side-effectful or LLM-backed** — handled by
+   [@src/webview/panel-request-service.ts](mdc:src/webview/panel-request-service.ts).
+   Use this when you need to call `vscode.lm`, hit the filesystem, write a
+   file, or open another VS Code surface.
+
+To add an RPC method:
+
+1. Add a typed entry to `RpcMethodMap` (and a matching `RpcResult` row if
+   the return is non-trivial).
+2. Implement the handler in `panel-rpc.ts` (or `panel-request-service.ts`
+   for side-effectful) — validate every field of the incoming payload with
+   the `isString` / `isNumber` / `isRecord` / `isOptionalString`
+   typeguards from [@src/webview/panel-shared.ts](mdc:src/webview/panel-shared.ts).
+   Treat the payload as `unknown` until you've narrowed it.
+3. Call from the webview with `rpc<ReturnType>('methodName', payload)`
+   (helper in `shared.ts`). Use `rpcAllSettled` when you fan out several
+   independent requests for one page render.
+4. **Trust nothing on either side.** Session text and tool results are
+   untrusted user data — do not let them flow into the system prompt or
+   into HTML without escaping.
+
+## Charts
+
+Charts use Chart.js via `createChart(id, config)` and are tracked by id.
+**Always** call `destroyChartById(id)` (or rely on the page's
+`destroyCharts()`) before re-creating a chart with the same id — leaks
+otherwise stack up across filter changes.
+
+## CSP and Trusted Types
+
+`render.ts` installs a `default` Trusted Types policy so Preact's internal
+SVG `innerHTML` assignments pass CSP. Do not install other policies, and
+do not bypass CSP with `eval` or dynamic `Function` construction. If you
+need to evaluate user-authored expressions, route them through the
+DSL interpreter in [@src/core/dsl/](mdc:src/core/dsl/).
+
+## State
+
+There is intentionally **no global UI framework**. Page-level state lives
+as module-level `let` in the page file (e.g. `activeMetric` in
+`page-dashboard.ts`). Cross-page state goes through `app.ts` or
+`skill-cache.ts`. Avoid global mutation outside these well-known spots.
+
+## Filenames
+
+- `panel-*.ts` — extension-host side of the webview (runs in Node).
+- `page-*.ts` — webview-side renderers (runs in the browser sandbox).
+- `render.ts` / `shared.ts` / `panel-shared.ts` — shared atoms.
+
+Keep that split; it is also how esbuild splits bundles.
+
+## Sync `.cursor/` when you change the webview
+
+- New `page-*.ts` → add it to the page list in
+  [@.cursor/context/architecture.md](mdc:.cursor/context/architecture.md)
+  and add a matching docs page under
+  [@docs/content/](mdc:docs/content/).
+- New RPC method or change to `RpcMethodMap` →
+  `architecture.md` has a *Webview RPC* section that describes the
+  envelope and split between `panel-rpc.ts` / `panel-request-service.ts`;
+  keep it accurate.
+- Changed the rendering primitive (e.g. swapped Preact + htm for
+  something else, added a different state pattern) → this rule's
+  *Rendering* and *Page module pattern* sections need to change too.
+  Don't leave the old guidance in place — it will get followed.

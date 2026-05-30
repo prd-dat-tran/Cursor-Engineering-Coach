@@ -1,0 +1,154 @@
+---
+description: How to author built-in coaching rules (the Markdown files in src/core/rules/) and how to safely extend the DSL that evaluates them.
+globs: src/core/rules/**/*.md,src/core/dsl/**/*.ts,src/core/rule-*.ts,src/core/metric-*.ts
+alwaysApply: false
+---
+
+# Built-in Rules & DSL
+
+The coaching insights surfaced by the extension are powered by Markdown
+files in [@src/core/rules/](mdc:src/core/rules/) (and user-authored files
+loaded through the trust gate). Each rule pairs human-readable copy with a
+constrained DSL expression that the interpreter in
+[@src/core/dsl/](mdc:src/core/dsl/) evaluates against parsed sessions /
+requests. The canonical authoring guide is [@docs/AUTHORING_RULES.md](mdc:docs/AUTHORING_RULES.md) —
+read it before adding your first rule.
+
+## Rule file shape
+
+```yaml
+---
+id: kebab-case-id              # filename without `.md`, also the rule id
+name: Human Readable Title
+group: tool-mastery            # one of the PRACTICE_GROUPS keys
+severity: low | medium | high
+scope: requests | sessions
+requiresIdeContext: true       # optional; gate on IDE harness data
+version: 1
+tags: [list, of, tags]
+thresholds:
+  minReqs: 30                  # named knobs referenced by the DSL below
+  someRatio: 0.3
+---
+
+# Description
+One-paragraph what & why.
+
+# When Triggered
+A sentence with `{{template}}` placeholders that get filled in at render
+time (e.g. `{{count}}`, `{{pct}}`, `{{extra.someField}}`).
+
+# How to Improve
+Actionable, specific advice. Prefer imperative phrasing. Mention concrete
+Cursor surfaces (Plan mode, Agent mode, `@file`, `.cursor/rules/`, etc.).
+
+# Examples
+Short bullet examples. Use mustache placeholders if data-driven.
+
+# Detection Logic
+```detect
+scan: requests | sessions
+match: <DSL expression returning boolean>
+aggregate: count | sum | ratio | percent
+check: <DSL expression — must be true to trigger>
+examples: <optional template for example rows>
+```
+```
+
+### Naming
+
+- `id` is `kebab-case`, matches the filename. Do not rename a published id
+  without considering downstream breakage — the id is stored in user
+  trust approvals and dashboards.
+- `name` is the title shown in the UI.
+- `group` is one of `PRACTICE_GROUPS` in
+  [@src/core/types/](mdc:src/core/types/). New groups need product
+  approval — they change the dashboard tiles.
+
+### Severity
+
+- `high` is reserved for things with a clear cost (security, billing,
+  flow destruction). Most rules are `medium` or `low`.
+
+## DSL conventions
+
+The DSL is **not JavaScript**. It is a constrained expression language;
+the interpreter rejects anything it does not explicitly support.
+
+- Strings are double-quoted: `"plan"`.
+- Comparison: `==`, `!=`, `>`, `>=`, `<`, `<=`.
+- Boolean composition: `AND`, `OR`, `NOT` (uppercase).
+- Field references match the schema in
+  [@src/core/dsl/schema.ts](mdc:src/core/dsl/schema.ts). If a field
+  doesn't appear there, it isn't available — extend the schema first.
+- Helpers like `someWhere(all, field, op, value)` and
+  `lenSafe(field)` live in
+  [@src/core/dsl/interpreter.ts](mdc:src/core/dsl/interpreter.ts).
+- Reference `thresholds.<name>` exclusively for tunable knobs — never
+  hard-code a number in `match`/`check`. This is what the Rule
+  Playground tweaks.
+
+## Cursor-only references
+
+Because this fork is Cursor-only, write copy and examples that name
+**Cursor surfaces** by their real names:
+
+- ✅ "Switch to Plan mode in the mode picker before starting large features"
+- ✅ "Use `@file` to attach the file you want edited"
+- ✅ "Add hooks in `.cursor/hooks.json` to enforce checks"
+- ✅ "Place reusable instructions in `.cursor/rules/<topic>.md` or `AGENTS.md`"
+- ❌ Anything mentioning `/copilot`, `/claude`, `/codex`, `.github/copilot-instructions.md`,
+  `CLAUDE.md`, `.claude/settings.json`, `.gemini/`, Xcode, OpenCode.
+
+## When you extend the DSL
+
+Touching `src/core/dsl/` widens the attack surface for user-authored
+rules. Every addition needs:
+
+1. **Schema entry** in `schema.ts` (for new fields) or
+   `FUNCTION_CATALOG` / `METRIC_PRIMITIVES` (for new helpers).
+2. **Lexer / parser updates** in `lexer.ts` / `parser.ts` only if you're
+   adding new syntax (rare). Prefer adding helper functions to the
+   `FUNCTION_CATALOG` instead.
+3. **Interpreter implementation** in `interpreter.ts` — keep the helper
+   pure and deterministic, no I/O.
+4. **Tests** for both the happy path and abuse cases (deeply nested
+   inputs, regex DoS, prototype pollution attempts). See
+   [@src/core/dsl/safe-regex.test.ts](mdc:src/core/dsl/safe-regex.test.ts)
+   for the regex-safety pattern — always go through `safeRegex` rather
+   than `new RegExp(userInput)`.
+5. **Cheatsheet update** in
+   [@src/webview/dsl-cheatsheet.ts](mdc:src/webview/dsl-cheatsheet.ts).
+
+If a helper requires arbitrary computation, that is the signal to
+**not** add it. The DSL is intentionally limited.
+
+## Loader & trust
+
+- Built-in rules in `src/core/rules/` are loaded unconditionally; they
+  are part of the extension package.
+- Personal rules (`~/.cursor-engineering-coach/rules/`) and project
+  rules (`<workspace>/.cursor/rules/` — read by the analyzer, not the
+  Cursor IDE itself) go through the trust gate. Use
+  `loadAllRuleLayersAsync` and **never** parse user-provided rule
+  content outside that pipeline.
+- A change to an approved file revokes trust — that is intentional
+  ([@src/core/rule-trust.ts](mdc:src/core/rule-trust.ts)).
+
+## Reviewer checklist
+
+Before opening a PR with a new built-in rule:
+
+- [ ] File name is `kebab-case.md` and matches `id`.
+- [ ] All copy is Cursor-specific (see Don'ts above).
+- [ ] DSL uses `thresholds.*` — no magic numbers.
+- [ ] Detection passes on `npx vitest run` (add a small fixture test if
+      the rule introduces a new edge case in the interpreter).
+- [ ] `npm run spellcheck` is clean (new product names go in
+      [@cspell.json](mdc:cspell.json)).
+- [ ] If you extended the DSL (new field in `schema.ts`, new helper in
+      `FUNCTION_CATALOG`, new syntax in the lexer/parser), update the
+      *DSL conventions* section above so the next rule author knows the
+      surface area. Also confirm
+      [@.cursor/context/architecture.md](mdc:.cursor/context/architecture.md)
+      *Rules pipeline* still reads true end-to-end.

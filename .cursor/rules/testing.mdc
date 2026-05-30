@@ -1,0 +1,103 @@
+---
+description: Vitest conventions — colocation, fixture helpers, vi.mock patterns, deterministic time, no network.
+globs: src/**/*.test.ts
+alwaysApply: false
+---
+
+# Testing (Vitest)
+
+The project uses **Vitest** as the only test runner. There is no Jest, no
+Mocha, no Playwright for unit tests (Playwright exists for end-to-end
+webview smoke tests; those live under `tests/`, are out of scope for this
+rule, and are excluded from ESLint).
+
+## Where tests live
+
+- **Colocated** with the implementation: `analyzer-flow.ts` ↔
+  `analyzer-flow.test.ts`. New test files use the same prefix.
+- Cross-cutting integration tests use `*-e2e.test.ts` or a clearly named
+  scenario file (e.g. `antipatterns-e2e.test.ts`,
+  `context-management.test.ts`).
+- Do not add a `__tests__/` directory; the repo's convention is flat
+  colocation.
+
+## Fixtures: make a `makeSession` / `makeRequest`
+
+When a test needs `Session` or `SessionRequest` shapes, build a small
+local factory inside the test file rather than reaching for a shared
+fixture. Each factory supplies sensible defaults and accepts a
+`Partial<T>` overrides parameter — this is the pattern in
+[@src/core/analyzer-flow.test.ts](mdc:src/core/analyzer-flow.test.ts) and
+many others. Keep the factory minimal; do **not** export it.
+
+```ts
+function makeRequest(overrides: Partial<SessionRequest> = {}): SessionRequest {
+  return {
+    requestId: 'req-' + Math.random().toString(36).slice(2, 8),
+    timestamp: Date.now(),
+    /* …complete shape with defaults… */
+    ...overrides,
+  };
+}
+```
+
+Note: existing tests still set `agentName: 'Copilot'` as a default. This
+is the **internal default agent id** used to distinguish sub-agents from
+the main turn; it is *not* product branding and does not need rewriting.
+
+## Mocking
+
+- Use `vi.mock('./module', () => ({ ... }))` for module mocks. Put the
+  mock at the top of the file, above the imports of the module under
+  test.
+- Use `vi.spyOn` for partial overrides.
+- For VS Code APIs, prefer designing the code under test so it does not
+  import `vscode` — pass capabilities as parameters. Where unavoidable,
+  mock the smallest possible surface.
+
+## Determinism
+
+- **No real timers in tests.** Use `vi.useFakeTimers()` /
+  `vi.setSystemTime(new Date('2025-06-01T12:00:00Z'))` when the code
+  under test reads `Date.now()` or `new Date()`.
+- **No real network.** Any `fetch` / HTTP must be mocked. If a test
+  appears to need the network, refactor instead.
+- **No real filesystem** outside `os.tmpdir()`. When you write fixtures
+  to disk, do it under `fs.mkdtempSync(path.join(os.tmpdir(), 'cursor-engineering-coach-'))`
+  and clean up in `afterEach`.
+
+## Running
+
+- Full suite: `npx vitest run` (CI mode — exits when done).
+- Watch: `npx vitest` (don't commit `.only` / `.skip`).
+- A single file: `npx vitest run src/core/analyzer-flow.test.ts`.
+- A single test by name: `npx vitest run -t "deep flow"`.
+
+## Coverage expectations
+
+Coverage is not enforced numerically, but a change that ships without a
+matching test will be rejected unless:
+
+- It is purely a rename (handled by typecheck / grep) **or**
+- It is a documentation / config-only edit **or**
+- You have explicitly explained why a test is impossible.
+
+## Pitfalls
+
+- `agentName: 'Copilot'` defaults in fixtures are intentional plumbing
+  (sub-agent detection). Do not rename them to `'Cursor'`.
+- `harness: 'Cursor'` is the default label and the only one the product
+  actually emits today. Competitor / other-IDE labels (`'Local Agent'`,
+  `'Xcode'`, `'GitHub Copilot CLI'`, `'Claude Code'`, `'Codex'`,
+  `'OpenCode'`, `'VS Code'`) must **not** appear in tests — they were
+  removed from the product. When a test genuinely needs *multiple
+  distinct* harness values (to exercise grouping, sorting, dedup, or the
+  `harness` filter), use additional **real Cursor surfaces**:
+  `'Cursor Nightly'` and `'Cursor CLI'`. Do not invent a competitor name
+  just to get a second value. (`agentName` is a separate field — see
+  above.)
+- `~/.cursor-engineering-coach/cache/` exists on the test runner's home
+  dir. The `runtime-debug.test.ts` and `cache.test.ts` tests have been
+  observed to flake under sandbox restrictions — if you see ENOENT in
+  CI, retry once and check whether the sandbox blocked the cache dir
+  creation. Do not "fix" by changing the path.

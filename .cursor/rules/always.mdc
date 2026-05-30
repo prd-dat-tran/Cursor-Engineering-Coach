@@ -1,0 +1,88 @@
+---
+description: Project identity, hard constraints, and the non-negotiables every agent must follow on every turn in this repository.
+alwaysApply: true
+---
+
+# Cursor Engineering Coach — Always-On Rules
+
+You are working inside **Cursor Engineering Coach**, a VS Code / Cursor IDE
+extension that reads local Cursor session logs and surfaces analytics,
+anti-patterns, and coaching for the developer. It is a **fork of
+`microsoft/AI-Engineering-Coach`**, rebranded and narrowed to a Cursor-only
+target.
+
+Before you do anything non-trivial, skim:
+
+- [@.cursor/context/architecture.md](mdc:.cursor/context/architecture.md) — modules, data flow, workers, RPC.
+- [@.cursor/context/flow.md](mdc:.cursor/context/flow.md) — how to add a feature / rule / page end-to-end.
+- [@.cursor/context/prd.md](mdc:.cursor/context/prd.md) — current milestone and scope guardrails.
+- [@AGENTS.md](mdc:AGENTS.md) — the short worker map + local rule trust flow.
+
+## Non-negotiables
+
+1. **Cursor-only target.** This fork dropped support for Copilot, Claude Code,
+   Codex, OpenCode, Copilot CLI, and Xcode. Do **not** reintroduce parsers,
+   harness labels, UI filters, or copy that references them. The only harness
+   name is `'Cursor'`.
+2. **Read-only, zero telemetry.** The extension never writes to the user's
+   source tree, never makes network requests for analytics, and never sends
+   session data anywhere. New features must preserve this property.
+3. **MIT license attribution.** Source files keep the Microsoft copyright
+   header at the top — do not remove it when editing. New files you author
+   from scratch may use the same header for consistency.
+4. **TypeScript strict.** `tsconfig.json` is `strict: true` with
+   `noImplicitOverride`. No `any` slips, no untyped JSON parses, no
+   `@ts-ignore` without a one-line justification on the same line.
+5. **Identifier conventions.**
+   - VS Code commands / settings / view IDs: `cursorEngineeringCoach.*`
+   - Chat participant: `@coach` (id `cursorEngineeringCoach.coach`)
+   - Language Model tools: `coach_*` (e.g. `coach_summary`, `coach_patterns`)
+   - On-disk cache dir: `~/.cursor-engineering-coach/cache/`
+   Never invent a new prefix or revive `aiEngineerCoach.*` / `@aicoach` /
+   `aiEngineerCoach_*`.
+6. **Trust gate is law.** Any code path that loads user-authored rule or
+   metric files must go through `createTrustGate` /
+   `loadAllRuleLayersAsync` / `loadAllMetricLayersAsync`. Never `eval`,
+   never `new Function`, never bypass the pending → review → approve flow.
+7. **DSL ≠ JavaScript.** User-supplied rule logic runs through the DSL
+   interpreter in `src/core/dsl/`. It is intentionally restricted; do not
+   widen it without a security review and matching tests.
+8. **Keep `.cursor/` in sync.** The files under
+   [@.cursor/](mdc:.cursor/) are **living documents**, not a one-time
+   scaffold. Any change that alters the project's architecture, public
+   surface, workflow, or scope must update the matching file **in the
+   same commit / PR**. See the "Keeping `.cursor/` in sync" section of
+   [@.cursor/context/flow.md](mdc:.cursor/context/flow.md) for the
+   trigger matrix. Drift here silently breaks every future agent (and
+   reviewer) because they are reading these files as ground truth.
+
+## Workflow expectations
+
+- **Plan before large edits.** For anything that touches more than ~3 files
+  or changes a public surface (commands, RPC methods, MCP tool names, rule
+  schema), produce a short plan first and confirm scope.
+- **Edit existing files over creating new ones.** This codebase already has a
+  module for almost everything (parsers, analyzers, pages, RPC handlers).
+  Extending the right one beats inventing a parallel structure.
+- **Tests come with the change.** If you touch `src/core/*.ts`, add or
+  update a colocated `*.test.ts`. Vitest is the only test runner.
+- **Run the gates before declaring done.** From the repo root:
+  - `npm run typecheck` — strict TS
+  - `npm run lint` — ESLint (warns are also signal — see the typescript rule)
+  - `npm run spellcheck` — cspell; new product names go in [@cspell.json](mdc:cspell.json)
+  - `npx vitest run` — full unit suite
+- **Update `.cursor/` alongside the change.** Before you call a task
+  "done", ask yourself the four questions in
+  [@.cursor/context/flow.md](mdc:.cursor/context/flow.md) →
+  *Keeping `.cursor/` in sync*. If the answer to any of them is "yes",
+  edit the matching `.cursor/rules/*.mdc` or `.cursor/context/*.md` in
+  the same diff. The PR description should call out the sync edits.
+- **No drive-by reformats.** Do not reflow unrelated files; small surgical
+  diffs are reviewed faster and revert cleaner.
+
+## What to say when you are blocked
+
+If a request is ambiguous, missing context, or appears to conflict with the
+PRD or these rules, **say so explicitly** and propose two or three concrete
+options before writing code. Do not silently pick a direction that contradicts
+the project's invariants.

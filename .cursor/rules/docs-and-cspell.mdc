@@ -1,0 +1,82 @@
+---
+description: Hugo documentation site conventions (docs/) and the cspell dictionary discipline. Auto-attaches when editing docs or cspell.json.
+globs: docs/**/*.md,cspell.json
+alwaysApply: false
+---
+
+# Documentation & Spellcheck
+
+## Hugo site (`docs/`)
+
+The documentation site is a Hugo project rendered to `docs/public/`
+(ignored). Pages live under `docs/content/<section>/<page>.md` and follow
+Hugo's content conventions.
+
+### Frontmatter
+
+Every content page begins with YAML frontmatter:
+
+```yaml
+---
+title: "Anti-Patterns"
+weight: 30                 # ordering within the section
+description: "Short summary used in nav previews"
+---
+```
+
+Order matters — `weight` controls sidebar order. Don't renumber every page
+when you add a new one; bump by 10s (`10`, `20`, `30`) so insertions
+remain cheap.
+
+### Internal links
+
+Use Hugo-style absolute paths so the site builds correctly under its base
+URL: `[Anti-Patterns](/improve/anti-patterns/)`. Trailing slashes
+matter — keep them. The [@AGENTS.md](mdc:AGENTS.md) documentation index
+must stay in sync when you add or rename a page.
+
+### Tone & voice
+
+- Cursor-first. Refer to "Cursor", "Cursor IDE", "Cursor agent mode",
+  "Cursor rules", not generic "AI tool" copy and never another vendor.
+- Second person ("you"), present tense, short sentences.
+- Concrete numbers and examples beat adjectives.
+- Use `--` for em-dashes in prose; tables use `|` separators with
+  one-space padding.
+- Code blocks get language tags (` ```typescript`, ` ```bash`).
+
+### Pages that touch features
+
+When you add or rename a webview page (`page-*.ts`), update the matching
+page under `docs/content/`. The mapping is usually one-to-one and the
+docs are read by both humans and the chat participant when answering
+"how do I…" questions.
+
+## `cspell.json`
+
+`npm run spellcheck` runs cspell over the repo using
+[@cspell.json](mdc:cspell.json). Custom dictionaries live in the `words`
+array (kebab-cased lowercase entries).
+
+When CI fails on spell:
+
+1. **Is it a real misspelling?** Fix the prose.
+2. **Is it a real product / proper noun?** Add it to `words` in
+   `cspell.json`. Keep the list roughly alphabetical when convenient;
+   exact ordering is not enforced.
+3. **Is it a CamelCase symbol?** It's already covered by the
+   `/[A-Z][a-z]+[A-Z][a-zA-Z]+/` regex in `ignoreRegExpList` — no
+   change needed.
+4. **Is it inside backticks?** Already covered by `/`[^`]+`/`.
+
+Do not silence spellcheck with inline `cspell:ignore` comments unless a
+word genuinely cannot be added to the dictionary (e.g. one-off hash in a
+log line). Adding to the dictionary is the default.
+
+### Words you should NOT add
+
+- Stale brand names from harnesses we no longer support beyond what is
+  already in the dictionary. (`copilot`, `codex`, `opencode` are
+  grandfathered for historical references; do not add `claude`,
+  `gemini`, `xcode`, etc. — that would let stale copy slip past
+  review.)
