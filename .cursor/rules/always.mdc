@@ -23,7 +23,10 @@ Before you do anything non-trivial, skim:
 1. **Cursor-only target.** This fork dropped support for Copilot, Claude Code,
    Codex, OpenCode, Copilot CLI, and Xcode. Do **not** reintroduce parsers,
    harness labels, UI filters, or copy that references them. The only harness
-   name is `'Cursor'`.
+   names are `'Cursor'` and `'Cursor Nightly'`. Cursor sessions are read from
+   two local sources: VS Code-format chat files under `workspaceStorage/`
+   (`parser-vscode.ts`) and the native Composer/Agent SQLite DB
+   `globalStorage/state.vscdb` (`parser-cursor.ts`).
 2. **Read-only, zero telemetry.** The extension never writes to the user's
    source tree, never makes network requests for analytics, and never sends
    session data anywhere. New features must preserve this property.

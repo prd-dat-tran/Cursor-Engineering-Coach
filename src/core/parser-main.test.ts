@@ -14,6 +14,15 @@ vi.mock('./parser-vscode', () => ({
   harnessFromPath: vi.fn(() => 'Cursor'),
 }));
 
+// Composer DB collection shells out to sqlite3 and reads the real user profile;
+// stub it so orchestration tests stay hermetic and deterministic.
+vi.mock('./parser-cursor', () => ({
+  findCursorEditions: vi.fn(() => []),
+  parseCursorComposerSessions: vi.fn(() => ({ sessions: [], workspaces: [] })),
+  parseCursorComposerSessionsAsync: vi.fn(() => Promise.resolve({ sessions: [], workspaces: [] })),
+  loadCursorComposerSession: vi.fn(() => null),
+}));
+
 vi.mock('./cache', () => ({
   getMemoryCache: vi.fn(() => null),
   setMemoryCache: vi.fn(),

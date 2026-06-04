@@ -16,6 +16,7 @@ import * as path from 'path';
 import { Session, Workspace } from './types';
 import { warnCore } from './log';
 import { parseSessionFile } from './parser-vscode';
+import { loadCursorComposerSession } from './parser-cursor';
 
 export interface ParseResult {
   workspaces: Map<string, Workspace>;
@@ -24,13 +25,30 @@ export interface ParseResult {
   sessionSourceIndex: Map<string, SessionSource>;
 }
 
-export interface SessionSource {
+/** A session parsed from a VS Code-format chat session file
+ *  (`chatSessions/*.json[l]`). Full text is reloaded by re-reading `filePath`. */
+export interface VsCodeSessionSource {
   kind: 'vscode-session-file';
   filePath: string;
   workspaceId: string;
   workspaceName: string;
   harness: string;
 }
+
+/** A session parsed from Cursor's Composer/Agent SQLite database. There is no
+ *  single backing file, so full text is reloaded by re-querying the global
+ *  `state.vscdb` for this `composerId`. */
+export interface CursorComposerSessionSource {
+  kind: 'cursor-composer-db';
+  globalDb: string;
+  workspaceStorageRoot: string;
+  composerId: string;
+  workspaceId: string;
+  workspaceName: string;
+  harness: string;
+}
+
+export type SessionSource = VsCodeSessionSource | CursorComposerSessionSource;
 
 /* ---- Per-directory metadata ---- */
 
@@ -91,7 +109,9 @@ const CACHE_DIR = path.join(process.env.HOME || process.env.USERPROFILE || '', '
 const CACHE_FILE = path.join(CACHE_DIR, 'parsed.json');
 const CACHE_META = path.join(CACHE_DIR, 'meta.json');
 
-const CACHE_VERSION = 9;
+// Bumped to 10: SessionSource became a discriminated union (added the
+// `cursor-composer-db` kind for Cursor's Composer/Agent DB sessions).
+const CACHE_VERSION = 10;
 
 interface CacheMetaPayload {
   version: number;
@@ -408,6 +428,9 @@ export async function loadSessionFromDisk(sessionId: string): Promise<Session | 
     }
     if (!source) return null;
 
+    if (source.kind === 'cursor-composer-db') {
+      return loadCursorComposerSession(source.globalDb, source.workspaceStorageRoot, source.composerId, source.harness);
+    }
     return parseSessionFile(source.filePath, source.workspaceId, source.workspaceName, source.harness);
   } catch {
     return null;

@@ -9,6 +9,7 @@ import * as vscode from 'vscode';
 import { Analyzer } from '../core/analyzer';
 import { saveSidebarStats } from '../core/cache';
 import { clearCache, findLogsDirs, parseAllLogsViaWorker, ParseResult } from '../core/parser';
+import { findCursorEditions } from '../core/parser-cursor';
 import { runtimeDebug } from '../core/runtime-debug';
 import { WebviewMessage } from '../core/types';
 import { panelCache } from './panel-cache';
@@ -203,8 +204,12 @@ export class DashboardPanel {
       if (this.disposed) return;
 
       const dirs = findLogsDirs();
-      runtimeDebug('panel', 'logs-dirs-found', `count=${dirs.length}`);
-      if (dirs.length === 0) {
+      // Cursor's native Composer/Agent sessions live in the global SQLite DB,
+      // which is discovered separately from workspaceStorage. Only show the
+      // empty state when neither source exists.
+      const hasComposerDb = findCursorEditions().length > 0;
+      runtimeDebug('panel', 'logs-dirs-found', `count=${dirs.length} composerDb=${hasComposerDb}`);
+      if (dirs.length === 0 && !hasComposerDb) {
         runtimeDebug('panel', 'loadData-no-dirs');
         if (!this.disposed) {
           try { this.panel.webview.html = getErrorHtml('No Cursor session logs found. Looked in the Cursor workspaceStorage directory (~/Library/Application Support/Cursor/User/workspaceStorage on macOS, ~/.config/Cursor/User/workspaceStorage on Linux, %APPDATA%\\Cursor\\User\\workspaceStorage on Windows).'); } catch { /* disposed */ }

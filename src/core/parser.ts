@@ -8,11 +8,12 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import { runtimeDebug } from './runtime-debug';
-import { Workspace } from './types';
+import { Session, Workspace } from './types';
 import { ParseContext, prefetchCache } from './parser-shared';
 import { getMemoryCache, setMemoryCache, computeDirMetasAsync, loadCacheData, saveCacheData, findStaleDirs, clearCache, stripSessionsForMemory } from './cache';
 import type { DirMetas, ParseResult, SessionSource } from './cache';
 import { findVsCodeDirs, scanVsCodeDirs, processWorkspaceEntry, processWorkspaceEntryAsync, harnessFromPath } from './parser-vscode';
+import { findCursorEditions, parseCursorComposerSessions, parseCursorComposerSessionsAsync, type CursorEdition } from './parser-cursor';
 
 export type { ParseResult };
 export { clearCache };
@@ -96,6 +97,102 @@ function pct(phase: number, intraPhase: number): number {
 
 export function findLogsDirs(): string[] {
   return findVsCodeDirs();
+}
+
+/* ---- Cursor Composer/Agent DB sessions ----
+ *
+ * Cursor's native Composer/Agent conversations live in a SQLite database
+ * (globalStorage/state.vscdb), not in the per-workspace `chatSessions/*.jsonl`
+ * files read by the workspace-storage pipeline. The disk-dir cache fingerprint
+ * does not track that database, so Composer sessions are re-collected on every
+ * load (and identified via their `cursor-composer-db` session source so cache
+ * reconciliation can drop the previous batch before re-collecting). */
+
+function addCursorComposerSession(
+  workspaces: Map<string, Workspace>,
+  sessions: Session[],
+  sessionSourceIndex: Map<string, SessionSource>,
+  session: Session,
+  edition: CursorEdition,
+): void {
+  sessions.push(session);
+  sessionSourceIndex.set(session.sessionId, {
+    kind: 'cursor-composer-db',
+    globalDb: edition.globalDb,
+    workspaceStorageRoot: edition.workspaceStorageRoot,
+    composerId: session.sessionId,
+    workspaceId: session.workspaceId,
+    workspaceName: session.workspaceName,
+    harness: session.harness,
+  });
+  if (!workspaces.has(session.workspaceId)) {
+    const rootPath = session.workspaceRootPath && fs.existsSync(session.workspaceRootPath)
+      ? session.workspaceRootPath
+      : edition.workspaceStorageRoot;
+    workspaces.set(session.workspaceId, { id: session.workspaceId, name: session.workspaceName, path: rootPath });
+  }
+}
+
+/** Remove previously-collected Composer DB sessions (and their source-index
+ *  entries) from a result so they can be re-collected fresh. */
+function dropCursorComposerSessions(result: ParseResult): void {
+  const idx = result.sessionSourceIndex;
+  const kept: Session[] = [];
+  for (const s of result.sessions) {
+    const source = idx.get(s.sessionId);
+    if (source && source.kind === 'cursor-composer-db') {
+      idx.delete(s.sessionId);
+      continue;
+    }
+    kept.push(s);
+  }
+  result.sessions = kept;
+}
+
+function collectCursorComposerSessionsSync(
+  workspaces: Map<string, Workspace>,
+  sessions: Session[],
+  sessionSourceIndex: Map<string, SessionSource>,
+): void {
+  for (const edition of findCursorEditions()) {
+    try {
+      const { sessions: composerSessions } = parseCursorComposerSessions(edition);
+      for (const session of composerSessions) {
+        addCursorComposerSession(workspaces, sessions, sessionSourceIndex, session, edition);
+      }
+    } catch (e) {
+      runtimeDebug('parser', 'cursor-composer-sync-failed', `${edition.harness}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+}
+
+async function collectCursorComposerSessions(
+  workspaces: Map<string, Workspace>,
+  sessions: Session[],
+  sessionSourceIndex: Map<string, SessionSource>,
+  onProgress?: ProgressCallback,
+): Promise<void> {
+  for (const edition of findCursorEditions()) {
+    try {
+      const { sessions: composerSessions } = await parseCursorComposerSessionsAsync(edition, (p) => {
+        if (!onProgress) return;
+        const frac = p.total > 0 ? (p.index + 1) / p.total : 1;
+        onProgress({
+          phase: 2,
+          detail: `${edition.harness} composer ${p.index + 1}/${p.total}: ${p.name}`,
+          // Keep within the top of phase 2 so the bar never jumps backward
+          // after the workspace-storage pass has already advanced it.
+          pct: pct(2, 0.95 + 0.05 * frac),
+          sessions: sessions.length,
+        });
+      });
+      for (const session of composerSessions) {
+        addCursorComposerSession(workspaces, sessions, sessionSourceIndex, session, edition);
+      }
+    } catch (e) {
+      runtimeDebug('parser', 'cursor-composer-failed', `${edition.harness}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
 }
 
 const PREFETCH_TIMEOUT_MS = 15_000;
@@ -235,16 +332,22 @@ async function reportWorkspaceProgress(
   if (shouldYield) await yieldToLoop();
 }
 
-function tryMemoryCache(
+async function tryMemoryCache(
   currentMetas: DirMetas,
-  _onProgress: ProgressCallback | undefined,
+  onProgress: ProgressCallback | undefined,
   report: ReportProgress,
-): CacheHitResult | null {
+): Promise<CacheHitResult | null> {
   const mem = getMemoryCache();
   if (!mem) return null;
 
   const { stale, removed } = findStaleDirs(currentMetas, mem.dirMetas);
   if (stale.size !== 0 || removed.size !== 0) return null;
+
+  // Composer DB sessions aren't tracked by the dir-meta fingerprint, so refresh
+  // them even on a workspace-storage cache hit.
+  dropCursorComposerSessions(mem.result);
+  await collectCursorComposerSessions(mem.result.workspaces, mem.result.sessions, mem.result.sessionSourceIndex, onProgress);
+  stripSessionsForMemory(mem.result.sessions);
 
   report({
     phase: 1, detail: 'Loaded from memory', pct: pct(1, 1),
@@ -260,7 +363,7 @@ function tryMemoryCache(
 
 async function tryDiskCache(
   currentMetas: DirMetas,
-  _onProgress: ProgressCallback | undefined,
+  onProgress: ProgressCallback | undefined,
   report: ReportProgress,
 ): Promise<CacheHitResult | null> {
   const cached = await loadCacheData();
@@ -268,6 +371,12 @@ async function tryDiskCache(
 
   const { stale, removed } = findStaleDirs(currentMetas, cached.dirMetas);
   if (stale.size !== 0 || removed.size !== 0) return null;
+
+  // Composer DB sessions aren't tracked by the dir-meta fingerprint, so refresh
+  // them even on a workspace-storage cache hit.
+  dropCursorComposerSessions(cached.result);
+  await collectCursorComposerSessions(cached.result.workspaces, cached.result.sessions, cached.result.sessionSourceIndex, onProgress);
+  stripSessionsForMemory(cached.result.sessions);
 
   setMemoryCache(cached.result, currentMetas);
   report({
@@ -413,6 +522,8 @@ export function parseAllLogs(logsDirs: string[]): ParseResult {
     for (const d of dirEntries) processWorkspaceEntry(logsDir, d.name, harness, ctx);
   }
 
+  collectCursorComposerSessionsSync(workspaces, sessions, sessionSourceIndex);
+
   stripSessionsForMemory(sessions);
   return { workspaces, sessions, editLocIndex, sessionSourceIndex };
 }
@@ -430,7 +541,7 @@ export async function parseAllLogsAsyncDetailed(
   await yieldToLoop();
   const currentMetas = await computeDirMetasAsync(logsDirs);
 
-  const memoryHit = tryMemoryCache(currentMetas, onProgress, report);
+  const memoryHit = await tryMemoryCache(currentMetas, onProgress, report);
   if (memoryHit) return memoryHit;
 
   report({ phase: 1, detail: 'Loading disk cache', pct: pct(1, 0.5) });
@@ -450,11 +561,16 @@ export async function parseAllLogsAsyncDetailed(
     const freshSessions: import('./types').Session[] = [];
     const freshSessionSourceIndex = new Map<string, SessionSource>();
     for (const s of cachedSessions) {
+      const source = sessionSourceIndex.get(s.sessionId);
+      if (source?.kind === 'cursor-composer-db') {
+        // Composer DB sessions are re-collected fresh below; never carry the
+        // cached copy (or its source) into the new result.
+        continue;
+      }
       if (affectedWsIds.has(s.workspaceId)) {
         for (const r of s.requests) staleRequestIds.add(r.requestId);
       } else {
         freshSessions.push(s);
-        const source = sessionSourceIndex.get(s.sessionId);
         if (source) freshSessionSourceIndex.set(s.sessionId, source);
       }
     }
@@ -509,6 +625,8 @@ export async function parseAllLogsAsyncDetailed(
       }
     }
 
+    await collectCursorComposerSessions(workspaces, freshSessions, freshSessionSourceIndex, onProgress);
+
     const result: ParseResult = { workspaces, sessions: freshSessions, editLocIndex, sessionSourceIndex: freshSessionSourceIndex };
     stripSessionsForMemory(result.sessions);
     setMemoryCache(result, currentMetas);
@@ -526,6 +644,8 @@ export async function parseAllLogsAsyncDetailed(
   const { entries, totalDirs } = scanVsCodeDirs(logsDirs);
 
   await processWorkspaces(entries, totalDirs, ctx, onProgress);
+
+  await collectCursorComposerSessions(workspaces, sessions, sessionSourceIndex, onProgress);
 
   const result: ParseResult = { workspaces, sessions, editLocIndex, sessionSourceIndex };
   stripSessionsForMemory(result.sessions);

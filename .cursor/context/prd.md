@@ -25,7 +25,12 @@ rebrand and harden Cursor-native behavior**. Concretely:
 
 - [x] All identifiers use the `cursorEngineeringCoach.*` /
       `coach_*` / `@coach` namespace.
-- [x] Parser reads only `Cursor` and `Cursor Nightly` workspace storage.
+- [x] Parser reads `Cursor` and `Cursor Nightly` VS Code-format chat files
+      under `workspaceStorage/` (`parser-vscode.ts`).
+- [x] Parser reads Cursor's native Composer/Agent sessions from the
+      `globalStorage/state.vscdb` SQLite DB (`parser-cursor.ts`). This is the
+      primary source for real Cursor usage — Cursor does **not** write its
+      Composer/Agent chats to the VS Code `chatSessions/*.jsonl` format.
 - [x] Custom-instruction detection covers `AGENTS.md`, `.cursorrules`,
       `.cursor/rules/*.md`.
 - [x] Config health analyzer reads `.cursor/hooks.json`, `.cursor/mcp.json`,
@@ -33,8 +38,8 @@ rebrand and harden Cursor-native behavior**. Concretely:
 - [x] Catalog installer pulls from
       [`PatrickJS/awesome-cursorrules`](https://github.com/PatrickJS/awesome-cursorrules)
       and installs into `~/.cursor/rules` or `~/.cursor/skills`.
-- [x] Multi-harness UI affordances are removed; the only harness value is
-      `'Cursor'`.
+- [x] Multi-harness UI affordances are removed; the only harness values are
+      `'Cursor'` and `'Cursor Nightly'`.
 - [x] `.cursor/` scaffolding for agents (rules + context + ignore) — **this file**.
 
 ### Out of scope (do not regress)
@@ -53,16 +58,18 @@ rebrand and harden Cursor-native behavior**. Concretely:
 
 These are intentional follow-ups, not bugs to fix in unrelated PRs:
 
-- The `harness` field is a **free-form string**, but the only value the
-  product emits is `'Cursor'`. The parser hard-codes it
-  (`harnessFromPath` always returns `'Cursor'`). Tests that need multiple
-  distinct surfaces use the real Cursor flavors `'Cursor Nightly'` /
-  `'Cursor CLI'` (see [`testing.mdc`](../rules/testing.mdc)). The old
-  multi-harness names (`'Local Agent'`, `'Xcode'`, `'GitHub Copilot CLI'`,
-  `'Claude Code'`, `'Codex'`, `'OpenCode'`, `'VS Code'`) have been purged
-  from `src/` — both shipping code (`schema.ts` field description,
-  `analyzer-context.ts` comments) and test fixtures. A reappearance is
-  drift; see the drift recipe in [`flow.md`](flow.md).
+- The `harness` field is a **free-form string**, but the product only emits
+  Cursor flavors: `'Cursor'` and `'Cursor Nightly'`. `parser-vscode.ts`
+  hard-codes `'Cursor'` (`harnessFromPath` always returns `'Cursor'`);
+  `parser-cursor.ts` emits `'Cursor'` or `'Cursor Nightly'` per edition.
+  Tests that need multiple distinct surfaces use the real Cursor flavors
+  `'Cursor Nightly'` / `'Cursor CLI'` (see
+  [`testing.mdc`](../rules/testing.mdc)). The old multi-harness names
+  (`'Local Agent'`, `'Xcode'`, `'GitHub Copilot CLI'`, `'Claude Code'`,
+  `'Codex'`, `'OpenCode'`, `'VS Code'`) have been purged from `src/` — both
+  shipping code (`schema.ts` field description, `analyzer-context.ts`
+  comments) and test fixtures. A reappearance is drift; see the drift recipe
+  in [`flow.md`](flow.md).
 - `agentName: 'Copilot'` default appears in test fixtures and in
   `analyzer-insights.ts`. It is the internal default agent id used to
   distinguish sub-agents from the main turn — **keep it**. (This is the
@@ -70,6 +77,12 @@ These are intentional follow-ups, not bugs to fix in unrelated PRs:
 - Cache-dir compatibility: a stale `~/.copilot-analytics-cache/`
   directory may exist on user machines that ran the upstream extension.
   We do not migrate or read from it; the rename is intentional.
+- Composer DB reads shell out to the `sqlite3` CLI (read-only,
+  `immutable=1`) rather than bundling a native SQLite binding — this keeps
+  the `.vsix` portable. The global `state.vscdb` is read fresh on every
+  parse (it is not covered by the dir-meta cache fingerprint); per-workspace
+  `state.vscdb` files may be locked while Cursor is running, so failed reads
+  are caught and logged at debug level, not surfaced as errors.
 
 ## Quality bars (non-negotiable)
 

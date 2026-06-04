@@ -26,11 +26,21 @@ to imitate). Pass capabilities in as plain functions or values.
   - [@src/core/parser.ts](mdc:src/core/parser.ts) — orchestrator. Owns
     `findLogsDirs`, `parseAllLogsViaWorker`, the `LOAD_PHASES` constant,
     and the memory/disk cache flow.
-  - [@src/core/parser-vscode.ts](mdc:src/core/parser-vscode.ts) — the
-    only IDE parser. Probes `Cursor` and `Cursor Nightly` workspace
-    storage. Owns `harnessFromPath` (always returns `'Cursor'`),
-    workspace name resolution, and custom-instruction byte counting for
-    `AGENTS.md`, `.cursorrules`, and `.cursor/rules/*.md`.
+  - [@src/core/parser-vscode.ts](mdc:src/core/parser-vscode.ts) — reads
+    Cursor's VS Code-format chat session files
+    (`workspaceStorage/<wsId>/chatSessions/*.json[l]` +
+    `chatEditingSessions`). Probes `Cursor` and `Cursor Nightly`
+    workspace storage. Owns `harnessFromPath` (always returns
+    `'Cursor'`), workspace name resolution, and custom-instruction byte
+    counting for `AGENTS.md`, `.cursorrules`, and `.cursor/rules/*.md`.
+  - [@src/core/parser-cursor.ts](mdc:src/core/parser-cursor.ts) — reads
+    Cursor's **native Composer/Agent sessions** from the SQLite database
+    (`globalStorage/state.vscdb`, `cursorDiskKV` table:
+    `composerData:*` + `bubbleId:*`). Shells out to the `sqlite3` CLI
+    read-only (`-readonly`, `immutable=1`). Owns `findCursorEditions`,
+    `parseCursorComposerSessions[Async]`, and `loadCursorComposerSession`
+    (on-demand full-text reload for the detail view). Emits harness
+    `'Cursor'` (stable) or `'Cursor Nightly'` (Nightly edition).
   - [@src/core/parser-vscode-files.ts](mdc:src/core/parser-vscode-files.ts) —
     file-level helpers (image extraction, workspace folder lookups).
   - [@src/core/parser-shared.ts](mdc:src/core/parser-shared.ts) — trusted
@@ -38,7 +48,13 @@ to imitate). Pass capabilities in as plain functions or values.
 - **Cache** — [@src/core/cache.ts](mdc:src/core/cache.ts). On-disk JSON
   at `~/.cursor-engineering-coach/cache/`. Memory cache via
   `getMemoryCache` / `setMemoryCache`. Staleness checked by per-directory
-  mtime/size metas.
+  mtime/size metas. Those metas only fingerprint `workspaceStorage`, **not**
+  the Composer `state.vscdb`, so `parser.ts` re-collects Composer DB
+  sessions on every load (cold, stale, and cache-hit) and drops the prior
+  batch via their `cursor-composer-db` `SessionSource` kind before
+  re-collecting. `SessionSource` is a discriminated union
+  (`vscode-session-file` | `cursor-composer-db`); full text for the detail
+  view is reloaded from the matching source.
 - **Analyzers** — `analyzer-*.ts`. Each takes parsed sessions and produces
   a typed shape consumed by the webview RPC layer:
   - `analyzer.ts` is the umbrella the panel uses
@@ -90,10 +106,15 @@ add it there first, then implement.
 
 ### Parser
 
-Parsers receive a `ParseContext` (prefetch cache + trusted roots) and emit
-the same `Session` / `SessionRequest` shapes regardless of source. The only
-harness label is `'Cursor'`. Do not branch on Copilot / Claude / Codex /
-Xcode / CLI — those code paths were removed.
+Parsers emit the same `Session` / `SessionRequest` shapes regardless of
+source. There are two Cursor sources: the VS Code-format chat files
+(`parser-vscode.ts`, via a `ParseContext` with the prefetch cache) and the
+Composer/Agent SQLite DB (`parser-cursor.ts`, which reads through the
+`sqlite3` CLI and resolves a workspace per composer). Harness labels are
+`'Cursor'` and `'Cursor Nightly'` only. Do not branch on Copilot / Claude /
+Codex / Xcode / CLI — those code paths were removed. New on-disk reads must
+go through `assertTrustedPath` (already trusts the Cursor app-support roots
+and the OS temp dir used by tests).
 
 ### Cache
 

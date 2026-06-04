@@ -702,7 +702,9 @@ const rpcHandlers: TypedRpcHandlers = {
     const requestId = isString(params?.requestId) ? params.requestId : '';
     if (!sessionId || !requestId) return { images: [] };
     const source = p.sessionSourceIndex.get(sessionId);
-    if (!source) return { images: [] };
+    // Image extraction reads the VS Code session file; Composer DB sessions
+    // have no backing file, so there is nothing to scan here.
+    if (!source || source.kind !== 'vscode-session-file') return { images: [] };
     return { images: extractSessionImages(source.filePath, requestId) };
   },
 

@@ -160,7 +160,8 @@ behavior.
    tool names, on-disk cache layout, rule schema), call it out in the PR
    description — it may be a breaking change.
 5. **Sync `.cursor/`.** If the fix changes an invariant the rules /
-   context docs assert (e.g. "the only harness is `'Cursor'`",
+   context docs assert (e.g. "the only harnesses are `'Cursor'` /
+   `'Cursor Nightly'`",
    "cache lives at `~/.cursor-engineering-coach/cache/`", a workflow
    step in `flow.md`), update the relevant `.cursor/` file in the same
    commit. A bug fix that contradicts an `.mdc` rule and doesn't update
@@ -196,7 +197,9 @@ Before you call any task done, run through these **four questions**:
    gates** bullets in [`always.mdc`](../rules/always.mdc).
 
 3. **Did I change an invariant or pattern the rules assert?**
-   - "The only harness is `'Cursor'`."
+   - "The only harnesses are `'Cursor'` and `'Cursor Nightly'`."
+   - "Cursor sessions come from two sources: `workspaceStorage` chat files
+     and the Composer `state.vscdb` DB."
    - "Webview uses Preact + htm, no `innerHTML`."
    - "`src/core/` is runtime-agnostic — no `import * as vscode`."
    - "MCP tools are read-only data accessors."
@@ -266,10 +269,11 @@ When you review a PR, run this two-step check:
    ```
 
    Expected: **no output**. A hit means a feature (or a test) reintroduced
-   a multi-harness concept — push back. The only harness label the parser
-   emits is `'Cursor'`; tests that need multiple distinct surfaces use the
-   real Cursor flavors `'Cursor Nightly'` / `'Cursor CLI'` (see
-   [`testing.mdc`](../rules/testing.mdc)). `agentName: 'Copilot'` is the
+   a multi-harness concept — push back. The only harness labels the parsers
+   emit are `'Cursor'` (both parsers) and `'Cursor Nightly'`
+   (`parser-cursor.ts`, Nightly edition); tests that need multiple distinct
+   surfaces use the real Cursor flavors `'Cursor Nightly'` / `'Cursor CLI'`
+   (see [`testing.mdc`](../rules/testing.mdc)). `agentName: 'Copilot'` is the
    one sanctioned brand string (sub-agent sentinel) — do not flag it.
 
 ## Manual smoke test inside Cursor

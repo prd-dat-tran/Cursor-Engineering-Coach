@@ -6,8 +6,10 @@ short on prose and long on names you can grep for.
 
 ## 30-second pitch
 
-A VS Code / Cursor IDE extension that reads **local** Cursor session logs
-written to `workspaceStorage/`, parses them into `Session[]` /
+A VS Code / Cursor IDE extension that reads **local** Cursor session data
+from two on-disk sources — the VS Code-format chat files under
+`workspaceStorage/` and Cursor's native Composer/Agent SQLite database
+(`globalStorage/state.vscdb`) — parses them into `Session[]` /
 `SessionRequest[]`, runs them through a battery of analyzers and
 DSL-driven detection rules, and surfaces:
 
@@ -74,18 +76,21 @@ analytics, no writes outside the extension's own cache directory at
 ## Data flow
 
 ```
-~/.../workspaceStorage/<workspaceId>/
-        chatSessions/*.json     chatEditingSessions/<sid>/state.json
-                       │
-                       ▼
-   parser-vscode.ts  (probes "Cursor" + "Cursor Nightly" roots only)
-                       │
-                       ▼
-   parse-worker.ts   (per-workspace, off main thread)
-                       │
-                       ▼
-   parser.ts  →  ParseResult { sessions, workspaces, editLocIndex,
-                               sessionSourceIndex }
+~/.../workspaceStorage/<workspaceId>/          ~/.../globalStorage/state.vscdb
+   chatSessions/*.json                              cursorDiskKV table:
+   chatEditingSessions/<sid>/state.json               composerData:*  bubbleId:*
+                       │                                       │
+                       ▼                                       ▼
+   parser-vscode.ts (VS Code chat format)        parser-cursor.ts (Composer/Agent;
+                       │                            reads via sqlite3 CLI, read-only)
+                       │                                       │
+                       ▼                                       │
+   parse-worker.ts   (per-workspace, off main thread)         │
+                       │                                       │
+                       ▼                                       ▼
+   parser.ts  →  ParseResult { sessions, workspaces, editLocIndex, sessionSourceIndex }
+                       │   (Composer sessions re-collected every load; the dir-meta
+                       │    cache only fingerprints workspaceStorage, not the DB)
                        │
                        ├──► cache.ts (memory + disk; key by dir mtime/size metas)
                        │
@@ -101,12 +106,17 @@ analytics, no writes outside the extension's own cache directory at
   indexes but must not mutate the originals.
 - Every `SessionRequest` belongs to exactly one `Session` (see
   `AnalyzerBase.buildRequestSessionMap`).
-- The only `harness` value emitted by parsers is `'Cursor'`. Filtering
-  code that checks for other harness names is a code smell — drop the
-  check and the filter.
-- The cache is keyed by per-directory mtime + size *metas*. A change to
-  the on-disk cache format requires bumping the cache version constant
-  in `cache.ts`.
+- The only `harness` values emitted by parsers are `'Cursor'` (stable) and
+  `'Cursor Nightly'` (the Nightly edition's Composer sessions). Filtering
+  code that checks for *non-Cursor* harness names (Copilot, Claude, etc.)
+  is a code smell — drop the check and the filter.
+- The cache is keyed by per-directory mtime + size *metas* over
+  `workspaceStorage` only. The Composer `state.vscdb` is **not**
+  fingerprinted, so `parser.ts` re-collects Composer DB sessions on every
+  load (and identifies/drops the prior batch via the `cursor-composer-db`
+  `SessionSource` kind). A change to the on-disk cache format — including
+  the `SessionSource` union shape — requires bumping the cache version
+  constant in `cache.ts`.
 
 ## Workers (also documented in [AGENTS.md](../../AGENTS.md))
 
@@ -124,7 +134,11 @@ anything; new workers must follow that pattern.
 - **Memory cache**: `getMemoryCache` / `setMemoryCache` in `cache.ts`.
 - **Disk cache**: JSON under `~/.cursor-engineering-coach/cache/`. Includes
   parsed sessions, sidebar stats, and (separately) the runtime debug log
-  at `runtime.log`.
+  at `runtime.log`. In-memory sessions have their text stripped
+  (`stripSessionsForMemory`); the detail view reloads full text on demand
+  via `loadSessionFromDisk`, which dispatches on the `SessionSource` kind —
+  re-reading the chat file (`vscode-session-file`) or re-querying the
+  Composer DB by `composerId` (`cursor-composer-db`).
 - **Trust store**: `vscode.Memento` (global state). Approved file paths
   and content hashes for user-authored rules / metrics
   ([`src/core/rule-trust.ts`](../../src/core/rule-trust.ts)).
