@@ -213,8 +213,10 @@ the Rule Playground.
 - **Typecheck**: `npm run typecheck` (`tsc --noEmit`).
 - **Check all**: `npm run check` (typecheck + lint + spellcheck + knip + test).
 - **Package**: `npm run package` → `.vsix`.
-- **Smoke-install in Cursor**: `scripts/dev-install.sh` (calls `cursor
-  --install-extension`).
+- **Build + install in Cursor**: `npm run deploy` (one-shot build →
+  `.vsix` → `cursor --install-extension --force` → reload). Backed by
+  `scripts/install-cursor.sh`, which also supports `deploy:update` (pull
+  latest from GitHub) and a `curl … | bash` remote install.
 
 ## Keeping this document honest
 

@@ -191,7 +191,8 @@ Before you call any task done, run through these **four questions**:
    - New / renamed `npm run *` script.
    - Different lint / typecheck / spellcheck / test invocation.
    - New required env var or first-time-setup step.
-   - Change to `scripts/dev-install.sh`, `scripts/test-local.sh`, CI.
+   - Change to `scripts/install-cursor.sh` (build + install),
+     `scripts/test-local.sh`, CI.
 
    If yes → update [`flow.md`](flow.md) recipes and the **Run the
    gates** bullets in [`always.mdc`](../rules/always.mdc).
@@ -279,11 +280,28 @@ When you review a PR, run this two-step check:
 ## Manual smoke test inside Cursor
 
 ```bash
-scripts/dev-install.sh
+npm run deploy            # build local working tree → .vsix → install → reload
 ```
 
-This packages a `.vsix`, installs it into Cursor via the `cursor` CLI,
-and reloads the Cursor window. Then:
+This builds the extension, packages a `.vsix` (via `npm run package`),
+installs it into Cursor with `cursor --install-extension --force`, and
+reloads the window. It is a thin alias for
+[`scripts/install-cursor.sh`](../../scripts/install-cursor.sh) (the legacy
+`scripts/dev-install.sh` now delegates to it). Related commands:
+
+```bash
+npm run deploy:update     # git pull latest from GitHub → build → install
+npm run deploy:uninstall  # remove the extension from Cursor
+
+# Remote, no checkout needed (e.g. on another machine):
+curl -fsSL https://raw.githubusercontent.com/prd-dat-tran/Cursor-Engineering-Coach/main/scripts/install-cursor.sh | bash
+curl -fsSL https://raw.githubusercontent.com/prd-dat-tran/Cursor-Engineering-Coach/main/scripts/install-cursor.sh | bash -s -- update
+```
+
+`install-cursor.sh` auto-resolves the `cursor` CLI (PATH or the macOS app
+bundle), uses the local working tree when run from a checkout, otherwise
+clones into `~/.cursor-engineering-coach/src`. Pass `--no-reload` to skip
+the focus-stealing window reload; `--ref <branch|tag>` to pick a ref. Then:
 
 1. `Cmd+Shift+P → Cursor Engineering Coach: Open Dashboard`.
 2. Verify the dashboard loads with your real session data.
