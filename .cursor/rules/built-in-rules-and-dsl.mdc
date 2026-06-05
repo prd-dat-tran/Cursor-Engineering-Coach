@@ -14,6 +14,12 @@ constrained DSL expression that the interpreter in
 requests. The canonical authoring guide is [@docs/AUTHORING_RULES.md](mdc:docs/AUTHORING_RULES.md) —
 read it before adding your first rule.
 
+For the **step-by-step procedure** to add a rule end-to-end (scaffold → detect
+block → billing scope → rule-count test bump → build/verify), use the
+`add-coaching-rule` skill at
+[@.cursor/skills/add-coaching-rule/SKILL.md](mdc:.cursor/skills/add-coaching-rule/SKILL.md).
+This rule below is the DSL reference it leans on.
+
 ## Rule file shape
 
 ```yaml

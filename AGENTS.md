@@ -8,6 +8,10 @@
 
 Rules move pending→review→approve→reload; edits revoke trust. See [anti-patterns](docs/content/improve/anti-patterns.md) and [rule editor](docs/content/improve/rule-editor.md).
 
+## Skills
+
+- `add-coaching-rule` ([.cursor/skills/add-coaching-rule/SKILL.md](.cursor/skills/add-coaching-rule/SKILL.md)): step-by-step pattern for adding a new built-in coaching rule (`src/core/rules/*.md`).
+
 ## Documentation Index
 
 This is a quick map of the docs tree so readers and agents can see the available pages at a glance.
