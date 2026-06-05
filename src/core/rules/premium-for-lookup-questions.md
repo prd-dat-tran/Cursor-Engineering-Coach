@@ -4,6 +4,7 @@ name: Premium Model for Lookup Questions
 group: tool-mastery
 severity: medium
 scope: requests
+billing: usage-based
 version: 1
 tags: [model, lookup, ask, cost]
 thresholds:

@@ -6,6 +6,7 @@
 /* Types for the data-driven rule engine that powers anti-pattern detection. */
 
 import { PracticeGroup } from './analytics-types';
+import type { BillingModel } from '../billing';
 
 /**
  * Where a rule was loaded from, in order of precedence (lowest to highest):
@@ -131,6 +132,13 @@ export interface DetectionRule {
 
   /** Whether this rule requires IDE-specific context (e.g. VS Code data) */
   requiresIdeContext: boolean;
+
+  /**
+   * Billing model this rule applies to. When set, the rule only fires for users
+   * on that billing model. Undefined means the rule applies regardless of billing.
+   * Used to suppress token-cost rules for request-based plans (and vice versa).
+   */
+  billing?: BillingModel;
 
   /** What data scope the rule needs */
   scope: RuleScope;

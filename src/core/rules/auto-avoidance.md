@@ -4,6 +4,7 @@ name: Auto Model Avoidance
 group: tool-mastery
 severity: medium
 scope: requests
+billing: usage-based
 version: 1
 tags: [model, auto, routing, cost]
 thresholds:

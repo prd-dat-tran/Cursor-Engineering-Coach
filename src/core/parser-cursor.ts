@@ -153,6 +153,39 @@ function sqliteJsonAsync<T = unknown>(dbPath: string, sql: string): Promise<T[]>
   });
 }
 
+/* ---- Account readers (local, read-only) ---- */
+
+/** Read a single `ItemTable` value by key from the first Cursor edition's global DB. */
+function readGlobalItem(key: string): string | null {
+  for (const ed of findCursorEditions()) {
+    if (!fs.existsSync(ed.globalDb)) continue;
+    const rows = sqliteJsonSync<{ value: string }>(
+      ed.globalDb,
+      `SELECT value FROM ItemTable WHERE key = '${key.replaceAll("'", "''")}'`,
+    );
+    const v = rows[0]?.value;
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return null;
+}
+
+/**
+ * Read the user's Stripe membership type (plan tier) from local Cursor account
+ * data. Local, read-only, no network. Returns e.g. "enterprise", "pro", "free".
+ */
+export function readCursorMembershipType(): string | null {
+  return readGlobalItem('cursorAuth/stripeMembershipType');
+}
+
+/**
+ * Read the Cursor access token (JWT) from local account data, for the opt-in
+ * live-usage fetch only. SENSITIVE: callers must use it transiently and must
+ * never log, persist, or send it anywhere other than Cursor's own backend.
+ */
+export function readCursorAccessToken(): string | null {
+  return readGlobalItem('cursorAuth/accessToken');
+}
+
 /* ---- Workspace mapping helpers ---- */
 
 interface WorkspaceFolderInfo {

@@ -24,6 +24,7 @@ group: tool-mastery            # one of the PRACTICE_GROUPS keys
 severity: low | medium | high
 scope: requests | sessions
 requiresIdeContext: true       # optional; gate on IDE harness data
+billing: usage-based           # optional; usage-based | request-based — see below
 version: 1
 tags: [list, of, tags]
 thresholds:
@@ -69,6 +70,25 @@ examples: <optional template for example rows>
 
 - `high` is reserved for things with a clear cost (security, billing,
   flow destruction). Most rules are `medium` or `low`.
+
+### Billing scope (`billing:`)
+
+Optional. Scopes a rule to one [billing model](mdc:src/core/billing.ts) so
+coaching does not give cost advice that is wrong for the user's plan:
+
+- Omit it (default) → the rule fires for **everyone**. Use this unless the
+  advice is specifically about cost/model economics.
+- `billing: usage-based` → only fires when cost scales with tokens (the
+  Cursor credit default). Tag token/credit-saving rules here
+  (`premium-waste`, `auto-avoidance`, `model-overreliance`, …) so they stay
+  silent for flat-rate users who should always reach for the best model.
+- `billing: request-based` → only fires on flat per-request plans (legacy
+  request plans, many Enterprise contracts). Example:
+  [@src/core/rules/underpowered-model.md](mdc:src/core/rules/underpowered-model.md),
+  which flags over-reliance on lightweight/auto models that buy no savings.
+
+Filtering happens in `detector-registry.getActiveDetectors(skip, billingModel)`;
+the model comes from the user's `cursorEngineeringCoach.billing.model` setting.
 
 ## DSL conventions
 

@@ -10,6 +10,7 @@
 
 import * as vscode from 'vscode';
 import { TOOL_DEFS } from '../mcp/tools';
+import { readBillingProfile } from '../billing-vscode';
 import { buildSystemPrompt } from './system-prompt';
 
 const PARTICIPANT_ID = 'cursorEngineeringCoach.coach';
@@ -100,7 +101,7 @@ async function runAgenticLoop(
   response: vscode.ChatResponseStream,
   token: vscode.CancellationToken,
 ): Promise<vscode.ChatResult> {
-  const systemPrompt = buildSystemPrompt();
+  const systemPrompt = buildSystemPrompt(readBillingProfile());
   const userPrompt = resolveUserPrompt(request);
   const historyMessages = buildHistoryMessages(chatContext.history);
 

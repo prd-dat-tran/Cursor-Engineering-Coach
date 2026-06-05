@@ -25,6 +25,7 @@ import { panelCache } from './webview/panel-cache';
 import { registerTools } from './mcp/tools';
 import { registerChatParticipant } from './chat/participant';
 import { exportSummaryFiles } from './summary-export-vscode';
+import { maybePromptForBillingModel } from './billing-vscode';
 
 type PanelModule = typeof import('./webview/panel');
 let panelModulePromise: Promise<PanelModule> | null = null;
@@ -195,6 +196,10 @@ export function activate(context: vscode.ExtensionContext) {
 
   registerTools(context, () => panelCache.analyzerInstance);
   registerChatParticipant(context);
+
+  // One-time, non-blocking: confirm billing model for detected Teams/Enterprise plans.
+  void maybePromptForBillingModel(context).catch(err =>
+    runtimeDebug('extension', 'billing-prompt-error', String(err)));
 
   void ready.then(() => loadPanelModule()).then(({ DashboardSidebarProvider }) => {
     const sidebarProvider = new DashboardSidebarProvider(context.extensionUri);

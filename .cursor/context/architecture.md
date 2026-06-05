@@ -128,7 +128,7 @@ analytics, no writes outside the extension's own cache directory at
 | Worker | Input | Output | Why |
 |---|---|---|---|
 | [`parse-worker.ts`](../../src/core/parse-worker.ts) | `logsDirs` | `progress` + `result`/`error` | Parsing JSON for hundreds of sessions blocks the host. |
-| [`warm-up-worker.ts`](../../src/core/warm-up-worker.ts) | `sessions` | `antiPatterns` + `configHealth` | Anti-pattern detection is CPU-bound. |
+| [`warm-up-worker.ts`](../../src/core/warm-up-worker.ts) | `sessions` + `billing` | `antiPatterns` + `configHealth` | Anti-pattern detection is CPU-bound. |
 | [`cache-write-worker.ts`](../../src/core/cache-write-worker.ts) | `f`, `m`, `json`, `metaJson` | (writes to disk) | Avoid stalling the host on `fs.writeFileSync`. |
 
 Worker entry points validate `workerData` with typeguards before doing
@@ -176,6 +176,59 @@ The webview talks to the host via `postMessage` envelopes:
   contains the prompt-injection firewall.
 - Tools registered via [`src/mcp/tools.ts`](../../src/mcp/tools.ts);
   each tool wraps an `Analyzer` method → `format*` → JSON text part.
+
+## Billing-aware coaching
+
+Coaching adapts to **how the user is charged**, because the optimal strategy
+inverts between billing models:
+
+- **Usage-based** (Cursor's credit default): cost ≈ tokens × model rate, so
+  match model power to the task and lean on Auto/lighter models for routine work.
+- **Request-based** (legacy request plans, many Enterprise contracts): every
+  request is a flat charge regardless of model or tokens, so default to the
+  **most capable** model and economize on the **number of requests**.
+
+Wiring:
+
+- [`src/core/billing.ts`](../../src/core/billing.ts) — pure, **no `vscode`
+  import** (runs in the warm-up worker). Defines `BillingModel`,
+  `BillingProfile`, `DEFAULT_BILLING_PROFILE`, and the messaging helpers
+  `billingHeadline` (dashboard) + `billingCoachNote` (`@coach` system prompt).
+- [`src/billing-vscode.ts`](../../src/billing-vscode.ts) — extension-host
+  reader for the `cursorEngineeringCoach.billing.*` settings; returns a
+  `BillingProfile`. `panel.ts` reloads (and re-tunes) when those settings change.
+- The profile threads through `Analyzer` → `PatternsAnalyzer` (recommendation
+  branching) and `Analyzer` → `warm-up-worker` payload. Exposed to the webview
+  via the `getBillingProfile` RPC and to `@coach` via the summary formatter.
+- **Rule gating**: `DetectionRule.billing?` (frontmatter `billing:`) scopes a
+  rule to one model. `detector-registry.getActiveDetectors(skip, billingModel)`
+  filters on it; untagged rules apply to both. Token-cost rules are tagged
+  `billing: usage-based`; `underpowered-model.md` is `billing: request-based`.
+
+### Plan auto-detection & live usage (3 tiers)
+
+The user no longer *has* to configure billing — the setting is now an override:
+
+- **Tier 1 — plan tier (local, no network).**
+  `parser-cursor.readCursorMembershipType()` reads `cursorAuth/stripeMembershipType`
+  from Cursor's global `state.vscdb` (read-only). `billing.mapMembershipToPlan()`
+  maps it to a `CursorPlan`. `billing-vscode.readBillingProfile()` precedence:
+  plan = explicit setting → detected → unknown; model = explicit setting →
+  `defaultBillingModelForPlan` (always usage-based — request-based is a contract
+  detail not present in local data). `BillingProfile.planDetected` records this.
+- **One-time prompt.** `billing-vscode.maybePromptForBillingModel(context)` (wired
+  in `extension.ts` activate) asks Teams/Enterprise users "per request or per
+  token?" once (Memento `billing.promptedForModel.v1`), writes the setting, and
+  is overridable in Settings.
+- **Tier 2 — request economics (local).** `PatternsAnalyzer.getRequestEconomics()`
+  quantifies frontier vs light/auto vs cancelled request counts; `coach_credits`
+  uses it so request-based advice cites real numbers.
+- **Tier 3 — live usage (opt-in network).** `src/billing-usage.ts` is the ONLY
+  analytics network call, gated behind `billing.fetchLiveUsage` (default off). It
+  reads `cursorAuth/accessToken` transiently and `GET`s
+  `https://api2.cursor.sh/auth/usage` (Bearer) → `{ requestsUsed, requestsLimit,
+  cycleStart }`. Token is never stored/logged; errors are swallowed. Surfaced via
+  the `getLiveUsage` RPC (dashboard banner) and `coach_credits`.
 
 ## Rules pipeline
 

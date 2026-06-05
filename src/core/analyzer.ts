@@ -9,7 +9,7 @@ import * as path from 'path';
 import {
   Session, SessionRequest, DateFilter, DailyActivity, HourlyDistribution, HeatmapData,
   CodeProductionData, ConsumptionData, BurndownConfig, BurndownData, AiCreditData, AiCreditBurndownData, TokenCoverageData,
-  DayTimeline, SessionList, WorkspaceBreakdown, RecommendationResult,
+  DayTimeline, SessionList, WorkspaceBreakdown, RecommendationResult, RequestEconomics,
   AntiPatternData, WorkLifeBalanceResult, StatsResult, HarnessComparisonData,
   WorkflowOptimizationData, ConfigHealthData, FlowStateData, Workspace,
   CalendarActivityData, ProjectOverviewData, ContextManagementData, InsightsData,
@@ -27,6 +27,7 @@ import { ContextAnalyzer } from './analyzer-context';
 import { InsightsAnalyzer } from './analyzer-insights';
 import { ImageAnalyzer, ImageGalleryData } from './analyzer-images';
 import { AnalyzerBase } from './analyzer-base';
+import { BillingProfile, DEFAULT_BILLING_PROFILE } from './billing';
 import { errorCore, infoCore, warnCore } from './log';
 
 export class Analyzer {
@@ -44,19 +45,21 @@ export class Analyzer {
   private readonly sessions: Session[];
   private readonly editLocIndex: Map<string, Map<string, number>>;
   private readonly workspaces: Map<string, Workspace>;
+  private readonly billing: BillingProfile;
   private cache = new Map<string, unknown>();
 
-  constructor(sessions: Session[], editLocIndex?: Map<string, Map<string, number>>, workspaces?: Map<string, Workspace>) {
+  constructor(sessions: Session[], editLocIndex?: Map<string, Map<string, number>>, workspaces?: Map<string, Workspace>, billing: BillingProfile = DEFAULT_BILLING_PROFILE) {
     const elIdx = editLocIndex ?? new Map<string, Map<string, number>>();
     this.sessions = sessions;
     this.editLocIndex = elIdx;
     this.workspaces = workspaces ?? new Map<string, Workspace>();
+    this.billing = billing;
     const sharedMap = AnalyzerBase.buildRequestSessionMap(sessions);
     this.dashboard = new DashboardAnalyzer(sessions, elIdx, sharedMap);
     this.production = new ProductionAnalyzer(sessions, elIdx, sharedMap);
     this.consumption = new ConsumptionAnalyzer(sessions, elIdx, sharedMap);
     this.timeline = new TimelineAnalyzer(sessions, elIdx, sharedMap);
-    this.patterns = new PatternsAnalyzer(sessions, elIdx, sharedMap);
+    this.patterns = new PatternsAnalyzer(sessions, elIdx, sharedMap, billing);
     this.workflows = new WorkflowAnalyzer(sessions, elIdx, sharedMap);
     this.config = new ConfigAnalyzer(sessions, elIdx, this.workspaces, sharedMap);
     this.insights = new InsightsAnalyzer(sessions, elIdx, sharedMap);
@@ -174,10 +177,14 @@ export class Analyzer {
           sessions: this.sessions,
           editLocIndex: this.editLocIndex,
           workspaces: this.workspaces,
+          billing: this.billing,
         });
       }, 0);
     });
   }
+
+  /** The billing profile this analyzer was built with (drives plan-aware coaching). */
+  getBillingProfile(): BillingProfile { return this.billing; }
 
   getWorkspaces(): { id: string; name: string; recent?: boolean; harnesses?: string[] }[] { return this.dashboard.getWorkspaces(); }
 
@@ -211,6 +218,7 @@ export class Analyzer {
   getWorkLifeBalance(f?: DateFilter): WorkLifeBalanceResult | null { return this.timeline.getWorkLifeBalance(f); }
 
   getRecommendations(f?: DateFilter): RecommendationResult[] { return this.patterns.getRecommendations(f); }
+  getRequestEconomics(f?: DateFilter): RequestEconomics { return this.patterns.getRequestEconomics(f); }
   getProjectOverview(f?: DateFilter): ProjectOverviewData { return this.patterns.getProjectOverview(f); }
   getAntiPatterns(f?: DateFilter): AntiPatternData {
     if (!f && this.cache.has('getAntiPatterns')) return this.cache.get('getAntiPatterns') as AntiPatternData;

@@ -4,6 +4,7 @@ name: Reasoning Effort Overuse
 group: tool-mastery
 severity: medium
 scope: requests
+billing: usage-based
 version: 1
 tags: [model, reasoning, effort, cost]
 thresholds:

@@ -7,12 +7,14 @@
 
 import { parentPort } from 'worker_threads';
 import { Analyzer } from './analyzer';
+import { DEFAULT_BILLING_PROFILE, type BillingProfile } from './billing';
 import type { Session, Workspace } from './types';
 
 interface WarmUpWorkerRequest {
   sessions: Session[];
   editLocIndex?: Map<string, Map<string, number>>;
   workspaces?: Map<string, Workspace>;
+  billing?: BillingProfile;
 }
 
 const port = parentPort;
@@ -30,7 +32,7 @@ function isWarmUpWorkerRequest(value: unknown): value is WarmUpWorkerRequest {
 port.on('message', (msg) => {
   try {
     if (!isWarmUpWorkerRequest(msg)) throw new Error('Invalid warm-up worker payload');
-    const analyzer = new Analyzer(msg.sessions, msg.editLocIndex, msg.workspaces);
+    const analyzer = new Analyzer(msg.sessions, msg.editLocIndex, msg.workspaces, msg.billing ?? DEFAULT_BILLING_PROFILE);
     const antiPatterns = analyzer.getAntiPatterns();
     const configHealth = analyzer.getConfigHealth();
 

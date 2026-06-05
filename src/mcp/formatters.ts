@@ -11,6 +11,7 @@
 
 import type { Analyzer } from '../core/analyzer';
 import type { DateFilter } from '../core/types';
+import { billingHeadline, billingModelLabel, cursorPlanLabel } from '../core/billing';
 
 /* ---- helpers ---- */
 
@@ -50,12 +51,21 @@ export function formatSummary(analyzer: Analyzer, f?: DateFilter) {
   const stats = analyzer.getStats(f);
   const recs = analyzer.getRecommendations(f);
   const ap = analyzer.getAntiPatterns(f);
+  const billing = analyzer.getBillingProfile();
+  const headline = billingHeadline(billing);
 
   const critical = recs.filter(r => r.status === 'critical');
   const needsImprovement = recs.filter(r => r.status === 'needs-improvement');
   const good = recs.filter(r => r.status === 'good');
 
   return {
+    billing: {
+      model: billing.model,
+      modelLabel: billingModelLabel(billing.model),
+      plan: cursorPlanLabel(billing.plan) || billing.plan,
+      configured: billing.configured,
+      guidance: `${headline.title}. ${headline.detail}`,
+    },
     overview: {
       totalSessions: stats.totalSessions,
       totalRequests: stats.totalRequests,

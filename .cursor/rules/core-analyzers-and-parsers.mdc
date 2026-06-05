@@ -58,7 +58,9 @@ to imitate). Pass capabilities in as plain functions or values.
 - **Analyzers** — `analyzer-*.ts`. Each takes parsed sessions and produces
   a typed shape consumed by the webview RPC layer:
   - `analyzer.ts` is the umbrella the panel uses
-    (`new Analyzer(sessions, editLocIndex, workspaces)`).
+    (`new Analyzer(sessions, editLocIndex, workspaces, billing?)`). The
+    optional `billing` profile (defaults to usage-based) is forwarded to
+    `PatternsAnalyzer` and the warm-up worker to drive plan-aware coaching.
   - `analyzer-base.ts` is the shared filter / request-session map.
   - One file per domain (`flow`, `patterns`, `config`, `consumption`,
     `production`, `dashboard`, `insights`, `timeline`, `workflows`,

@@ -7,6 +7,7 @@
 
 import * as vscode from 'vscode';
 import { Analyzer } from '../core/analyzer';
+import { BILLING_CONFIG_SECTION, readBillingProfile } from '../billing-vscode';
 import { saveSidebarStats } from '../core/cache';
 import { clearCache, findLogsDirs, parseAllLogsViaWorker, ParseResult } from '../core/parser';
 import { findCursorEditions } from '../core/parser-cursor';
@@ -60,6 +61,14 @@ export class DashboardPanel {
       this.dispose();
     }, null, this.disposables);
     this.panel.webview.onDidReceiveMessage((msg: unknown) => this.handleMessage(msg), null, this.disposables);
+
+    // Re-tune coaching when the user changes their billing plan settings.
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration(BILLING_CONFIG_SECTION)) {
+        runtimeDebug('panel', 'billing-config-changed');
+        this.reload(true);
+      }
+    }, null, this.disposables);
 
     void this.loadData();
   }
@@ -226,7 +235,7 @@ export class DashboardPanel {
       await flush();
       if (this.disposed) return;
 
-      this.analyzer = new Analyzer(this.parseResult.sessions, this.parseResult.editLocIndex, this.parseResult.workspaces);
+      this.analyzer = new Analyzer(this.parseResult.sessions, this.parseResult.editLocIndex, this.parseResult.workspaces, readBillingProfile());
       runtimeDebug('panel', 'analyzer-built', `elapsedMs=${Date.now() - t0}`);
 
       sendProgress({ phase: 5, detail: 'Ready', pct: 100, sessions: sessionCount });

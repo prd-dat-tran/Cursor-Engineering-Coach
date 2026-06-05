@@ -265,7 +265,42 @@
           }
         }
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Cursor Engineering Coach",
+      "properties": {
+        "cursorEngineeringCoach.billing.model": {
+          "type": "string",
+          "enum": ["usage-based", "request-based"],
+          "enumDescriptions": [
+            "Cost scales with tokens × model rate (Cursor's default credit-based plans). Coaching favors matching model power to task and using Auto for routine work.",
+            "Each request costs the same flat amount regardless of model or tokens (legacy request plans and many Enterprise contracts). Coaching favors using the most capable model and minimizing the number of requests."
+          ],
+          "default": "usage-based",
+          "markdownDescription": "How Cursor bills your agent usage. Set this to **request-based** if you are on a plan billed by number of requests (e.g. a custom Enterprise contract) rather than by tokens/credits. This re-tunes model-selection and cost coaching across the dashboard, anti-patterns, and the `@coach` chat."
+        },
+        "cursorEngineeringCoach.billing.plan": {
+          "type": "string",
+          "enum": ["unknown", "hobby", "pro", "pro-plus", "ultra", "teams", "enterprise"],
+          "enumDescriptions": [
+            "Not specified",
+            "Hobby (free)",
+            "Pro",
+            "Pro+",
+            "Ultra",
+            "Teams",
+            "Enterprise"
+          ],
+          "default": "unknown",
+          "markdownDescription": "Your Cursor plan tier. Optional — auto-detected from your local Cursor account when possible; set this only to override. Billing behavior is driven by `#cursorEngineeringCoach.billing.model#`."
+        },
+        "cursorEngineeringCoach.billing.fetchLiveUsage": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "**Opt-in network call.** When enabled, the extension reads your local Cursor access token and calls Cursor's own usage endpoint over HTTPS to show your current billing-cycle request usage (e.g. \"34 / 500 requests this cycle\"). This is the only analytics network request the extension makes. The token is used transiently, sent only to Cursor, and never stored or logged. Leave off to stay fully local."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run build",

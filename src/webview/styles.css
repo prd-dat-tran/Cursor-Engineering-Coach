@@ -2828,6 +2828,71 @@ h2 {
   line-height: 1.5;
 }
 
+/* ── Dashboard Billing Banner ──────────────────────────────────── */
+.dash-billing {
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border-radius: 10px;
+  background: var(--card-bg, #161b22);
+  border: 1px solid var(--border);
+}
+.dash-billing-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.dash-billing-chip {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+.dash-billing-title {
+  font-size: 13px;
+}
+.dash-billing-detail {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.dash-billing-hint {
+  margin: 6px 0 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+.dash-billing-usage:empty {
+  display: none;
+}
+.dash-billing-usage {
+  margin-top: 8px;
+}
+.dash-billing-usage-label {
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.dash-billing-usage-bar {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-secondary, #0d1117);
+  overflow: hidden;
+}
+.dash-billing-usage-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
 /* ── Dashboard Hero ────────────────────────────────────────────── */
 .dash-hero {
   display: flex;

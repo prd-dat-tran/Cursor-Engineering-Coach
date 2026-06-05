@@ -4,6 +4,7 @@ name: Prompt Cache Starvation
 group: tool-mastery
 severity: medium
 scope: requests
+billing: usage-based
 version: 1
 tags: [tokens, cache, context, cost]
 thresholds:

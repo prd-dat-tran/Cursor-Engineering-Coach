@@ -26,6 +26,8 @@ import {
   formatContextHealth,
 } from './formatters';
 import { FF_TOKEN_REPORTING_ENABLED } from '../core/constants';
+import { isRequestBased, liveUsageSummary } from '../core/billing';
+import { fetchLiveUsage } from '../billing-usage';
 
 /* ---- shared helpers ---- */
 
@@ -53,7 +55,6 @@ const FILTER_SCHEMA = {
   fromDate: { type: 'string' as const, description: 'ISO date string (YYYY-MM-DD) for the start of the date range' },
   toDate: { type: 'string' as const, description: 'ISO date string (YYYY-MM-DD) for the end of the date range' },
   workspaceId: { type: 'string' as const, description: 'Filter to a specific workspace by its ID' },
-  harness: { type: 'string' as const, description: 'Filter to a specific Cursor surface (e.g. "Cursor"). Currently always "Cursor".' },
 };
 
 /* ---- tool definitions ---- */
@@ -62,14 +63,14 @@ interface ToolDef {
   name: string;
   description: string;
   inputSchema: object;
-  invoke: (analyzer: Analyzer, input: Record<string, unknown>) => vscode.LanguageModelToolResult;
+  invoke: (analyzer: Analyzer, input: Record<string, unknown>) => vscode.LanguageModelToolResult | Promise<vscode.LanguageModelToolResult>;
   prepareMessage: string;
 }
 
 const TOOL_DEFS: ToolDef[] = [
   {
     name: 'coach_summary',
-    description: 'Get a high-level summary of AI coding assistant usage including session counts, recommendations, and top anti-patterns. Use this as a starting point for coaching conversations.',
+    description: 'Get a high-level summary of Cursor usage including session counts, recommendations, top anti-patterns, and the user\'s billing profile (usage-based vs request-based) with plan-tailored optimization guidance. Use this as a starting point for coaching conversations.',
     inputSchema: { type: 'object', properties: { ...FILTER_SCHEMA } },
     invoke: (a, input) => textResult(formatSummary(a, parseFilter(input))),
     prepareMessage: 'Analyzing overall usage summary…',
@@ -83,11 +84,33 @@ const TOOL_DEFS: ToolDef[] = [
   },
   {
     name: 'coach_credits',
-    description: 'Get AI credit usage including total credits consumed, per-model breakdown, daily trend, and most expensive requests. Use to discuss cost optimization.',
+    description: 'Get cost/usage data. On usage-based (token) billing this returns credit consumption, per-model breakdown, and most expensive requests. On request-based billing, cost is driven by the NUMBER of requests rather than tokens, so use this to discuss request volume and landing tasks in fewer turns.',
     inputSchema: { type: 'object', properties: { ...FILTER_SCHEMA } },
-    invoke: (a, input) => {
+    invoke: async (a, input) => {
+      const live = await fetchLiveUsage();
+      const liveBlock = live ? { liveUsage: { ...live, summary: liveUsageSummary(live) } } : {};
+      if (isRequestBased(a.getBillingProfile())) {
+        const econ = a.getRequestEconomics(parseFilter(input));
+        return textResult({
+          billingModel: 'request-based',
+          note: 'You are on a request-based plan: each request costs the same flat amount regardless of model or token count, so per-token credit breakdowns do not apply. The cost lever is the NUMBER of requests.',
+          requestEconomics: econ,
+          ...liveBlock,
+          guidance:
+            `Of ${econ.requestsWithModel} model-bearing requests, ${econ.lightOrAutoRequests} (${econ.lightOrAutoPct}%) used a lightweight/auto model — on flat-rate billing that trades capability for savings that do not exist. ` +
+            `${econ.cancelledRequests} requests (${econ.cancelledPct}%) were cancelled, which is pure wasted spend. ` +
+            'Coach toward: (1) defaulting to the most capable model on every request, and (2) cutting total request volume via clearer prompts, better upfront context, and fewer cancellations/re-tries. Do not suggest cheaper/lighter models to save cost.',
+        });
+      }
       if (FF_TOKEN_REPORTING_ENABLED) {
-        return textResult(formatCredits(a, parseFilter(input)));
+        return textResult({ ...formatCredits(a, parseFilter(input)), ...liveBlock });
+      }
+      if (live) {
+        return textResult({
+          billingModel: 'usage-based',
+          note: 'Detailed token/credit breakdowns are temporarily hidden, but here is your live request usage for the current cycle.',
+          ...liveBlock,
+        });
       }
       return new vscode.LanguageModelToolResult([
         new vscode.LanguageModelTextPart(

@@ -624,6 +624,21 @@ export interface StatsResult {
   totalRequests: number;
 }
 
+/**
+ * Request-volume economics — the lens that matters for request-based billing,
+ * where every request is a flat charge regardless of model or tokens.
+ */
+export interface RequestEconomics {
+  totalRequests: number;
+  requestsWithModel: number;
+  frontierRequests: number;
+  lightOrAutoRequests: number;
+  cancelledRequests: number;
+  frontierPct: number;
+  lightOrAutoPct: number;
+  cancelledPct: number;
+}
+
 export interface WorkflowCluster {
   id: string;
   label: string;

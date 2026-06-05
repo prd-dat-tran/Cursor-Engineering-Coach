@@ -5,6 +5,7 @@
 
 import { AntiPattern, OccurrenceDetail, PracticeGroup, Session, SessionRequest } from './types';
 import type { DetectionRule, DetectorEmission, RuleTemplateVars } from './types';
+import { DEFAULT_BILLING_PROFILE, type BillingModel } from './billing';
 import { getAllRules } from './rule-engine';
 import { registerAllBuiltinRules, loadPersonalRules, registerAllBuiltinMetrics } from './rule-loader';
 import { fillTemplate } from './rule-parser';
@@ -265,13 +266,28 @@ export function invalidateDetectorRegistry(): void {
   _registry = null;
 }
 
-export function getActiveDetectors(skipIdeDetectors: boolean): DetectorDefinition[] {
-  const registry = buildRegistry();
-  return registry.filter(detector => !skipIdeDetectors || !detector.requiresIdeContext);
+/** A rule is in scope for a billing model when it is untagged, or tagged to match. */
+function appliesToBilling(rule: DetectionRule | undefined, billingModel: BillingModel): boolean {
+  return !rule?.billing || rule.billing === billingModel;
 }
 
-export function runDetectors(reqs: SessionRequest[], sessions: Session[], skipIdeDetectors: boolean): AntiPattern[] {
-  return getActiveDetectors(skipIdeDetectors)
+export function getActiveDetectors(
+  skipIdeDetectors: boolean,
+  billingModel: BillingModel = DEFAULT_BILLING_PROFILE.model,
+): DetectorDefinition[] {
+  const registry = buildRegistry();
+  return registry.filter(detector =>
+    (!skipIdeDetectors || !detector.requiresIdeContext) &&
+    appliesToBilling(detector.rule, billingModel));
+}
+
+export function runDetectors(
+  reqs: SessionRequest[],
+  sessions: Session[],
+  skipIdeDetectors: boolean,
+  billingModel: BillingModel = DEFAULT_BILLING_PROFILE.model,
+): AntiPattern[] {
+  return getActiveDetectors(skipIdeDetectors, billingModel)
     .map(detector => detector.run({ reqs, sessions, skipIdeDetectors }))
     .filter((pattern): pattern is AntiPattern => pattern !== null);
 }
@@ -291,7 +307,10 @@ export function runEmitters(reqs: SessionRequest[], sessions: Session[], skipIde
   return results;
 }
 
-export function getDetectorGroupCounts(skipIdeDetectors: boolean): Record<PracticeGroup, number> {
+export function getDetectorGroupCounts(
+  skipIdeDetectors: boolean,
+  billingModel: BillingModel = DEFAULT_BILLING_PROFILE.model,
+): Record<PracticeGroup, number> {
   const counts: Record<PracticeGroup, number> = {
     'prompt-quality': 0,
     'session-hygiene': 0,
@@ -299,7 +318,7 @@ export function getDetectorGroupCounts(skipIdeDetectors: boolean): Record<Practi
     'tool-mastery': 0,
     'context-management': 0,
   };
-  for (const detector of getActiveDetectors(skipIdeDetectors)) {
+  for (const detector of getActiveDetectors(skipIdeDetectors, billingModel)) {
     counts[detector.group] += 1;
   }
   return counts;

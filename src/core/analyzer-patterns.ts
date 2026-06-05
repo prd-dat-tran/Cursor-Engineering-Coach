@@ -5,9 +5,10 @@
 
 /* Recommendations + anti-pattern detection analytics */
 
-import { Session, SessionRequest, DateFilter, RecommendationResult, AntiPatternData, PracticeGroup, GroupScore, ProjectOverviewData, ProjectOverviewItem } from './types';
+import { Session, SessionRequest, DateFilter, RecommendationResult, AntiPatternData, PracticeGroup, GroupScore, ProjectOverviewData, ProjectOverviewItem, RequestEconomics } from './types';
 import { toDateStr, normalizeModel, modelMultiplier } from './helpers';
 import { LONG_SESSION_REQS } from './constants';
+import { BillingProfile, DEFAULT_BILLING_PROFILE, isRequestBased } from './billing';
 import { AnalyzerBase } from './analyzer-base';
 import {
   computeWeeklyTrend, computeWeeklyScores,
@@ -34,6 +35,17 @@ function extToLang(ext: string): string | null {
 }
 
 export class PatternsAnalyzer extends AnalyzerBase {
+  private readonly billing: BillingProfile;
+
+  constructor(
+    sessions: Session[],
+    editLocIndex: Map<string, Map<string, number>>,
+    sharedMap?: Map<SessionRequest, Session>,
+    billing: BillingProfile = DEFAULT_BILLING_PROFILE,
+  ) {
+    super(sessions, editLocIndex, sharedMap);
+    this.billing = billing;
+  }
 
   getRecommendations(f?: DateFilter): RecommendationResult[] {
     const reqs = this.filter(f);
@@ -56,9 +68,61 @@ export class PatternsAnalyzer extends AnalyzerBase {
     ];
   }
 
+  /**
+   * Request-volume economics for the given window. On request-based billing the
+   * number of requests (not tokens) is the cost lever, so this surfaces how many
+   * requests went to weak/auto models (capability left on the table) and how
+   * many were cancelled (pure waste).
+   */
+  getRequestEconomics(f?: DateFilter): RequestEconomics {
+    const reqs = this.filter(f);
+    const totalRequests = reqs.length;
+    let requestsWithModel = 0;
+    let frontierRequests = 0;
+    let lightOrAutoRequests = 0;
+    let cancelledRequests = 0;
+    for (const r of reqs) {
+      if (r.isCanceled) cancelledRequests++;
+      if (!r.modelId) continue;
+      requestsWithModel++;
+      const norm = normalizeModel(r.modelId);
+      // Auto-routing may pick a weaker model, so it is not "explicitly best"
+      // even though its cost multiplier is 1.
+      const isAuto = /auto/i.test(norm);
+      if (!isAuto && modelMultiplier(norm) >= 1) frontierRequests++;
+      else lightOrAutoRequests++;
+    }
+    const pctOf = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
+    return {
+      totalRequests,
+      requestsWithModel,
+      frontierRequests,
+      lightOrAutoRequests,
+      cancelledRequests,
+      frontierPct: pctOf(frontierRequests, requestsWithModel),
+      lightOrAutoPct: pctOf(lightOrAutoRequests, requestsWithModel),
+      cancelledPct: pctOf(cancelledRequests, totalRequests),
+    };
+  }
+
   private checkModelDiversity(reqs: SessionRequest[]): RecommendationResult {
     const models = new Set(reqs.map(r => normalizeModel(r.modelId || '')).filter(Boolean));
     const count = models.size;
+
+    // On flat-rate request billing, diversity isn't the goal — using the best model is.
+    if (isRequestBased(this.billing)) {
+      const withModel = reqs.filter(r => r.modelId).length;
+      const frontier = reqs.filter(r => r.modelId && modelMultiplier(normalizeModel(r.modelId)) >= 1).length;
+      const frontierRatio = withModel > 0 ? frontier / withModel : 0;
+      const score = frontierRatio >= 0.8 ? 100 : frontierRatio >= 0.5 ? 70 : frontierRatio >= 0.25 ? 40 : 20;
+      return {
+        checkId: 'model-switch', name: 'Best-Model Usage', category: 'Efficiency',
+        score, status: scoreToStatus(score),
+        finding: `${Math.round(frontierRatio * 100)}% of model-bearing requests used a frontier model${models.size > 0 ? ` (${Array.from(models).join(', ')})` : ''}.`,
+        recommendation: score < 70 ? 'On request-based billing every request costs the same — default to the most capable model (e.g. Claude Opus, GPT-5.x) instead of lighter or auto-routed models.' : 'You consistently use top-tier models — the right call on request-based billing.',
+      };
+    }
+
     const score = count >= 4 ? 100 : count >= 3 ? 80 : count >= 2 ? 50 : 20;
     return {
       checkId: 'model-switch', name: 'Model Diversity', category: 'Efficiency',
@@ -69,6 +133,23 @@ export class PatternsAnalyzer extends AnalyzerBase {
   }
 
   private checkModelTaskAlignment(reqs: SessionRequest[]): RecommendationResult {
+    // On flat-rate request billing, "alignment" = reaching for a capable model regardless of task size.
+    if (isRequestBased(this.billing)) {
+      let strong = 0, total = 0;
+      for (const r of reqs) {
+        if (!r.modelId) continue;
+        total++;
+        if (modelMultiplier(normalizeModel(r.modelId)) >= 1) strong++;
+      }
+      const score = total > 0 ? Math.round((strong / total) * 100) : 50;
+      return {
+        checkId: 'model-task-align', name: 'Best-Model Adoption', category: 'Efficiency',
+        score, status: scoreToStatus(score),
+        finding: `${strong}/${total} requests used a frontier-class model.`,
+        recommendation: score < 70 ? 'Each request is a flat charge, so there is no reason to under-power it — pin the most capable model as your default.' : 'You consistently reach for capable models, maximizing value per request.',
+      };
+    }
+
     let aligned = 0, total = 0;
     for (const r of reqs) {
       if (!r.modelId) continue;
@@ -172,11 +253,14 @@ export class PatternsAnalyzer extends AnalyzerBase {
     const cancelled = reqs.filter(r => r.isCanceled).length;
     const ratio = reqs.length > 0 ? cancelled / reqs.length : 0;
     const score = ratio < 0.05 ? 100 : ratio < 0.15 ? 60 : 20;
+    const lowRec = isRequestBased(this.billing)
+      ? 'On request-based billing each cancelled request still burns a full request, so cancellations are pure waste. Tighten prompts and add context so the agent lands the task in one pass.'
+      : 'High cancellation may indicate unclear prompts. Try being more specific in your requests.';
     return {
       checkId: 'cancellation', name: 'Cancellation Rate', category: 'Efficiency',
       score, status: scoreToStatus(score),
       finding: `${cancelled} of ${reqs.length} requests were cancelled (${(ratio * 100).toFixed(1)}%).`,
-      recommendation: score < 70 ? 'High cancellation may indicate unclear prompts. Try being more specific in your requests.' : 'Low cancellation rate, good prompt clarity.',
+      recommendation: score < 70 ? lowRec : 'Low cancellation rate, good prompt clarity.',
     };
   }
 
@@ -260,7 +344,7 @@ export class PatternsAnalyzer extends AnalyzerBase {
     });
 
     const skipIdeDetectors = false;
-    const patterns = runDetectors(enrichedReqs, sessions, skipIdeDetectors);
+    const patterns = runDetectors(enrichedReqs, sessions, skipIdeDetectors, this.billing.model);
     return this.buildAntiPatternResult(patterns, reqs, skipIdeDetectors);
   }
 
@@ -278,7 +362,7 @@ export class PatternsAnalyzer extends AnalyzerBase {
     const sevPenalty: Record<string, number> = { high: 12, medium: 7, low: 3 };
 
     // Count how many possible detectors exist per group (for baseline)
-    const groupDetectorCount = getDetectorGroupCounts(skipIdeDetectors);
+    const groupDetectorCount = getDetectorGroupCounts(skipIdeDetectors, this.billing.model);
 
     const groupScores: GroupScore[] = allGroups.map(group => {
       const gPatterns = patterns.filter(p => p.group === group);

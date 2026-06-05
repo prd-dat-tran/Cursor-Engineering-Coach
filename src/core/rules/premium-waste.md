@@ -4,6 +4,7 @@ name: Premium Model Waste
 group: tool-mastery
 severity: medium
 scope: requests
+billing: usage-based
 version: 1
 tags: [tools, model, waste, premium]
 thresholds:

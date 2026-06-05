@@ -7,6 +7,7 @@
 
 import { DateFilter, DailyActivity, PRACTICE_GROUPS, AntiPatternData, WorkflowOptimizationData, SkillTriageResult, CatalogDiscoverResult, CatalogTriageResult, GroupScore, CodeProductionData } from '../core/types';
 import { FF_TOKEN_REPORTING_ENABLED } from '../core/constants';
+import { BillingProfile, DEFAULT_BILLING_PROFILE, LiveUsage, billingHeadline, billingModelLabel, cursorPlanLabel, liveUsageSummary } from '../core/billing';
 import { rpc, rpcAllSettled, createChart, formatNum, COLORS, PALETTE, harnessColor, destroyChartById, scoreColor, scoreLabel } from './shared';
 import { html, render, CanvasEl, ScoreRing, PctBadge } from './render';
 import { setSkillCache, getSkillCache } from './skill-cache';
@@ -61,6 +62,44 @@ function prettyDashboardLanguage(label: string): string {
   return mapped;
 }
 
+function BillingBanner({ billing }: { billing: BillingProfile }) {
+  const headline = billingHeadline(billing);
+  const requestBased = billing.model === 'request-based';
+  const chipColor = requestBased ? COLORS.purple : COLORS.blue;
+  const planLabel = cursorPlanLabel(billing.plan);
+  const chipStyle = 'background:' + chipColor + '1f;color:' + chipColor + ';border:1px solid ' + chipColor + '66;';
+  return html`
+    <div class="dash-billing" style=${'border-left:3px solid ' + chipColor + ';'}>
+      <div class="dash-billing-head">
+        <span class="dash-billing-chip" style=${chipStyle}>${billingModelLabel(billing.model)} billing${planLabel ? ' \u00b7 ' + planLabel : ''}</span>
+        <strong class="dash-billing-title">${headline.title}</strong>
+      </div>
+      <p class="dash-billing-detail">${headline.detail}</p>
+      <div class="dash-billing-usage" id="dashBillingUsage"></div>
+      ${!billing.configured && html`<p class="dash-billing-hint">${billing.planDetected ? html`Detected a <strong>${planLabel || 'paid'}</strong> plan. Confirm whether you're billed <strong>per request</strong> or <strong>per token</strong> in <strong>Settings \u2192 Cursor Engineering Coach \u2192 Billing</strong>.` : html`Set your plan in <strong>Settings \u2192 Cursor Engineering Coach \u2192 Billing</strong> so coaching matches how you're charged.`}</p>`}
+    </div>`;
+}
+
+async function loadBillingUsage(): Promise<void> {
+  const el = document.getElementById('dashBillingUsage');
+  if (!el) return;
+  try {
+    const res = await rpc<{ enabled: boolean; usage: LiveUsage | null }>('getLiveUsage');
+    if (!res.enabled || !res.usage) return;
+    const u = res.usage;
+    const pct = u.requestsLimit && u.requestsLimit > 0
+      ? Math.min(100, Math.round((u.requestsUsed / u.requestsLimit) * 100))
+      : 0;
+    const cycle = u.cycleStart ? new Date(u.cycleStart).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+    const barColor = pct >= 90 ? COLORS.red : pct >= 70 ? COLORS.yellow : COLORS.green;
+    render(html`
+      <div class="dash-billing-usage-label">${liveUsageSummary(u)}${cycle ? ' \u00b7 since ' + cycle : ''}</div>
+      ${u.requestsLimit && u.requestsLimit > 0
+        ? html`<div class="dash-billing-usage-bar"><span class="dash-billing-usage-fill" style=${'width:' + pct + '%;background:' + barColor + ';'}></span></div>`
+        : ''}`, el);
+  } catch { /* live usage is best-effort */ }
+}
+
 function PracticeCard({ g }: { g: GroupScore }) {
   const color = scoreColor(g.score);
   const name = PRACTICE_GROUPS[g.group];
@@ -94,6 +133,7 @@ function renderDashboardMarkup(
   totalSessions: number,
   totalLoc: number,
   skillCache: ReturnType<typeof getSkillCache>,
+  billing: BillingProfile,
 ): void {
   const overallScore = scores.length > 0 ? Math.round(scores.reduce((s, g) => s + g.score, 0) / scores.length) : 0;
   const overallColor = scoreColor(overallScore);
@@ -121,7 +161,8 @@ function renderDashboardMarkup(
         </div>
       </div>
     </div>
-    ${!FF_TOKEN_REPORTING_ENABLED && html`<div class="dash-info-banner"><span class="dash-info-icon">\u2139</span><div><strong>Token Usage & Burndown temporarily hidden</strong><p>These features are disabled until we can verify that reported numbers align with GitHub's billing data. They will be re-enabled once validated.</p></div></div>`}
+    <${BillingBanner} billing=${billing} />
+    ${!FF_TOKEN_REPORTING_ENABLED && html`<div class="dash-info-banner"><span class="dash-info-icon">\u2139</span><div><strong>Token Usage & Burndown temporarily hidden</strong><p>These features are disabled until we can verify that reported numbers align with Cursor's billing data. They will be re-enabled once validated.</p></div></div>`}
     ${scores.length > 0 && html`<section class="dash-section"><div class="dash-section-header"><h3>Anti-Patterns Summary</h3><a href="#" data-page="anti-patterns" style=${'font-size:12px;color:' + COLORS.blue + ';text-decoration:none;'}>View All Anti-Patterns \u2192</a></div><div class="ap-score-grid">${scores.map(g => html`<${PracticeCard} g=${g} />`)}</div></section>`}
     <section class="dash-section"><div class="dash-section-header"><h3>Skill Finder</h3><a href="#" data-page="skills" style=${'font-size:12px;color:' + COLORS.blue + ';text-decoration:none;'}>Open Full View \u2192</a></div><p class="dash-section-desc">Scans your prompt history for repeated patterns that waste time re-explaining the same tasks.</p><div id="dashSkillContent" class="dash-card">${!skillCache && html`<div style="text-align:center;"><p style="color:var(--text-muted);margin:0 0 12px 0;font-size:13px;">Analyze your prompt history to discover skill opportunities.</p><button id="dashScanBtn" class="dash-scan-btn">Scan for Skills</button></div>`}</div></section>
     <section class="dash-section"><div style="display:flex;align-items:baseline;gap:16px;margin-bottom:8px;flex-wrap:wrap;"><h3 style="margin:0;">Daily Activity</h3><div id="activityTabs" class="dash-tabs"><button class=${'dash-tab' + (activeMetric === 'requests' ? ' dash-tab-active' : '')} data-metric="requests">Requests <strong>${formatNum(totalReqs)}</strong></button><button class=${'dash-tab' + (activeMetric === 'sessions' ? ' dash-tab-active' : '')} data-metric="sessions">Sessions <strong>${formatNum(totalSessions)}</strong></button><button class=${'dash-tab' + (activeMetric === 'loc' ? ' dash-tab-active' : '')} data-metric="loc">LoC <strong>${formatNum(totalLoc)}</strong></button><button class=${'dash-tab' + (activeMetric === 'workspaces' ? ' dash-tab-active' : '')} data-metric="workspaces">Workspaces <strong>${formatNum(stats.totalWorkspaces)}</strong></button></div></div><${CanvasEl} id="dailyChart" height=${160} /></section>
@@ -175,18 +216,20 @@ function renderDashboardSkillFinder(skillCache: ReturnType<typeof getSkillCache>
 export async function renderDashboard(container: HTMLElement, currentFilter: DateFilter): Promise<void> {
   const emptyDaily: DailyActivity = { labels: [], values: [], sessions: [], loc: [], workspaces: [], byHarness: [] };
   const emptyCodeProd: CodeProductionData = { summary: { totalAiLoc: 0, totalUserLoc: 0, totalLoc: 0, aiBlocks: 0, userBlocks: 0, aiRatio: 0, locCost2010: 0, costPerLoc: 0 }, byLanguage: { labels: [], aiLoc: [], userLoc: [] }, dailyTimeline: { labels: [], aiLoc: [], userLoc: [] }, byWorkspace: { labels: [], aiLoc: [], userLoc: [] }, dailyByWorkspace: {}, dailyByModel: {} };
-  const [stats, daily, wsBreakdown, antiPatterns, codeProd] = await rpcAllSettled([
+  const [stats, daily, wsBreakdown, antiPatterns, codeProd, billing] = await rpcAllSettled([
     rpc<{ totalSessions: number; totalWorkspaces: number; totalRequests: number }>('getStats', currentFilter as Record<string, unknown>),
     rpc<DailyActivity>('getDailyActivity', currentFilter as Record<string, unknown>),
     rpc<{ labels: string[]; values: number[] }>('getWorkspaceBreakdown', currentFilter as Record<string, unknown>),
     rpc<AntiPatternData>('getAntiPatterns', currentFilter as Record<string, unknown>),
     rpc<CodeProductionData>('getCodeProduction', currentFilter as Record<string, unknown>),
+    rpc<BillingProfile>('getBillingProfile'),
   ] as const, [
     { totalSessions: 0, totalWorkspaces: 0, totalRequests: 0 },
     emptyDaily,
     { labels: [], values: [] },
     { patterns: [], totalOccurrences: 0, groupScores: [], weeklyScores: { labels: [], series: [] } } as unknown as AntiPatternData,
     emptyCodeProd,
+    DEFAULT_BILLING_PROFILE,
   ] as const);
 
   const totalLoc = daily.loc.reduce((a, b) => a + b, 0);
@@ -221,6 +264,7 @@ export async function renderDashboard(container: HTMLElement, currentFilter: Dat
     totalSessions,
     totalLoc,
     skillCache,
+    billing,
   );
 
   // ── Activity chart with switchable metrics ──
@@ -293,6 +337,7 @@ export async function renderDashboard(container: HTMLElement, currentFilter: Dat
 
   renderWorkspaceCharts(wsBreakdown);
   renderDashboardSkillFinder(skillCache, currentFilter);
+  void loadBillingUsage();
 }
 
 /* ── Skill results rendering ──────────────────────────────────────── */

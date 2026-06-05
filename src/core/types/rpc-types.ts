@@ -52,9 +52,11 @@ import type { ConfigHealthData } from './config-types';
 import type { InsightsData } from './insights-types';
 import type { ContextManagementData, FlowStateData, WorkspaceContextSessionsData } from './context-types';
 import type { ImageGalleryData } from '../analyzer-images';
+import type { BillingProfile, LiveUsage } from '../billing';
 
 /* RPC method map: method name -> { params, result } */
 export interface RpcMethodMap {
+  getBillingProfile: { params: undefined; result: BillingProfile };
   getWorkspaces: { params: undefined; result: { id: string; name: string; recent?: boolean; harnesses?: string[] }[] };
   getDailyActivity: { params: DateFilter | undefined; result: DailyActivity };
   getWorkspaceBreakdown: { params: DateFilter | undefined; result: WorkspaceBreakdown };
@@ -133,6 +135,7 @@ export interface ExtensionMethodMap extends RpcMethodMap {
   getSdlcRepoScan: { params: Record<string, unknown> | undefined; result: { repos: unknown[] } };
   saveModelBudgets: { params: { budgets: Record<string, number> }; result: { ok: boolean } };
   loadModelBudgets: { params: Record<string, unknown> | undefined; result: Record<string, number> };
+  getLiveUsage: { params: undefined; result: { enabled: boolean; usage: LiveUsage | null } };
 }
 
 export type ExtensionMethodName = keyof ExtensionMethodMap;

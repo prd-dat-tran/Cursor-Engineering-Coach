@@ -50,8 +50,11 @@ rebrand and harden Cursor-native behavior**. Concretely:
 - ❌ Any code path that re-introduces Copilot / Claude Code / Codex /
   OpenCode / Xcode / Copilot CLI parsing or UI.
 - ❌ Telemetry of any kind.
-- ❌ Network requests for analytics (LLM calls inside the panel are
-  allowed because they use the user's own `vscode.lm` provider).
+- ❌ Network requests for analytics **by default** (LLM calls inside the
+  panel are allowed because they use the user's own `vscode.lm` provider).
+  The single exception is the **opt-in** live-usage fetch behind
+  `cursorEngineeringCoach.billing.fetchLiveUsage` (default off), which calls
+  only Cursor's own backend — see the billing milestone below.
 - ❌ Writing to the user's source tree. The extension only writes to its
   cache directory at `~/.cursor-engineering-coach/cache/` and (when
   explicitly invoked) to summary export targets the user picks.
@@ -86,6 +89,57 @@ These are intentional follow-ups, not bugs to fix in unrelated PRs:
   parse (it is not covered by the dir-meta cache fingerprint); per-workspace
   `state.vscdb` files may be locked while Cursor is running, so failed reads
   are caught and logged at debug level, not surfaced as errors.
+
+## Milestone — "Billing-aware coaching"
+
+Cursor bills agent usage two very different ways, and the *correct*
+optimization advice inverts between them. Coaching must respect the user's
+plan instead of always assuming token-cost matters.
+
+### In scope
+
+- [x] User sets their plan via VS Code settings
+      `cursorEngineeringCoach.billing.model` (`usage-based` | `request-based`)
+      and optional `cursorEngineeringCoach.billing.plan` (tier label).
+- [x] A pure, worker-safe [`src/core/billing.ts`](../../src/core/billing.ts)
+      defines the `BillingProfile` and the plan-specific messaging; the
+      extension-host reader is [`src/billing-vscode.ts`](../../src/billing-vscode.ts).
+- [x] The profile threads through `Analyzer` → `PatternsAnalyzer` + warm-up
+      worker, and is exposed to the webview via the `getBillingProfile` RPC.
+- [x] **Request-based** users are coached to use the **most capable** model on
+      every request and to economize on *request count*; token/credit-saving
+      rules (`premium-waste`, `auto-avoidance`, `model-overreliance`,
+      `reasoning-effort-overuse`, `premium-for-lookup-questions`,
+      `cache-hit-starvation`) are tagged `billing: usage-based` and stay
+      silent. A new `underpowered-model` rule (`billing: request-based`) flags
+      over-reliance on lightweight/auto models.
+- [x] **Tier 1 — plan auto-detection (local, no network).**
+      `parser-cursor.readCursorMembershipType()` reads
+      `cursorAuth/stripeMembershipType` from Cursor's global DB and
+      `mapMembershipToPlan()` maps it to a tier; the setting becomes an
+      override (`BillingProfile.planDetected`).
+- [x] **One-time prompt** (`maybePromptForBillingModel`) asks Teams/Enterprise
+      users "per request or per token?" once, writes the setting, stays
+      overridable.
+- [x] **Tier 2 — request economics.** `PatternsAnalyzer.getRequestEconomics()`
+      makes request-based coaching quantitative (counts/% of weak-model and
+      cancelled requests) in `coach_credits`.
+- [x] **Tier 3 — live usage (opt-in network).** `src/billing-usage.ts` calls
+      `api2.cursor.sh/auth/usage` with the local token when
+      `billing.fetchLiveUsage` is on; surfaced via the `getLiveUsage` RPC in
+      the dashboard banner and `coach_credits`.
+- [x] Dashboard shows a billing chip + tailored headline; `@coach` system
+      prompt and `coach_summary` / `coach_credits` are billing-aware.
+
+### Out of scope (do not regress)
+
+- ❌ Auto-detecting the *billing model* (request vs token). The plan **tier**
+      is auto-detected locally, but request-vs-token is a per-contract detail
+      absent from local data — it stays a setting (defaulted + prompted).
+- ❌ Fetching live usage **by default**. The live fetch is strictly opt-in,
+      hits only Cursor's backend, and never stores/logs the token.
+- ❌ Per-request dollar estimates. We coach on *behavior* (model choice,
+      request count), not invoice reconstruction.
 
 ## Quality bars (non-negotiable)
 

@@ -9,6 +9,7 @@
  */
 
 import { TOOL_DEFS } from '../mcp/tools';
+import { BillingProfile, DEFAULT_BILLING_PROFILE, billingCoachNote } from '../core/billing';
 
 const PERSONA = `You are the Cursor Engineering Coach — a supportive, data-driven mentor who helps developers get more value from Cursor IDE.
 
@@ -41,7 +42,7 @@ Strategy:
 7. For session drill-down ("show me session X", "recent sessions"), use coach_sessions
 8. Cross-reference multiple tools when questions span domains`;
 
-export function buildSystemPrompt(): string {
+export function buildSystemPrompt(billing: BillingProfile = DEFAULT_BILLING_PROFILE): string {
   const today = new Date().toISOString().slice(0, 10);
-  return `${PERSONA}\n\nToday's date is ${today}. Use this to resolve relative time references (e.g. "last week", "past month") into correct fromDate/toDate ISO strings when calling tools.\n\n${TOOL_HEURISTICS}`;
+  return `${PERSONA}\n\n${billingCoachNote(billing)}\n\nToday's date is ${today}. Use this to resolve relative time references (e.g. "last week", "past month") into correct fromDate/toDate ISO strings when calling tools.\n\n${TOOL_HEURISTICS}`;
 }

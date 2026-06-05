@@ -44,6 +44,7 @@
  */
 
 import { DetectionRule, RuleCondition, RuleSeverity, RuleScope, PracticeGroup, PRACTICE_GROUPS  } from './types';
+import { BILLING_MODELS, type BillingModel } from './billing';
 
 interface ParsedFrontmatter {
   id: string;
@@ -52,6 +53,8 @@ interface ParsedFrontmatter {
   severity: string;
   scope?: string;
   requiresIdeContext?: boolean;
+  /** Billing model this rule applies to ("usage-based" | "request-based"). */
+  billing?: string;
   version?: number;
   tags?: string[];
   thresholds?: Record<string, number>;
@@ -315,6 +318,13 @@ function extractRuleMaps(fm: ParsedFrontmatter): {
 const VALID_GROUPS = new Set(Object.keys(PRACTICE_GROUPS));
 const VALID_SEVERITIES = new Set<RuleSeverity>(['high', 'medium', 'low']);
 const VALID_SCOPES = new Set<RuleScope>(['requests', 'sessions', 'both']);
+const VALID_BILLING = new Set<BillingModel>(BILLING_MODELS);
+
+function parseBilling(value: unknown): BillingModel | undefined {
+  return typeof value === 'string' && VALID_BILLING.has(value as BillingModel)
+    ? value as BillingModel
+    : undefined;
+}
 
 export function parseRule(markdown: string): DetectionRule | null {
   const parsed = parseFrontmatter(markdown);
@@ -344,6 +354,7 @@ export function parseRule(markdown: string): DetectionRule | null {
     group: fm.group as PracticeGroup,
     severity: fm.severity as RuleSeverity,
     requiresIdeContext: fm.requiresIdeContext ?? false,
+    billing: parseBilling(fm.billing),
     scope,
     description: description || `Detects ${fm.name.toLowerCase()} patterns.`,
     descriptionTemplate: descriptionTemplate || '{{count}} occurrences detected.',
@@ -401,6 +412,7 @@ export function serializeRule(rule: DetectionRule): string {
   lines.push(`severity: ${rule.severity}`);
   lines.push(`scope: ${rule.scope}`);
   if (rule.requiresIdeContext) lines.push(`requiresIdeContext: true`);
+  if (rule.billing) lines.push(`billing: ${rule.billing}`);
   lines.push(`version: ${rule.version}`);
   if (rule.tags.length > 0) lines.push(`tags: [${rule.tags.join(', ')}]`);
   if (rule.extendsRule) lines.push(`extends: ${rule.extendsRule}`);

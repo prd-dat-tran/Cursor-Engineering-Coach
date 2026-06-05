@@ -24,6 +24,7 @@ import {
   SCHEMA_TRIAGE,
 } from './panel-llm';
 import { getCatalogItems } from './panel-catalog';
+import { fetchLiveUsage, liveUsageEnabled } from '../billing-usage';
 import { validateDateFilter } from './panel-rpc';
 import { isNumber, isOptionalString, isRecord, isString, postError, postEvent, postResponse, RequestMessage } from './panel-shared';
 
@@ -43,7 +44,8 @@ type CustomPanelMethodName =
   | 'reviewContextFiles'
   | 'getWorkspaceDeps'
   | 'getSdlcToolAnalysis'
-  | 'getSdlcRepoScan';
+  | 'getSdlcRepoScan'
+  | 'getLiveUsage';
 
 type RequestHandler = (msg: RequestMessage) => void | Promise<void>;
 type QuizDifficulty = 'easy' | 'medium' | 'hard';
@@ -141,6 +143,7 @@ export class PanelRequestService {
     getWorkspaceDeps: this.handleGetWorkspaceDeps.bind(this),
     getSdlcToolAnalysis: this.handleGetSdlcToolAnalysis.bind(this),
     getSdlcRepoScan: this.handleGetSdlcRepoScan.bind(this),
+    getLiveUsage: this.handleGetLiveUsage.bind(this),
   };
 
   constructor(
@@ -255,6 +258,12 @@ ${context.packageDeps.length > 0 ? `- Key dependencies: ${context.packageDeps.sl
 ${context.focusSkills.length > 0 ? `- Skill focus areas: ${context.focusSkills.join(', ')}` : ''}
 
 Generate 3 ${context.difficulty} interview-style questions tailored to this developer's actual stack.`;
+  }
+
+  private async handleGetLiveUsage(msg: RequestMessage): Promise<void> {
+    const enabled = liveUsageEnabled();
+    const usage = enabled ? await fetchLiveUsage() : null;
+    postResponse(this.webview, msg.id, { enabled, usage });
   }
 
   private async handleExportSummary(msg: RequestMessage): Promise<void> {

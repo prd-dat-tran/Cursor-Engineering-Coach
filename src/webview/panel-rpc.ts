@@ -628,6 +628,7 @@ examples: "{{messageText | truncate:60}}"
 }
 
 const rpcHandlers: TypedRpcHandlers = {
+  getBillingProfile: (a) => a.getBillingProfile(),
   getWorkspaces: (a) => a.getWorkspaces(),
   getDailyActivity: (a, _p, params) => a.getDailyActivity(validateDateFilter(params)),
   getWorkspaceBreakdown: (a, _p, params) => a.getWorkspaceBreakdown(validateDateFilter(params)),
