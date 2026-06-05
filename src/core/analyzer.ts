@@ -180,8 +180,6 @@ export class Analyzer {
   }
 
   getWorkspaces(): { id: string; name: string; recent?: boolean; harnesses?: string[] }[] { return this.dashboard.getWorkspaces(); }
-  getHarnesses(): string[] { return this.dashboard.getHarnesses(); }
-  getHarnessBreakdown(f?: DateFilter): { labels: string[]; sessions: number[]; requests: number[] } { return this.dashboard.getHarnessBreakdown(f); }
 
   /** Public access to filtered requests for rule editor preview. */
   filterRequests(f?: DateFilter): SessionRequest[] { return this.patterns.getFilteredRequests(f); }

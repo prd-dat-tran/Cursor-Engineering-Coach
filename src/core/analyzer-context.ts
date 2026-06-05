@@ -861,7 +861,6 @@ export class ContextAnalyzer extends AnalyzerBase {
     const harnessHasTokens = new Map<string, boolean>();
     for (const s of this.sessions) {
       if (!this.matchesWorkspaceFilter(s, f?.workspaceId)) continue;
-      if (f?.harness && s.harness !== f.harness) continue;
       matchingSessions++;
       let sessionHasReqTokens = false;
       for (const r of s.requests) {

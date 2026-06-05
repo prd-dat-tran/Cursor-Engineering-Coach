@@ -30,12 +30,11 @@ import { FF_TOKEN_REPORTING_ENABLED } from '../core/constants';
 /* ---- shared helpers ---- */
 
 function parseFilter(input: Record<string, unknown>): DateFilter | undefined {
-  if (!input.fromDate && !input.toDate && !input.workspaceId && !input.harness) return undefined;
+  if (!input.fromDate && !input.toDate && !input.workspaceId) return undefined;
   const f: DateFilter = {};
   if (typeof input.fromDate === 'string') f.fromDate = input.fromDate;
   if (typeof input.toDate === 'string') f.toDate = input.toDate;
   if (typeof input.workspaceId === 'string') f.workspaceId = input.workspaceId;
-  if (typeof input.harness === 'string') f.harness = input.harness;
   return f;
 }
 

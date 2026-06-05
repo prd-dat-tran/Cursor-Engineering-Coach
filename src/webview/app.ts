@@ -432,15 +432,6 @@ function onDataReady(currentWorkspace: string): void {
     updateToggleState();
   }).catch(() => {});
 
-  void rpc<string[]>('getHarnesses').then((harnesses) => {
-    if (!harnessFilter) return;
-    // Preact's render() doesn't work well inside <select> — use native DOM
-    harnessFilter.length = 1; // keep "All Harnesses" default option
-    for (const h of harnesses) {
-      harnessFilter.add(new Option(h, h));
-    }
-  }).catch(() => {});
-
   navigateTo(currentPage);
   refreshNavBadges(currentFilter);
 }
@@ -473,9 +464,8 @@ const wsFilterInput = document.getElementById('ws-filter-input') as HTMLInputEle
 const wsFilterList = document.getElementById('ws-filter-list');
 const wsCombobox = document.getElementById('ws-combobox');
 const wsToggle = document.getElementById('ws-toggle');
-const harnessFilter = document.getElementById('harness-filter') as HTMLSelectElement | null;
 
-let wsOptions: { id: string; name: string; recent?: boolean; harnesses?: string[] }[] = [];
+let wsOptions: { id: string; name: string; recent?: boolean }[] = [];
 
 function updateToggleState(): void {
   if (!wsToggle) return;
@@ -501,13 +491,9 @@ function setWsSelection(value: string, label: string): void {
 function renderWsList(query: string): void {
   if (!wsFilterList) return;
   const q = query.toLowerCase();
-  // Filter workspaces by selected harness, then by search query
-  const harnessScoped = currentFilter.harness
-    ? wsOptions.filter(ws => ws.harnesses?.includes(currentFilter.harness!))
-    : wsOptions;
   const filtered = q
-    ? harnessScoped.filter(ws => ws.name.toLowerCase().includes(q))
-    : harnessScoped;
+    ? wsOptions.filter(ws => ws.name.toLowerCase().includes(q))
+    : wsOptions;
 
   const show = filtered.slice(0, 100); // cap rendered items
 
@@ -600,20 +586,6 @@ if (wsToggle) {
     } else {
       setWsSelection('', '');
     }
-  });
-}
-
-if (harnessFilter) {
-  harnessFilter.addEventListener('change', () => {
-    currentFilter.harness = harnessFilter.value || undefined;
-    if (currentFilter.workspaceId && currentFilter.harness) {
-      const ws = wsOptions.find(w => w.id === currentFilter.workspaceId);
-      if (ws && !ws.harnesses?.includes(currentFilter.harness)) {
-        setWsSelection('', '');
-      }
-    }
-    renderPageLater(currentPage);
-    refreshNavBadges(currentFilter);
   });
 }
 

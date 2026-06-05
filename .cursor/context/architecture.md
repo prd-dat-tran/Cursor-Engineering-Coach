@@ -107,9 +107,14 @@ analytics, no writes outside the extension's own cache directory at
 - Every `SessionRequest` belongs to exactly one `Session` (see
   `AnalyzerBase.buildRequestSessionMap`).
 - The only `harness` values emitted by parsers are `'Cursor'` (stable) and
-  `'Cursor Nightly'` (the Nightly edition's Composer sessions). Filtering
-  code that checks for *non-Cursor* harness names (Copilot, Claude, etc.)
-  is a code smell — drop the check and the filter.
+  `'Cursor Nightly'` (the Nightly edition's Composer sessions). There is **no
+  harness filter**: `DateFilter` has no `harness` field, and the harness
+  filter UI + per-harness breakdown RPCs (`getHarnesses`,
+  `getHarnessBreakdown`) were removed because the product is Cursor-only.
+  `harness` survives only as a per-session label used for internal grouping
+  (token coverage, parser coverage, config-health context provision).
+  Re-introducing a harness filter, a "by harness" breakdown chart, or a check
+  for *non-Cursor* harness names (Copilot, Claude, etc.) is a code smell.
 - The cache is keyed by per-directory mtime + size *metas* over
   `workspaceStorage` only. The Composer `state.vscdb` is **not**
   fingerprinted, so `parser.ts` re-collects Composer DB sessions on every

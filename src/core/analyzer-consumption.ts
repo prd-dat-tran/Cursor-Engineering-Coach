@@ -376,7 +376,6 @@ export class ConsumptionAnalyzer extends AnalyzerBase {
       daily: this.buildAiCreditSeries(summary.dailyMap, allModels, keys => fillDayRange(this.anchorFromDate(keys, f))),
       weekly: this.buildAiCreditSeries(summary.weeklyMap, allModels, fillWeekRange),
       dailyTokensByWorkspace: this.buildDailyTokensByWorkspace(summary.dailyTokensByWorkspace, keys => fillDayRange(this.anchorFromDate(keys, f))),
-      dailyTokensByHarness: this.buildDailyTokensByHarness(summary.dailyTokensByHarness, keys => fillDayRange(this.anchorFromDate(keys, f))),
       topRequests: summary.topRequests,
     };
   }
@@ -387,8 +386,6 @@ export class ConsumptionAnalyzer extends AnalyzerBase {
     weeklyMap: Map<string, Map<string, number>>;
     /** workspace → day → total tokens (input + output). */
     dailyTokensByWorkspace: Map<string, Map<string, number>>;
-    /** harness → day → total tokens (input + output). */
-    dailyTokensByHarness: Map<string, Map<string, number>>;
     totalInputTokens: number;
     totalOutputTokens: number;
     totalCacheReadTokens: number;
@@ -405,7 +402,6 @@ export class ConsumptionAnalyzer extends AnalyzerBase {
       dailyMap: new Map<string, Map<string, number>>(),
       weeklyMap: new Map<string, Map<string, number>>(),
       dailyTokensByWorkspace: new Map<string, Map<string, number>>(),
-      dailyTokensByHarness: new Map<string, Map<string, number>>(),
       totalInputTokens: 0,
       totalOutputTokens: 0,
       totalCacheReadTokens: 0,
@@ -533,17 +529,12 @@ export class ConsumptionAnalyzer extends AnalyzerBase {
       const inner = mapRef.get(key)!;
       inner.set(model, (inner.get(model) || 0) + totalTokens);
     }
-    // Accumulate total tokens (input + output) per workspace and per harness per day
+    // Accumulate total tokens (input + output) per workspace per day
     const session = this.requestSessionMap.get(request);
     const ws = session?.workspaceName || 'unknown';
     if (!summary.dailyTokensByWorkspace.has(ws)) summary.dailyTokensByWorkspace.set(ws, new Map());
     const wsDay = summary.dailyTokensByWorkspace.get(ws)!;
     wsDay.set(day, (wsDay.get(day) || 0) + totalTokens);
-
-    const harness = session?.harness || 'unknown';
-    if (!summary.dailyTokensByHarness.has(harness)) summary.dailyTokensByHarness.set(harness, new Map());
-    const hDay = summary.dailyTokensByHarness.get(harness)!;
-    hDay.set(day, (hDay.get(day) || 0) + totalTokens);
   }
 
   private buildAiCreditSeries(
@@ -585,22 +576,6 @@ export class ConsumptionAnalyzer extends AnalyzerBase {
       byWorkspace[ws] = labels.map(d => Math.round(dayMap.get(d) || 0));
     }
     return { labels, byWorkspace };
-  }
-
-  private buildDailyTokensByHarness(
-    harnessMap: Map<string, Map<string, number>>,
-    fillRange: (keys: string[]) => string[],
-  ): AiCreditData['dailyTokensByHarness'] {
-    const allDays = new Set<string>();
-    for (const dayMap of harnessMap.values()) {
-      for (const day of dayMap.keys()) allDays.add(day);
-    }
-    const labels = fillRange(Array.from(allDays));
-    const byHarness: Record<string, number[]> = {};
-    for (const [harness, dayMap] of harnessMap) {
-      byHarness[harness] = labels.map(d => Math.round(dayMap.get(d) || 0));
-    }
-    return { labels, byHarness };
   }
 
   private buildAiCreditCostByModel(

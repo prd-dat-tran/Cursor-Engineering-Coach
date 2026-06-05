@@ -123,35 +123,6 @@ describe('DashboardAnalyzer', () => {
     });
   });
 
-  describe('getHarnesses', () => {
-    it('returns unique harnesses sorted', () => {
-      const sessions = [
-        makeSession({ harness: 'Cursor' }),
-        makeSession({ harness: 'Cursor Nightly' }),
-        makeSession({ harness: 'Cursor' }),
-      ];
-      const analyzer = createAnalyzer(sessions);
-      const harnesses = analyzer.getHarnesses();
-      expect(harnesses).toEqual(['Cursor', 'Cursor Nightly']);
-    });
-  });
-
-  describe('getHarnessBreakdown', () => {
-    it('returns breakdown by harness', () => {
-      const now = Date.now();
-      const sessions = [
-        makeSession({ harness: 'Cursor', requests: [makeRequest({ timestamp: now }), makeRequest({ timestamp: now + 1000 })], lastMessageDate: now }),
-        makeSession({ harness: 'Cursor Nightly', requests: [makeRequest({ timestamp: now })], lastMessageDate: now }),
-      ];
-      const analyzer = createAnalyzer(sessions);
-      const result = analyzer.getHarnessBreakdown();
-      expect(result.labels).toContain('Cursor');
-      expect(result.labels).toContain('Cursor Nightly');
-      expect(result.sessions.length).toBe(2);
-      expect(result.requests.length).toBe(2);
-    });
-  });
-
   describe('getDailyActivity', () => {
     it('returns empty for no sessions', () => {
       const analyzer = createAnalyzer([]);

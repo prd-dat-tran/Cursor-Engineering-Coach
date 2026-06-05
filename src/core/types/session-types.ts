@@ -178,5 +178,4 @@ export interface DateFilter {
   fromDate?: string;
   toDate?: string;
   workspaceId?: string;
-  harness?: string;
 }

@@ -1193,7 +1193,6 @@ ${contextSection}`;
     const mcpServerCounts = new Map<string, number>();
     const filteredSessions = this.parseResult.sessions.filter(session => {
       if (!this.matchesWorkspace(session, filter?.workspaceId)) return false;
-      if (filter?.harness && session.harness !== filter.harness) return false;
       return true;
     });
 

@@ -38,8 +38,11 @@ rebrand and harden Cursor-native behavior**. Concretely:
 - [x] Catalog installer pulls from
       [`PatrickJS/awesome-cursorrules`](https://github.com/PatrickJS/awesome-cursorrules)
       and installs into `~/.cursor/rules` or `~/.cursor/skills`.
-- [x] Multi-harness UI affordances are removed; the only harness values are
-      `'Cursor'` and `'Cursor Nightly'`.
+- [x] Multi-harness UI affordances are removed: no harness picker/filter
+      (sidebar + per-page) and no per-harness breakdowns (dashboard "Requests
+      by Harness" + hero harness pills, Output "Output/Tokens by Harness",
+      Context "Context Provision by Harness"). `DateFilter` has no `harness`
+      field. The only harness values are `'Cursor'` and `'Cursor Nightly'`.
 - [x] `.cursor/` scaffolding for agents (rules + context + ignore) — **this file**.
 
 ### Out of scope (do not regress)

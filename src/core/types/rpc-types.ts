@@ -56,8 +56,6 @@ import type { ImageGalleryData } from '../analyzer-images';
 /* RPC method map: method name -> { params, result } */
 export interface RpcMethodMap {
   getWorkspaces: { params: undefined; result: { id: string; name: string; recent?: boolean; harnesses?: string[] }[] };
-  getHarnesses: { params: undefined; result: string[] };
-  getHarnessBreakdown: { params: DateFilter | undefined; result: { labels: string[]; sessions: number[]; requests: number[] } };
   getDailyActivity: { params: DateFilter | undefined; result: DailyActivity };
   getWorkspaceBreakdown: { params: DateFilter | undefined; result: WorkspaceBreakdown };
   getHourlyDistribution: { params: DateFilter | undefined; result: HourlyDistribution };

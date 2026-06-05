@@ -21,14 +21,12 @@ export class ProductionAnalyzer extends AnalyzerBase {
     const wsAi = new Map<string, number>();
     const dailyWsAi = new Map<string, Map<string, number>>();
     const dailyModelAi = new Map<string, Map<string, number>>();
-    const dailyHarnessAi = new Map<string, Map<string, number>>();
 
     for (const request of reqs) {
       const day = toDateStr(request.timestamp!);
       const session = this.requestSessionMap.get(request);
       const workspaceName = session?.workspaceName || '';
       const model = normalizeModel(request.modelId || 'unknown');
-      const harness = session?.harness || 'unknown';
       for (const block of request.aiCode) {
         totalAiLoc += block.loc;
         aiBlocks++;
@@ -36,7 +34,6 @@ export class ProductionAnalyzer extends AnalyzerBase {
         this.addProductionLoc(dailyAi, day, block.loc);
         this.addWorkspaceProductionLoc(wsAi, dailyWsAi, workspaceName, day, block.loc);
         this.addDailyGroupLoc(dailyModelAi, model, day, block.loc);
-        this.addDailyGroupLoc(dailyHarnessAi, harness, day, block.loc);
       }
     }
 
@@ -47,7 +44,6 @@ export class ProductionAnalyzer extends AnalyzerBase {
       const session = this.requestSessionMap.get(request);
       const workspaceName = session?.workspaceName || '';
       const model = normalizeModel(request.modelId || 'unknown');
-      const harness = session?.harness || 'unknown';
       for (const [file, loc] of editLocs) {
         totalAiLoc += loc;
         this.addProductionLoc(langAi, file.split('.').pop()?.toLowerCase() || 'unknown', loc);
@@ -55,7 +51,6 @@ export class ProductionAnalyzer extends AnalyzerBase {
         this.addWorkspaceProductionLoc(wsAi, dailyWsAi, workspaceName, day, loc);
         if (day) {
           this.addDailyGroupLoc(dailyModelAi, model, day, loc);
-          this.addDailyGroupLoc(dailyHarnessAi, harness, day, loc);
         }
       }
     }
@@ -107,11 +102,6 @@ export class ProductionAnalyzer extends AnalyzerBase {
       dailyByModel: Object.fromEntries(
         Array.from(dailyModelAi.entries()).map(([m, dm]) => [
           m, dayArr.map(d => dm.get(d) || 0),
-        ])
-      ),
-      dailyByHarness: Object.fromEntries(
-        Array.from(dailyHarnessAi.entries()).map(([h, dm]) => [
-          h, dayArr.map(d => dm.get(d) || 0),
         ])
       ),
     };

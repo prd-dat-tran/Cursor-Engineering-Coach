@@ -19,7 +19,7 @@ const cache = new Map<string, SkillCacheData>();
 const MAX_AGE = 10 * 60_000; // 10 minutes
 
 function cacheKey(f?: DateFilter): string {
-  return `${f?.workspaceId || '*'}|${f?.harness || '*'}`;
+  return f?.workspaceId || '*';
 }
 
 /** Store results scoped to the current filter */

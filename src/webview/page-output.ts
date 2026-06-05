@@ -64,7 +64,6 @@ interface ProdData {
   byWorkspace: { labels: string[]; aiLoc: number[] };
   dailyByWorkspace: Record<string, number[]>;
   dailyByModel: Record<string, number[]>;
-  dailyByHarness: Record<string, number[]>;
 }
 
 interface AiCreditRpcData {
@@ -94,7 +93,6 @@ interface AiCreditRpcData {
   daily: { labels: string[]; credits: number[]; cumulative: number[]; byModel: Record<string, number[]> };
   weekly: { labels: string[]; credits: number[]; cumulative: number[]; byModel: Record<string, number[]> };
   dailyTokensByWorkspace: { labels: string[]; byWorkspace: Record<string, number[]> };
-  dailyTokensByHarness: { labels: string[]; byHarness: Record<string, number[]> };
   topRequests: Array<{
     timestamp: number; model: string;
     inputTokens: number; outputTokens: number;
@@ -186,13 +184,6 @@ export async function renderOutput(container: HTMLElement, currentFilter: DateFi
     return `${granularity} Token Consumption by Workspace — ${rangeLabel}`;
   }
 
-  function tokenByHarnessChartTitle(): string {
-    const rangeLabel = RANGES.find(r => r.days === activeRangeDays)?.label ?? 'All time';
-    const level = aggregationLevel(activeRangeDays);
-    const granularity = level === 'daily' ? 'Daily' : level === 'weekly' ? 'Weekly' : 'Monthly';
-    return `${granularity} Token Consumption by Harness — ${rangeLabel}`;
-  }
-
   function renderRangeBar(): ComponentChildren {
     const cur = activeRangeDays;
     const disabledTitle = `Sessions before ${TOKEN_DATA_AVAILABLE_FROM} did not capture per-request token data, so this range can’t show meaningful coverage. It will become available again once enough recent data falls within the range.`;
@@ -262,11 +253,9 @@ export async function renderOutput(container: HTMLElement, currentFilter: DateFi
       <div class="chart-tabs" style="margin-top:18px">
         <button class="chart-tab active" data-prod-tab="model">Code Output</button>
         <button class="chart-tab" data-prod-tab="workspace">Output by Workspace</button>
-        <button class="chart-tab" data-prod-tab="harness">Output by Harness</button>
       </div>
       <div id="prodTabModel" class="chart-tab-panel active"><${CanvasEl} id="prodModelChart" height=${300} title=${chartTitle} /></div>
       <div id="prodTabWorkspace" class="chart-tab-panel"><${CanvasEl} id="prodDailyChart" height=${300} title=${chartTitle} /></div>
-      <div id="prodTabHarness" class="chart-tab-panel"><${CanvasEl} id="prodHarnessChart" height=${300} title=${chartTitle} /></div>
       <div class="two-col">
         <${CanvasEl} id="prodLangChart" height=${300} title="By Language" />
         <${CanvasEl} id="prodWsChart" height=${300} title="By Workspace" />
@@ -353,27 +342,6 @@ export async function renderOutput(container: HTMLElement, currentFilter: DateFi
       scales: { x: { stacked: true, ticks: { maxTicksLimit: 15 } }, y: { stacked: true, beginAtZero: true, title: { display: true, text: yLabel } } },
     });
 
-    // --- By Harness chart ---
-    const { labels: hLabels, byWs: hBuckets } = aggregateByWorkspace(
-      prod.dailyTimeline.labels, prod.dailyByHarness, level,
-    );
-    const hNames = Object.keys(hBuckets).sort((a, b) => {
-      const sumA = hBuckets[a].reduce((sum, v) => sum + v, 0);
-      const sumB = hBuckets[b].reduce((sum, v) => sum + v, 0);
-      return sumB - sumA;
-    });
-    const hDatasets: Record<string, unknown>[] = hNames.map((h) => ({
-      label: h, data: hBuckets[h],
-      backgroundColor: (harnessColor(h)) + '99',
-      borderColor: harnessColor(h), borderWidth: 1, stack: 'harness',
-    }));
-    if (hDatasets.length > 0) {
-      createChart('prodHarnessChart', 'bar', { labels: hLabels, datasets: hDatasets }, {
-        plugins: { legend: { position: 'top' } },
-        scales: { x: { stacked: true, ticks: { maxTicksLimit: 15 } }, y: { stacked: true, beginAtZero: true, title: { display: true, text: yLabel } } },
-      });
-    }
-
     // --- Sidebar charts ---
     createChart('prodLangChart', 'bar', {
       labels: prod.byLanguage.labels,
@@ -400,7 +368,7 @@ export async function renderOutput(container: HTMLElement, currentFilter: DateFi
         for (const b of target.querySelectorAll<HTMLButtonElement>('.chart-tab[data-prod-tab]')) b.classList.remove('active');
         btn.classList.add('active');
         const tab = btn.dataset.prodTab;
-        const panelMap: Record<string, string> = { model: 'prodTabModel', workspace: 'prodTabWorkspace', harness: 'prodTabHarness' };
+        const panelMap: Record<string, string> = { model: 'prodTabModel', workspace: 'prodTabWorkspace' };
         for (const p of target.querySelectorAll<HTMLElement>('.chart-tab-panel')) p.classList.remove('active');
         document.getElementById(panelMap[tab || 'model'])!.classList.add('active');
       });
@@ -509,28 +477,6 @@ export async function renderOutput(container: HTMLElement, currentFilter: DateFi
         labels: wsLabels,
         datasets: wsDatasets as { label: string; data: number[]; backgroundColor: string; borderColor: string; borderWidth: number; stack: string }[],
       }, { plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (ctx: { dataset: { label: string }; raw: number }) => `${ctx.dataset.label}: ${formatNum(ctx.raw)} tokens` } } }, scales: { x: { stacked: true, ticks: { maxTicksLimit: 15 } }, y: { stacked: true, beginAtZero: true, title: { display: true, text: wsYLabel }, ticks: { callback: (v: number) => formatNum(v) } } } });
-    }
-
-    // Token Consumption by Harness chart
-    const { labels: hLabels, byWs: hBuckets } = aggregateByWorkspace(
-      data.dailyTokensByHarness.labels, data.dailyTokensByHarness.byHarness, level,
-    );
-    const hNames = Object.keys(hBuckets).sort((a, b) => {
-      const sumA = hBuckets[a].reduce((s, v) => s + v, 0);
-      const sumB = hBuckets[b].reduce((s, v) => s + v, 0);
-      return sumB - sumA;
-    });
-    const hDatasets: Record<string, unknown>[] = hNames.map((h) => ({
-      label: h, data: hBuckets[h],
-      backgroundColor: (harnessColor(h)) + '99',
-      borderColor: harnessColor(h), borderWidth: 1, stack: 'harness',
-    }));
-    if (hDatasets.length > 0) {
-      const hYLabel = level === 'daily' ? 'Tokens/day' : level === 'weekly' ? 'Tokens/week' : 'Tokens/month';
-      createChart('creditTokenByHarnessChart', 'bar', {
-        labels: hLabels,
-        datasets: hDatasets,
-      }, { plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (ctx: { dataset: { label: string }; raw: number }) => `${ctx.dataset.label}: ${formatNum(ctx.raw)} tokens` } } }, scales: { x: { stacked: true, ticks: { maxTicksLimit: 15 } }, y: { stacked: true, beginAtZero: true, title: { display: true, text: hYLabel }, ticks: { callback: (v: number) => formatNum(v) } } } });
     }
 
     return { modelEntries };
@@ -652,11 +598,9 @@ export async function renderOutput(container: HTMLElement, currentFilter: DateFi
       <div class="chart-tabs" style="margin-top:18px">
         <button class="chart-tab active" data-chart-tab="tokens">Token Consumption</button>
         <button class="chart-tab" data-chart-tab="tokens-ws">Tokens by Workspace</button>
-        <button class="chart-tab" data-chart-tab="tokens-harness">Tokens by Harness</button>
       </div>
       <div id="chartTabCredits" class="chart-tab-panel active"><${CanvasEl} id="creditWeeklyChart" height=${300} title=${creditChartTitle()} /></div>
       <div id="chartTabTokensWs" class="chart-tab-panel"><${CanvasEl} id="creditTokenByWsChart" height=${350} title=${tokenByWsChartTitle()} /></div>
-      <div id="chartTabTokensHarness" class="chart-tab-panel"><${CanvasEl} id="creditTokenByHarnessChart" height=${350} title=${tokenByHarnessChartTitle()} /></div>
       <div class="chart-wrap"><div class="chart-title">Token Breakdown <span class="info-icon" tabindex="0" role="button" aria-label="Token breakdown info">${'\u24d8'}<span class="info-popup">Cache token breakdown (cache read / cache write) is only surfaced for some Cursor model providers (e.g. Anthropic-backed models). Many Cursor chat sessions report a single aggregated input token count and don't break out cached vs. uncached tokens — this is a limitation of the upstream data format, not a bug.</span></span></div><canvas id="creditTokenPie" height=${250}></canvas></div>
       <h2>Model Token Breakdown</h2>
       <div id="creditModelTable"></div>
@@ -676,7 +620,7 @@ export async function renderOutput(container: HTMLElement, currentFilter: DateFi
         const tab = btn.dataset.chartTab;
         const panels = target.querySelectorAll<HTMLElement>('.chart-tab-panel');
         for (const p of panels) p.classList.remove('active');
-        const panelMap: Record<string, string> = { tokens: 'chartTabCredits', 'tokens-ws': 'chartTabTokensWs', 'tokens-harness': 'chartTabTokensHarness' };
+        const panelMap: Record<string, string> = { tokens: 'chartTabCredits', 'tokens-ws': 'chartTabTokensWs' };
         document.getElementById(panelMap[tab || 'tokens'])!.classList.add('active');
       });
     }

@@ -18,7 +18,6 @@ function validateDateFilter(p: Record<string, unknown>): DateFilter {
     ...(isString(p.toDate) && { toDate: p.toDate }),
     ...(isString(p.workspaceId) && { workspaceId: p.workspaceId }),
     ...(!isString(p.workspaceId) && isString(p.workspace) && { workspaceId: p.workspace }),
-    ...(isString(p.harness) && { harness: p.harness }),
   };
 }
 
@@ -123,20 +122,6 @@ describe('Analyzer', () => {
     });
   });
 
-  describe('getHarnesses', () => {
-    it('returns unique harness names', () => {
-      const sessions = [
-        makeSession({ harness: 'Cursor' }),
-        makeSession({ harness: 'Cursor Nightly' }),
-        makeSession({ harness: 'Cursor' }),
-      ];
-      const a = new Analyzer(sessions);
-      const harnesses = a.getHarnesses();
-      expect(harnesses).toHaveLength(2);
-      expect(harnesses.sort()).toEqual(['Cursor', 'Cursor Nightly']);
-    });
-  });
-
   describe('getDailyActivity', () => {
     it('returns labels and values arrays of equal length', () => {
       const ts = new Date(2024, 5, 15, 10, 0, 0).getTime();
@@ -190,59 +175,7 @@ describe('Analyzer', () => {
     });
   });
 
-  describe('filter by harness', () => {
-    it('getDailyActivity filters by harness', () => {
-      const ts = new Date(2024, 5, 15, 10, 0, 0).getTime();
-      const sessions = [
-        makeSession({ sessionId: 's1', harness: 'Cursor', creationDate: ts, workspaceName: 'proj', requests: [makeRequest({ timestamp: ts }), makeRequest({ timestamp: ts + 1000 })] }),
-        makeSession({ sessionId: 's2', harness: 'Cursor Nightly', creationDate: ts, workspaceName: 'proj', requests: [makeRequest({ timestamp: ts })] }),
-      ];
-      const a = new Analyzer(sessions);
-      const all = a.getDailyActivity();
-      expect(all.values.reduce((a, b) => a + b, 0)).toBe(3);
-
-      const filtered = a.getDailyActivity({ harness: 'Cursor' });
-      expect(filtered.values.reduce((a, b) => a + b, 0)).toBe(2);
-
-      const filtered2 = a.getDailyActivity({ harness: 'Cursor Nightly' });
-      expect(filtered2.values.reduce((a, b) => a + b, 0)).toBe(1);
-    });
-
-    it('getCodeProduction filters by harness', () => {
-      const ts = new Date(2024, 5, 15, 10, 0, 0).getTime();
-      const sessions = [
-        makeSession({ sessionId: 's1', harness: 'Cursor', creationDate: ts, workspaceName: 'proj',
-          requests: [makeRequest({ timestamp: ts, aiCode: [{ language: 'typescript', loc: 50 }] })] }),
-        makeSession({ sessionId: 's2', harness: 'Cursor CLI', creationDate: ts, workspaceName: 'proj',
-          requests: [makeRequest({ timestamp: ts, aiCode: [{ language: 'python', loc: 30 }] })] }),
-      ];
-      const a = new Analyzer(sessions);
-      const all = a.getCodeProduction();
-      expect(all.summary.totalAiLoc).toBe(80);
-
-      const filtered = a.getCodeProduction({ harness: 'Cursor' });
-      expect(filtered.summary.totalAiLoc).toBe(50);
-    });
-
-    it('getConsumption filters by harness', () => {
-      const ts = new Date(2024, 5, 15, 10, 0, 0).getTime();
-      const sessions = [
-        makeSession({ sessionId: 's1', harness: 'Cursor', creationDate: ts, workspaceName: 'proj',
-          requests: [makeRequest({ timestamp: ts }), makeRequest({ timestamp: ts + 1000 })] }),
-        makeSession({ sessionId: 's2', harness: 'Cursor Nightly', creationDate: ts, workspaceName: 'proj',
-          requests: [makeRequest({ timestamp: ts })] }),
-        makeSession({ sessionId: 's3', harness: 'Cursor CLI', creationDate: ts, workspaceName: 'proj',
-          requests: [makeRequest({ timestamp: ts })] }),
-      ];
-      const a = new Analyzer(sessions);
-      // getConsumption now counts all harnesses.
-      const all = a.getConsumption();
-      expect(all.totalRequests).toBe(4);
-
-      const filtered = a.getConsumption({ harness: 'Cursor' });
-      expect(filtered.totalRequests).toBe(2);
-    });
-
+  describe('getConsumption request counting', () => {
     it('getConsumption counts requests regardless of token availability', () => {
       // Regression: getConsumption keys off model + timestamp only; missing
       // promptTokens/completionTokens must not affect request totals.
@@ -260,42 +193,6 @@ describe('Analyzer', () => {
       expect(data.totalRequests).toBe(3);
       expect(data.modelTotals['gpt-4o']).toBe(3);
     });
-
-    it('getAntiPatterns filters by harness', () => {
-      const ts = new Date(2024, 5, 15, 10, 0, 0).getTime();
-      const sessions = [
-        makeSession({ sessionId: 's1', harness: 'Cursor', creationDate: ts, workspaceName: 'proj',
-          requestCount: 60, requests: Array.from({ length: 60 }, (_, i) => makeRequest({ requestId: `r${i}`, timestamp: ts + i * 1000 })) }),
-        makeSession({ sessionId: 's2', harness: 'Cursor CLI', creationDate: ts, workspaceName: 'proj',
-          requestCount: 2, requests: [makeRequest({ timestamp: ts }), makeRequest({ timestamp: ts + 1000 })] }),
-      ];
-      const a = new Analyzer(sessions);
-      // Unfiltered should detect mega-session from s1
-      const all = a.getAntiPatterns();
-      const _mega = all.patterns.find(p => p.id === 'mega-sessions');
-
-      // Filtered to Cursor CLI-only should NOT have mega-session (only 2 requests)
-      const filtered = a.getAntiPatterns({ harness: 'Cursor CLI' });
-      const megaFiltered = filtered.patterns.find(p => p.id === 'mega-sessions');
-      expect(megaFiltered?.occurrences ?? 0).toBe(0);
-    }, 15000);
-  });
-
-  describe('filter by workspace + harness combined', () => {
-    it('getDailyActivity filters by both workspace and harness', () => {
-      const ts = new Date(2024, 5, 15, 10, 0, 0).getTime();
-      const sessions = [
-        makeSession({ sessionId: 's1', harness: 'Cursor', workspaceName: 'project-a', creationDate: ts,
-          requests: [makeRequest({ timestamp: ts })] }),
-        makeSession({ sessionId: 's2', harness: 'Cursor CLI', workspaceName: 'project-a', creationDate: ts,
-          requests: [makeRequest({ timestamp: ts })] }),
-        makeSession({ sessionId: 's3', harness: 'Cursor', workspaceName: 'project-b', creationDate: ts,
-          requests: [makeRequest({ timestamp: ts })] }),
-      ];
-      const a = new Analyzer(sessions);
-      const combined = a.getDailyActivity({ workspaceId: 'ws-1', harness: 'Cursor' });
-      expect(combined.values.reduce((a, b) => a + b, 0)).toBe(2); // only s1 contributes, and it has 2 requests
-    });
   });
 
   describe('full RPC pipeline simulation', () => {
@@ -310,20 +207,6 @@ describe('Analyzer', () => {
       makeSession({ sessionId: 's4', harness: 'Cursor CLI', workspaceId: 'ws-2', workspaceName: 'beta', creationDate: ts,
         requests: [makeRequest({ timestamp: ts })] }),
     ];
-
-    it('webview harness filter reaches analyzer correctly', () => {
-      const a = new Analyzer(sessions);
-      // Simulates: user selects "Cursor" in the harness filter
-      // webview sends: rpc('getDailyActivity', { harness: 'Cursor' })
-      // panel.ts receives params and calls validateDateFilter
-      const webviewParams = { harness: 'Cursor' } as Record<string, unknown>;
-      const filter = validateDateFilter(webviewParams);
-      expect(filter).toEqual({ harness: 'Cursor' });
-
-      const result = a.getDailyActivity(filter);
-      const total = result.values.reduce((a, b) => a + b, 0);
-      expect(total).toBe(5); // s1(2) + s3(3) = 5 Cursor requests
-    });
 
     it('webview workspace filter via combobox reaches analyzer correctly', () => {
       const a = new Analyzer(sessions);
@@ -358,17 +241,6 @@ describe('Analyzer', () => {
       expect(total).toBe(4); // s3(3) + s4(1) = 4 beta requests
     });
 
-    it('webview combined harness + workspace filter', () => {
-      const a = new Analyzer(sessions);
-      const webviewParams = { workspaceId: 'ws-1', harness: 'Cursor' } as Record<string, unknown>;
-      const filter = validateDateFilter(webviewParams);
-      expect(filter).toEqual({ workspaceId: 'ws-1', harness: 'Cursor' });
-
-      const result = a.getDailyActivity(filter);
-      const total = result.values.reduce((a, b) => a + b, 0);
-      expect(total).toBe(2); // only s1
-    });
-
     it('webview "All" removes filters correctly', () => {
       const a = new Analyzer(sessions);
       // Simulates: user clicks "All", currentFilter.workspaceId = undefined
@@ -382,45 +254,14 @@ describe('Analyzer', () => {
       expect(total).toBe(7); // all requests
     });
 
-    it('harness filter propagates to getCodeProduction', () => {
+    it('workspace filter propagates to getWorkspaceBreakdown', () => {
       const a = new Analyzer(sessions);
-      const filter = validateDateFilter({ harness: 'Cursor CLI' } as Record<string, unknown>);
-      const prod = a.getCodeProduction(filter);
-      // s4 has 1 request with default aiCode [{ language: 'typescript', loc: 10 }]
-      expect(prod.summary.totalAiLoc).toBe(10);
-    });
-
-    it('harness filter propagates to getConsumption', () => {
-      const a = new Analyzer(sessions);
-      // Filter by Cursor — s1 has 2 requests, s3 has 3.
-      const filter = validateDateFilter({ harness: 'Cursor' } as Record<string, unknown>);
-      const cons = a.getConsumption(filter);
-      expect(cons.totalRequests).toBe(5); // s1(2) + s3(3)
-
-      // Filter by Cursor Nightly — only Cursor Nightly sessions are included.
-      const nightlyFilter = validateDateFilter({ harness: 'Cursor Nightly' } as Record<string, unknown>);
-      const nightlyCons = a.getConsumption(nightlyFilter);
-      expect(nightlyCons.totalRequests).toBe(1);
-    });
-
-    it('harness filter propagates to getWorkspaceBreakdown', () => {
-      const a = new Analyzer(sessions);
-      const filter = validateDateFilter({ harness: 'Cursor' } as Record<string, unknown>);
+      const filter = validateDateFilter({ workspaceId: 'ws-2' } as Record<string, unknown>);
       const wb = a.getWorkspaceBreakdown(filter);
-      // Cursor sessions are in alpha(s1) and beta(s3)
-      expect(wb.labels).toContain('alpha');
+      // ws-2 sessions are in beta (s3 + s4)
       expect(wb.labels).toContain('beta');
       const total = wb.values.reduce((a, b) => a + b, 0);
-      expect(total).toBe(5);
-    });
-
-    it('harness filter propagates to getHarnessBreakdown', () => {
-      const a = new Analyzer(sessions);
-      // When filtered to Cursor, harnessBreakdown should only show Cursor
-      const filter = validateDateFilter({ harness: 'Cursor' } as Record<string, unknown>);
-      const hb = a.getHarnessBreakdown(filter);
-      expect(hb.labels).toEqual(['Cursor']);
-      expect(hb.requests[0]).toBe(5);
+      expect(total).toBe(4); // s3(3) + s4(1)
     });
   });
 

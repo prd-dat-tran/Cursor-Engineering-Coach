@@ -91,11 +91,13 @@ matching test will be rejected unless:
   `'Xcode'`, `'GitHub Copilot CLI'`, `'Claude Code'`, `'Codex'`,
   `'OpenCode'`, `'VS Code'`) must **not** appear in tests — they were
   removed from the product. When a test genuinely needs *multiple
-  distinct* harness values (to exercise grouping, sorting, dedup, or the
-  `harness` filter), use additional **real Cursor surfaces**:
-  `'Cursor Nightly'` and `'Cursor CLI'`. Do not invent a competitor name
-  just to get a second value. (`agentName` is a separate field — see
-  above.)
+  distinct* harness values (to exercise grouping, sorting, or dedup in the
+  surfaces that still group by harness internally — token coverage, parser
+  coverage, config-health context provision), use additional **real Cursor
+  surfaces**: `'Cursor Nightly'` and `'Cursor CLI'`. Do not invent a
+  competitor name just to get a second value, and do not add a `harness`
+  field to `DateFilter` — the harness filter was removed. (`agentName` is a
+  separate field — see above.)
 - `~/.cursor-engineering-coach/cache/` exists on the test runner's home
   dir. The `runtime-debug.test.ts` and `cache.test.ts` tests have been
   observed to flake under sandbox restrictions — if you see ENOENT in

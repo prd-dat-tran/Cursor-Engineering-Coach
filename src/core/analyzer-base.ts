@@ -42,7 +42,6 @@ export class AnalyzerBase {
     const reqs: SessionRequest[] = [];
     for (const s of this.sessions) {
       if (!this.matchesWorkspaceFilter(s, f?.workspaceId)) continue;
-      if (f?.harness && s.harness !== f.harness) continue;
       for (const r of s.requests) {
         if (r.timestamp == null || r.timestamp <= 0) continue;
         if (f?.fromDate && toDateStr(r.timestamp) < f.fromDate) continue;
@@ -64,7 +63,6 @@ export class AnalyzerBase {
   protected filteredSessions(f?: DateFilter): Session[] {
     return this.sessions.filter(s => {
       if (!this.matchesWorkspaceFilter(s, f?.workspaceId)) return false;
-      if (f?.harness && s.harness !== f.harness) return false;
       const ts = s.lastMessageDate || s.creationDate;
       if (ts == null || ts <= 0) return false;
       const d = toDateStr(ts);

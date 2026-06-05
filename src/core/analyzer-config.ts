@@ -99,7 +99,6 @@ export class ConfigAnalyzer extends AnalyzerBase {
     if (!rootPath) return f?.workspaceId ? { kind: 'unresolved' } : null;
 
     const harness = activity?.harness || 'Cursor';
-    if (f?.harness && harness !== f.harness) return null;
     return { kind: 'resolved', rootPath, harness };
   }
 

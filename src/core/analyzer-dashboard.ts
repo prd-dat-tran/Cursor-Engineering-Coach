@@ -138,27 +138,6 @@ export class DashboardAnalyzer extends AnalyzerBase {
     return [...recent, ...rest];
   }
 
-  getHarnesses(): string[] {
-    const ides = new Set<string>();
-    for (const s of this.sessions) ides.add(s.harness);
-    return Array.from(ides).sort();
-  }
-
-  getHarnessBreakdown(f?: DateFilter): { labels: string[]; sessions: number[]; requests: number[] } {
-    const sessMap = new Map<string, number>();
-    const reqMap = new Map<string, number>();
-    for (const s of this.filteredSessions(f)) {
-      sessMap.set(s.harness, (sessMap.get(s.harness) || 0) + 1);
-      reqMap.set(s.harness, (reqMap.get(s.harness) || 0) + s.requests.length);
-    }
-    const sorted = Array.from(sessMap.entries()).sort((a, b) => b[1] - a[1]);
-    return {
-      labels: sorted.map(([l]) => l),
-      sessions: sorted.map(([l]) => sessMap.get(l) || 0),
-      requests: sorted.map(([l]) => reqMap.get(l) || 0),
-    };
-  }
-
   getDailyActivity(f?: DateFilter): DailyActivity {
     const reqs = this.filter(f);
     interface DayEntry {

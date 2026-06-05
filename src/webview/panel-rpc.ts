@@ -58,7 +58,6 @@ export function validateDateFilter(p: Record<string, unknown>): DateFilter | und
   if (isString(p.toDate)) f.toDate = p.toDate;
   if (isString(p.workspaceId)) f.workspaceId = p.workspaceId;
   else if (isString(p.workspace)) f.workspaceId = p.workspace;
-  if (isString(p.harness)) f.harness = p.harness;
   return Object.keys(f).length > 0 ? f : undefined;
 }
 
@@ -630,8 +629,6 @@ examples: "{{messageText | truncate:60}}"
 
 const rpcHandlers: TypedRpcHandlers = {
   getWorkspaces: (a) => a.getWorkspaces(),
-  getHarnesses: (a) => a.getHarnesses(),
-  getHarnessBreakdown: (a, _p, params) => a.getHarnessBreakdown(validateDateFilter(params)),
   getDailyActivity: (a, _p, params) => a.getDailyActivity(validateDateFilter(params)),
   getWorkspaceBreakdown: (a, _p, params) => a.getWorkspaceBreakdown(validateDateFilter(params)),
   getHourlyDistribution: (a, _p, params) => a.getHourlyDistribution(validateDateFilter(params)),
@@ -713,7 +710,7 @@ const rpcHandlers: TypedRpcHandlers = {
     const filter = validateDateFilter(params);
     const reqs = a.filterRequests(filter);
     const sessions = a.filterSessions(filter);
-    const skipIde = !!(filter?.harness && filter.harness !== 'Cursor');
+    const skipIde = false;
     const detectorResults = runDetectors(reqs, sessions, skipIde);
     const emissions = runEmitters(reqs, sessions, skipIde);
     const previews = getRulePreviewStats(reqs, sessions, skipIde, detectorResults, emissions);
@@ -786,7 +783,7 @@ const rpcHandlers: TypedRpcHandlers = {
     const filter = validateDateFilter(params);
     const reqs = a.filterRequests(filter);
     const sessions = a.filterSessions(filter);
-    const skipIde = !!(filter?.harness && filter.harness !== 'Cursor');
+    const skipIde = false;
     const detectorResults = runDetectors(reqs, sessions, skipIde);
     const emissions = runEmitters(reqs, sessions, skipIde);
     const previews = getRulePreviewStats(reqs, sessions, skipIde, detectorResults, emissions);
@@ -948,7 +945,7 @@ Explain why this session triggered the rule.`;
       const filter = isRecord(params?.filter) ? validateDateFilter(params.filter) : undefined;
       const reqs = a.filterRequests(filter);
       const sessions = a.filterSessions(filter);
-      const skipIde = !!(filter?.harness && filter.harness !== 'Cursor');
+      const skipIde = false;
 
       // Enrich requests with session info (needed by rules that reference workspaceName/sessionId)
       const sessionMap = new Map<string, { sessionId: string; workspaceName: string }>();

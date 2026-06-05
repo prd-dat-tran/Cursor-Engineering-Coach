@@ -303,22 +303,6 @@ describe('ConfigAnalyzer', () => {
     expect(result.workspaces[0].workspaceId).toBe('ws-2');
   });
 
-  it('filters workspace health and context provision by harness', () => {
-    const result = makeAnalyzer(
-      [
-        makeSession({ workspaceId: 'ws-1', workspaceName: 'Alpha', harness: 'Cursor', requestCount: 60, requests: [makeRequest()] }),
-        makeSession({ workspaceId: 'ws-2', workspaceName: 'Beta', harness: 'Cursor Nightly', requestCount: 60, requests: [makeRequest({ requestId: 'req-2' })] }),
-      ],
-      [
-        makeWorkspace({ id: 'ws-1', name: 'Alpha', path: '/fake/root/ws-1' }),
-        makeWorkspace({ id: 'ws-2', name: 'Beta', path: '/fake/root/ws-2' }),
-      ],
-    ).getConfigHealth({ harness: 'Cursor Nightly' });
-
-    expect(result.workspaces.map(workspace => workspace.workspaceId)).toEqual(['ws-2']);
-    expect(Object.keys(result.contextProvisionByHarness)).toEqual(['Cursor Nightly']);
-  });
-
   it('scores context provision metrics per harness', () => {
     const requests = [
       makeRequest({

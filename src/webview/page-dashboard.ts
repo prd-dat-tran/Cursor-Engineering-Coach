@@ -88,7 +88,6 @@ function renderDashboardMarkup(
   container: HTMLElement,
   stats: { totalWorkspaces: number },
   daily: DailyActivity,
-  harnessBreakdown: { labels: string[]; requests: number[] },
   scores: import('../core/types').GroupScore[],
   langs: { label: string; display: string; loc: number }[],
   totalReqs: number,
@@ -96,7 +95,6 @@ function renderDashboardMarkup(
   totalLoc: number,
   skillCache: ReturnType<typeof getSkillCache>,
 ): void {
-  const harnesses = harnessBreakdown.labels || [];
   const overallScore = scores.length > 0 ? Math.round(scores.reduce((s, g) => s + g.score, 0) / scores.length) : 0;
   const overallColor = scoreColor(overallScore);
   render(html`
@@ -121,19 +119,18 @@ function renderDashboardMarkup(
           <div class="dash-stat"><div class="dash-stat-val">${formatNum(totalLoc)}</div><div class="dash-stat-lbl">AI LoC</div></div>
           <div class="dash-stat"><div class="dash-stat-val">${stats.totalWorkspaces}</div><div class="dash-stat-lbl">Workspaces</div></div>
         </div>
-        ${harnesses.length > 0 && html`<div class="dash-harnesses dash-harnesses-right">${harnesses.map((h, i) => html`<span class="dash-harness-tag" style=${'border-color:' + harnessColor(h, i) + ';color:' + harnessColor(h, i)}>${h}</span>`)}</div>`}
       </div>
     </div>
     ${!FF_TOKEN_REPORTING_ENABLED && html`<div class="dash-info-banner"><span class="dash-info-icon">\u2139</span><div><strong>Token Usage & Burndown temporarily hidden</strong><p>These features are disabled until we can verify that reported numbers align with GitHub's billing data. They will be re-enabled once validated.</p></div></div>`}
     ${scores.length > 0 && html`<section class="dash-section"><div class="dash-section-header"><h3>Anti-Patterns Summary</h3><a href="#" data-page="anti-patterns" style=${'font-size:12px;color:' + COLORS.blue + ';text-decoration:none;'}>View All Anti-Patterns \u2192</a></div><div class="ap-score-grid">${scores.map(g => html`<${PracticeCard} g=${g} />`)}</div></section>`}
     <section class="dash-section"><div class="dash-section-header"><h3>Skill Finder</h3><a href="#" data-page="skills" style=${'font-size:12px;color:' + COLORS.blue + ';text-decoration:none;'}>Open Full View \u2192</a></div><p class="dash-section-desc">Scans your prompt history for repeated patterns that waste time re-explaining the same tasks.</p><div id="dashSkillContent" class="dash-card">${!skillCache && html`<div style="text-align:center;"><p style="color:var(--text-muted);margin:0 0 12px 0;font-size:13px;">Analyze your prompt history to discover skill opportunities.</p><button id="dashScanBtn" class="dash-scan-btn">Scan for Skills</button></div>`}</div></section>
     <section class="dash-section"><div style="display:flex;align-items:baseline;gap:16px;margin-bottom:8px;flex-wrap:wrap;"><h3 style="margin:0;">Daily Activity</h3><div id="activityTabs" class="dash-tabs"><button class=${'dash-tab' + (activeMetric === 'requests' ? ' dash-tab-active' : '')} data-metric="requests">Requests <strong>${formatNum(totalReqs)}</strong></button><button class=${'dash-tab' + (activeMetric === 'sessions' ? ' dash-tab-active' : '')} data-metric="sessions">Sessions <strong>${formatNum(totalSessions)}</strong></button><button class=${'dash-tab' + (activeMetric === 'loc' ? ' dash-tab-active' : '')} data-metric="loc">LoC <strong>${formatNum(totalLoc)}</strong></button><button class=${'dash-tab' + (activeMetric === 'workspaces' ? ' dash-tab-active' : '')} data-metric="workspaces">Workspaces <strong>${formatNum(stats.totalWorkspaces)}</strong></button></div></div><${CanvasEl} id="dailyChart" height=${160} /></section>
-    <div class="two-col" style="margin-bottom:16px;"><${CanvasEl} id="wsChart" height=${140} title="Top Workspaces by Requests" /><${CanvasEl} id="harnessChart" height=${140} title="Requests by Harness" /></div>
+    <div style="margin-bottom:16px;"><${CanvasEl} id="wsChart" height=${140} title="Top Workspaces by Requests" /></div>
     <div class="chart-modal-overlay" id="wsChartModal"><div class="chart-modal"><div class="chart-modal-header"><span class="chart-title" style="margin:0;">Top Workspaces by Requests</span><button class="chart-modal-close" id="wsChartModalClose" title="Close">\u00d7</button></div><div class="chart-modal-body"><div style="position:relative;height:360px;"><canvas id="wsChartFull"></canvas></div></div></div></div>
   `, container);
 }
 
-function renderWorkspaceCharts(wsBreakdown: { labels: string[]; values: number[] }, harnessBreakdown: { labels: string[]; requests: number[] }): void {
+function renderWorkspaceCharts(wsBreakdown: { labels: string[]; values: number[] }): void {
   const wsColors = wsBreakdown.labels.map((_: string, i: number) => PALETTE[i % PALETTE.length]);
   createChart('wsChart', 'doughnut', {
     labels: wsBreakdown.labels,
@@ -163,14 +160,6 @@ function renderWorkspaceCharts(wsBreakdown: { labels: string[]; values: number[]
       }
     });
   }
-
-  createChart('harnessChart', 'doughnut', {
-    labels: harnessBreakdown.labels,
-    datasets: [{
-      data: harnessBreakdown.requests,
-      backgroundColor: harnessBreakdown.labels.map((l: string, i: number) => harnessColor(l, i)),
-    }],
-  }, { plugins: { legend: { position: 'right' } } });
 }
 
 function renderDashboardSkillFinder(skillCache: ReturnType<typeof getSkillCache>, currentFilter: DateFilter): void {
@@ -185,19 +174,17 @@ function renderDashboardSkillFinder(skillCache: ReturnType<typeof getSkillCache>
 
 export async function renderDashboard(container: HTMLElement, currentFilter: DateFilter): Promise<void> {
   const emptyDaily: DailyActivity = { labels: [], values: [], sessions: [], loc: [], workspaces: [], byHarness: [] };
-  const emptyCodeProd: CodeProductionData = { summary: { totalAiLoc: 0, totalUserLoc: 0, totalLoc: 0, aiBlocks: 0, userBlocks: 0, aiRatio: 0, locCost2010: 0, costPerLoc: 0 }, byLanguage: { labels: [], aiLoc: [], userLoc: [] }, dailyTimeline: { labels: [], aiLoc: [], userLoc: [] }, byWorkspace: { labels: [], aiLoc: [], userLoc: [] }, dailyByWorkspace: {}, dailyByModel: {}, dailyByHarness: {} };
-  const [stats, daily, wsBreakdown, harnessBreakdown, antiPatterns, codeProd] = await rpcAllSettled([
+  const emptyCodeProd: CodeProductionData = { summary: { totalAiLoc: 0, totalUserLoc: 0, totalLoc: 0, aiBlocks: 0, userBlocks: 0, aiRatio: 0, locCost2010: 0, costPerLoc: 0 }, byLanguage: { labels: [], aiLoc: [], userLoc: [] }, dailyTimeline: { labels: [], aiLoc: [], userLoc: [] }, byWorkspace: { labels: [], aiLoc: [], userLoc: [] }, dailyByWorkspace: {}, dailyByModel: {} };
+  const [stats, daily, wsBreakdown, antiPatterns, codeProd] = await rpcAllSettled([
     rpc<{ totalSessions: number; totalWorkspaces: number; totalRequests: number }>('getStats', currentFilter as Record<string, unknown>),
     rpc<DailyActivity>('getDailyActivity', currentFilter as Record<string, unknown>),
     rpc<{ labels: string[]; values: number[] }>('getWorkspaceBreakdown', currentFilter as Record<string, unknown>),
-    rpc<{ labels: string[]; requests: number[] }>('getHarnessBreakdown', currentFilter as Record<string, unknown>),
     rpc<AntiPatternData>('getAntiPatterns', currentFilter as Record<string, unknown>),
     rpc<CodeProductionData>('getCodeProduction', currentFilter as Record<string, unknown>),
   ] as const, [
     { totalSessions: 0, totalWorkspaces: 0, totalRequests: 0 },
     emptyDaily,
     { labels: [], values: [] },
-    { labels: [], requests: [] },
     { patterns: [], totalOccurrences: 0, groupScores: [], weeklyScores: { labels: [], series: [] } } as unknown as AntiPatternData,
     emptyCodeProd,
   ] as const);
@@ -228,7 +215,6 @@ export async function renderDashboard(container: HTMLElement, currentFilter: Dat
     container,
     stats,
     daily,
-    harnessBreakdown,
     scores,
     langs,
     totalReqs,
@@ -305,7 +291,7 @@ export async function renderDashboard(container: HTMLElement, currentFilter: Dat
     renderActivityChart();
   });
 
-  renderWorkspaceCharts(wsBreakdown, harnessBreakdown);
+  renderWorkspaceCharts(wsBreakdown);
   renderDashboardSkillFinder(skillCache, currentFilter);
 }
 

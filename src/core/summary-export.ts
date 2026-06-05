@@ -99,7 +99,6 @@ function formatPercent(value: number): string {
 function summarizeFilter(filter: DateFilter): string {
   const parts: string[] = [];
   if (filter.workspaceId) parts.push(`workspace=${filter.workspaceId}`);
-  if (filter.harness) parts.push(`harness=${filter.harness}`);
   if (filter.fromDate) parts.push(`from=${filter.fromDate}`);
   if (filter.toDate) parts.push(`to=${filter.toDate}`);
   return parts.length > 0 ? parts.join(', ') : 'All data';

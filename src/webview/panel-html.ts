@@ -52,10 +52,6 @@ export function getDashboardHtml(webview: vscode.Webview, extensionUri: vscode.U
           <input type="hidden" id="ws-filter" />
         </div>
       </div>
-      <div class="sidebar-filter">
-        <label for="harness-filter">Harness</label>
-        <select id="harness-filter"><option value="">All Harnesses</option></select>
-      </div>
     </div>
   </nav>
   <main id="content"></main>

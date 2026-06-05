@@ -2885,22 +2885,6 @@ h2 {
   font-weight: 600;
   letter-spacing: 0.3px;
 }
-.dash-harnesses {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.dash-harnesses-right {
-  justify-content: flex-end;
-  max-width: 420px;
-}
-.dash-harness-tag {
-  font-size: 10px;
-  padding: 1px 8px;
-  border-radius: 10px;
-  border: 1px solid;
-  font-weight: 500;
-}
 .dash-hero-stats {
   display: flex;
   gap: 16px;
@@ -3673,10 +3657,6 @@ h2 {
   justify-content: space-between;
   padding: 20px 24px;
   border-radius: 12px;
-  .dash-harnesses-right {
-    justify-content: flex-start;
-    max-width: none;
-  }
   background: linear-gradient(135deg, rgba(88, 166, 255, 0.08), rgba(188, 140, 255, 0.06));
   border: 1px solid var(--border);
   margin-bottom: 16px;

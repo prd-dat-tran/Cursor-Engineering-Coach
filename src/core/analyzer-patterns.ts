@@ -259,7 +259,7 @@ export class PatternsAnalyzer extends AnalyzerBase {
       return enriched;
     });
 
-    const skipIdeDetectors = !!(f?.harness && f.harness !== 'Cursor');
+    const skipIdeDetectors = false;
     const patterns = runDetectors(enrichedReqs, sessions, skipIdeDetectors);
     return this.buildAntiPatternResult(patterns, reqs, skipIdeDetectors);
   }

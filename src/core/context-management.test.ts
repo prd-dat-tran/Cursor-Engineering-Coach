@@ -321,17 +321,6 @@ describe('mixed harness end-to-end', () => {
     expect(data.workspaces.find(w => w.workspaceName === 'codex-project')).toBeUndefined();
   });
 
-  it('filters by harness correctly', () => {
-    const sessions = [
-      sess({ sessionId: 's1', harness: 'Cursor', workspaceId: 'ws-1', requests: flatTokenRequests(6, 80_000) }),
-      sess({ sessionId: 's2', harness: 'Cursor Nightly', workspaceId: 'ws-2', requests: flatTokenRequests(6, 10_000) }),
-    ];
-    const data = getCtxMgmt(sessions, { harness: 'Cursor Nightly' });
-    expect(data.workspaces).toHaveLength(1);
-    expect(data.workspaces[0].harness).toBe('Cursor Nightly');
-    expect(data.totalSessions).toBe(1);
-  });
-
   it('filters by workspace correctly', () => {
     const sessions = [
       sess({ sessionId: 's1', workspaceName: 'alpha', workspaceId: 'ws-a', requests: flatTokenRequests(6, 50_000) }),
@@ -1204,25 +1193,10 @@ describe('getContextRangeAvailability', () => {
       sess({ harness: 'Cursor', requests: [req({ promptTokens: 1000, timestamp: NOW - 5 * DAY })] }),
     ];
     const a = new Analyzer(sessions);
-    // No filter: both surfaces considered. Cursor has tokens, Cursor Nightly doesn't.
+    // Both surfaces considered. Cursor has tokens, Cursor Nightly doesn't.
     const all = a.getContextRangeAvailability();
     expect(all.matchingSessions).toBe(2);
     expect(all.sessionsWithRequestTokens).toBe(1);
     expect(all.harnessesWithoutRequestTokens).toEqual(['Cursor Nightly']);
-    // Filter to Cursor Nightly: empty ranges + diagnostic explains the gap.
-    const cli = a.getContextRangeAvailability({ harness: 'Cursor Nightly' });
-    expect(cli.rangesWithTokens).toEqual([]);
-    expect(cli.matchingSessions).toBe(1);
-    expect(cli.sessionsWithRequestTokens).toBe(0);
-    expect(cli.harnessesWithoutRequestTokens).toEqual(['Cursor Nightly']);
-  });
-
-  it('reports zero matching sessions when filter excludes everything', () => {
-    const sessions = [sess({ harness: 'Cursor', requests: [req({ promptTokens: 1000 })] })];
-    const a = new Analyzer(sessions);
-    const out = a.getContextRangeAvailability({ harness: 'Cursor Nightly' });
-    expect(out.matchingSessions).toBe(0);
-    expect(out.sessionsWithRequestTokens).toBe(0);
-    expect(out.harnessesWithoutRequestTokens).toEqual([]);
   });
 });

@@ -5,7 +5,7 @@
 
 /* Context Health page renderer */
 
-import { DateFilter, ConfigHealthData, WorkspaceConfigHealth, ConfigFileInfo, ContextProvisionScore, HookCoverageInfo, AgenticReadinessScore, ContextReviewResult, ContextReviewFinding } from '../core/types';
+import { DateFilter, ConfigHealthData, WorkspaceConfigHealth, ConfigFileInfo, HookCoverageInfo, AgenticReadinessScore, ContextReviewResult, ContextReviewFinding } from '../core/types';
 import { TOKEN_DATA_AVAILABLE_FROM } from '../core/constants';
 import { rpc, COLORS, Chart, trackChart, destroyCharts } from './shared';
 import { html, render, StatCard, ComponentChildren } from './render';
@@ -17,16 +17,6 @@ function hc(h: string): string { return HC[h] || COLORS.muted; }
 
 /** Active treemap chart reference + workspace data for review highlighting */
 let activeTreemapChart: Chart | null = null;
-
-interface ContextProvisionDetailRow {
-  entry: ContextProvisionScore;
-  fp: number;
-  ip: number;
-  sp: number;
-  tp: number;
-}
-
-let currentProvisionRows: ContextProvisionDetailRow[] = [];
 
 /** Track the active sub-tab so we can restore it on re-render */
 let activeSubTab: 'config-quality' | 'context-mgmt' = 'config-quality';
@@ -109,9 +99,7 @@ export async function renderConfigHealth(container: HTMLElement, currentFilter: 
       // Build a contextual empty-state message when no ranges have data.
       if (visibleRanges.length === 0) {
         if (avail.matchingSessions === 0) {
-          emptyRangeMessage = currentFilter.harness
-            ? `No sessions found for ${currentFilter.harness}.`
-            : 'No sessions match the current filter.';
+          emptyRangeMessage = 'No sessions match the current filter.';
         } else if (avail.sessionsWithRequestTokens === 0 && avail.harnessesWithoutRequestTokens.length > 0) {
           // Sessions exist, but none have per-request token data.
           const harnesses = avail.harnessesWithoutRequestTokens.join(', ');
@@ -216,16 +204,11 @@ async function renderConfigQuality(container: HTMLElement, currentFilter: DateFi
   const arColor = ar.score >= 45 ? COLORS.green : ar.score >= 25 ? COLORS.yellow : COLORS.red;
   const wsCount = data.workspaces.length;
   const withInstructions = data.workspaces.filter(w => w.hasInstructions).length;
-  const harnesses = [...new Set(data.workspaces.flatMap(w => w.harness.split(', ')))].sort();
 
   render(html`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
       <h2 style="margin:0;">Context Health</h2>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <select id="ctxHarnessFilter" style="padding:4px 8px;border-radius:6px;background:var(--card-bg, #161b22);border:1px solid var(--border-color, #30363d);color:var(--text-primary, #c9d1d9);font-size:12px;">
-          <option value="">All Harnesses</option>
-          ${harnesses.map(h => html`<option value=${h} selected=${currentFilter.harness === h || undefined}>${h}</option>`)}
-        </select>
         <button id="ctxReviewBtn" style="padding:5px 14px;border-radius:6px;background:var(--accent-blue);color:#fff;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:opacity 0.15s;" title="AI reviews your context files and scores them">Review Context Files</button>
         <select id="ctxReviewCount" style="padding:4px 6px;border-radius:6px;background:var(--card-bg, #161b22);border:1px solid var(--border-color, #30363d);color:var(--text-primary, #c9d1d9);font-size:12px;" title="Number of workspaces to review">
           <option value="3">Top 3</option>
@@ -242,7 +225,6 @@ async function renderConfigQuality(container: HTMLElement, currentFilter: DateFi
       <${StatCard} label="With Context Files" value=${`${withInstructions}/${wsCount}`} accent=${withInstructions === wsCount && wsCount > 0 ? COLORS.green : COLORS.yellow} />
     </div>
     ${renderAgenticReadiness(ar)}
-    ${renderContextProvision(data.contextProvisionByHarness)}
     <div id="ctxReviewResults"></div>
     <h3 style="margin-top:24px;">Workspace Context Map</h3>
     <p style="color:var(--text-muted);font-size:12px;margin:4px 0 12px;">Size = request volume. Color = instruction quality score. <b>Click a tile</b> for details & suggestions.</p>
@@ -252,38 +234,6 @@ async function renderConfigQuality(container: HTMLElement, currentFilter: DateFi
 
   if (data.workspaces.length > 0) renderTreemap(data.workspaces, container);
 
-  // Harness filter change
-  document.getElementById('ctxHarnessFilter')?.addEventListener('change', (e) => {
-    void renderConfigQuality(container, { ...currentFilter, harness: (e.target as HTMLSelectElement).value || undefined });
-  });
-
-  // Context provision row click
-  for (const el of container.querySelectorAll<HTMLElement>('.ctx-provision-row')) {
-    el.addEventListener('click', () => {
-      const rowEl = el;
-      const idx = Number.parseInt(rowEl.dataset.provisionIdx || '-1', 10);
-      const detail = currentProvisionRows[idx];
-      const panel = container.querySelector<HTMLElement>('#ctxProvisionDetailPanel');
-      if (!detail || !panel) return;
-
-      const isActive = rowEl.dataset.active === 'true';
-      for (const otherEl of container.querySelectorAll<HTMLElement>('.ctx-provision-row')) {
-        otherEl.dataset.active = 'false';
-        otherEl.style.background = 'transparent';
-      }
-
-      if (isActive) {
-        panel.style.display = 'none';
-        render(null, panel);
-        return;
-      }
-
-      rowEl.dataset.active = 'true';
-      rowEl.style.background = 'rgba(88,166,255,0.06)';
-      panel.style.display = 'block';
-      render(renderProvisionDetailPanel(detail), panel);
-    });
-  }
   // Review button
   document.getElementById('ctxReviewBtn')?.addEventListener('click', () => {
     void runContextReview(data.workspaces);
@@ -648,122 +598,6 @@ function showTileDetail(ws: WorkspaceConfigHealth, container: HTMLElement): void
     detailEl.style.display = 'none';
   });
   detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-/* ── Context Provision by Harness ─────────────────────────────────── */
-
-function renderContextProvision(byHarness: Record<string, ContextProvisionScore>): ComponentChildren {
-  const entries = Object.values(byHarness);
-  if (entries.length === 0) return null;
-  currentProvisionRows = entries.map(e => ({
-    entry: e,
-    fp: e.totalRequests > 0 ? Math.round(e.withFileRefs / e.totalRequests * 100) : 0,
-    ip: e.totalRequests > 0 ? Math.round(e.withCustomInstructions / e.totalRequests * 100) : 0,
-    sp: e.totalRequests > 0 ? Math.round(e.withSkills / e.totalRequests * 100) : 0,
-    tp: e.totalRequests > 0 ? Math.round(e.withTools / e.totalRequests * 100) : 0,
-  }));
-
-  return html`
-    <h3 style="margin-top:24px;">Context Provision by Harness</h3>
-    <p style="color:var(--text-muted);font-size:12px;margin:4px 0 8px;">Click a row to show the detailed breakdown below.</p>
-    <div style="overflow-x:auto;margin:12px 0;">
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead><tr style="text-align:left;border-bottom:1px solid var(--border-color, #30363d);">
-          <th style="padding:8px;">Harness</th><th style="padding:8px;">Requests</th>
-          <th style="padding:8px;">File Refs</th><th style="padding:8px;">Instructions</th>
-          <th style="padding:8px;">Skills</th><th style="padding:8px;">Tools</th>
-          <th style="padding:8px;">Avg Context</th><th style="padding:8px;">Score</th>
-        </tr></thead>
-        <tbody>${currentProvisionRows.map((row, idx) => {
-          const e = row.entry;
-          const sc = e.score >= 45 ? COLORS.green : e.score >= 25 ? COLORS.yellow : COLORS.red;
-          const pFmt = (n: number) => e.totalRequests > 0 ? `${n} (${Math.round(n / e.totalRequests * 100)}%)` : '0';
-          return html`
-            <tr class="ctx-provision-row" data-provision-idx=${String(idx)} data-active="false" style="border-bottom:1px solid var(--border-color, #30363d);cursor:pointer;transition:background 0.15s;" title="Click for breakdown">
-              <td style="padding:8px;font-weight:500;color:${hc(e.harness)};">${e.harness}</td>
-              <td style="padding:8px;">${e.totalRequests.toLocaleString()}</td>
-              <td style="padding:8px;">${pFmt(e.withFileRefs)}</td>
-              <td style="padding:8px;">${pFmt(e.withCustomInstructions)}</td>
-              <td style="padding:8px;">${pFmt(e.withSkills)}</td>
-              <td style="padding:8px;">${pFmt(e.withTools)}</td>
-              <td style="padding:8px;">${e.avgContextItems.toFixed(1)}</td>
-              <td style="padding:8px;font-weight:600;color:${sc};">${Math.round(e.score)}/100</td>
-            </tr>`;
-        })}</tbody>
-      </table>
-    </div>
-    <div id="ctxProvisionDetailPanel" style="display:none;margin-top:12px;"></div>`;
-}
-
-function renderProvisionDetailPanel(row: ContextProvisionDetailRow): ComponentChildren {
-  return html`<div style="border:1px solid var(--border-color, #30363d);border-radius:10px;overflow:hidden;background:var(--card-bg, #161b22);">
-    ${renderProvisionDetail(row.entry, row.fp, row.ip, row.sp, row.tp)}
-  </div>`;
-}
-
-function renderProvisionDetail(e: ContextProvisionScore, fp: number, ip: number, sp: number, tp: number): ComponentChildren {
-  const sc = e.score >= 45 ? COLORS.green : e.score >= 25 ? COLORS.yellow : COLORS.red;
-  const cancelColor = e.cancelRate > 30 ? COLORS.red : e.cancelRate > 15 ? COLORS.yellow : COLORS.green;
-  const promptQuality = e.avgPromptLength >= 200 ? 'Detailed' : e.avgPromptLength >= 80 ? 'Moderate' : 'Brief';
-  const promptColor = e.avgPromptLength >= 200 ? COLORS.green : e.avgPromptLength >= 80 ? COLORS.yellow : COLORS.red;
-
-  return html`
-    <div style="padding:16px 20px;background:var(--bg-secondary, #0d1117);">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-        <span style="font-size:20px;font-weight:700;color:${sc};">${Math.round(e.score)}</span>
-        <span style="font-size:12px;color:var(--text-muted);">/100</span>
-        <span style="font-weight:600;font-size:14px;color:${hc(e.harness)};">${e.harness}</span>
-        <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">${e.totalSessions.toLocaleString()} sessions \u00B7 ${e.totalRequests.toLocaleString()} requests</span>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:18px;">
-        ${sBar('File References (30%)', fp)}${sBar('Custom Instructions (30%)', ip)}
-        ${sBar('Skills Used (20%)', sp)}${sBar('Tool Usage (20%)', tp)}
-      </div>
-
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;">
-        ${metricCard('Avg Reqs / Session', String(e.avgRequestsPerSession), 'var(--text-primary, #c9d1d9)')}
-        ${metricCard('Avg Prompt Length', `${e.avgPromptLength.toLocaleString()} chars`, promptColor, promptQuality)}
-        ${metricCard('Avg Response Length', `${e.avgResponseLength.toLocaleString()} chars`, 'var(--text-primary, #c9d1d9)')}
-        ${metricCard('Cancel Rate', `${e.cancelRate}%`, cancelColor)}
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;">
-        ${rankList('Mode Distribution', e.modeDistribution.map(m => ({ label: m.mode, count: m.count })), e.totalRequests)}
-        ${rankList('Top Models', e.topModels.map(m => ({ label: m.model, count: m.count })), e.totalRequests)}
-        ${rankList('Top Tools', e.topTools.map(t => ({ label: t.tool, count: t.count })), e.totalRequests)}
-        ${rankList('Top Referenced Files', e.topReferencedFiles.map(f => ({ label: f.file, count: f.count })), e.withFileRefs || 1)}
-      </div>
-    </div>`;
-}
-
-function metricCard(label: string, value: string, color: string, subtitle?: string): ComponentChildren {
-  return html`<div style="padding:8px 10px;border-radius:6px;background:var(--bg-tertiary, #161b22);">
-    <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;">${label}</div>
-    <div style="font-size:15px;font-weight:600;color:${color};">${value}</div>
-    ${subtitle ? html`<div style="font-size:10px;color:var(--text-muted);margin-top:1px;">${subtitle}</div>` : null}
-  </div>`;
-}
-
-function rankList(title: string, items: { label: string; count: number }[], total: number): ComponentChildren {
-  if (items.length === 0) return html`<div style="padding:8px 10px;border-radius:6px;background:var(--bg-tertiary, #161b22);"><div style="font-size:11px;font-weight:500;color:var(--text-muted);margin-bottom:6px;">${title}</div><div style="font-size:11px;color:var(--text-muted);font-style:italic;">No data</div></div>`;
-  return html`<div style="padding:8px 10px;border-radius:6px;background:var(--bg-tertiary, #161b22);">
-    <div style="font-size:11px;font-weight:500;color:var(--text-muted);margin-bottom:6px;">${title}</div>
-    ${items.map(it => {
-      const pct = total > 0 ? Math.round(it.count / total * 100) : 0;
-      return html`<div class="tip-left" style="display:flex;align-items:center;gap:6px;margin-bottom:4px;" data-tip=${it.label} tabindex=${0} aria-label=${it.label}>
-        <div style="flex:1;min-width:0;">
-          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:1px;min-width:0;">
-            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;">${it.label}</span>
-            <span style="color:var(--text-muted);flex-shrink:0;margin-left:4px;">${it.count} (${pct}%)</span>
-          </div>
-          <div style="height:3px;border-radius:2px;background:var(--bg-secondary, #0d1117);overflow:hidden;">
-            <div style="width:${pct}%;height:100%;background:${COLORS.blue};border-radius:2px;"></div>
-          </div>
-        </div>
-      </div>`;
-    })}
-  </div>`;
 }
 
 function sBar(label: string, pct: number, tooltip?: string): ComponentChildren {

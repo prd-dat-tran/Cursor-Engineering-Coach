@@ -71,7 +71,6 @@ export interface CodeProductionData {
   };
   dailyByWorkspace: Record<string, number[]>;
   dailyByModel: Record<string, number[]>;
-  dailyByHarness: Record<string, number[]>;
 }
 
 export interface ConsumptionData {
@@ -235,9 +234,6 @@ export interface AiCreditData {
   /** Daily total-token (input + output) consumption broken down by workspace.
    *  `labels` matches `daily.labels`; each workspace key maps to an aligned array of token totals. */
   dailyTokensByWorkspace: { labels: string[]; byWorkspace: Record<string, number[]> };
-  /** Daily total-token (input + output) consumption broken down by harness.
-   *  `labels` matches `daily.labels`; each harness key maps to an aligned array of token totals. */
-  dailyTokensByHarness: { labels: string[]; byHarness: Record<string, number[]> };
   topRequests: Array<{
     timestamp: number;
     model: string;
