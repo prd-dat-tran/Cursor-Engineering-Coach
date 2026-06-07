@@ -11,6 +11,7 @@ import { html, render, unmount, ComponentChildren } from './render';
 import { renderDashboard } from './page-dashboard';
 import { renderUsage } from './page-usage';
 import { renderModels } from './page-models';
+import { renderChangelog } from './page-changelog';
 import { renderPatterns } from './page-patterns';
 import { renderOutput } from './page-output';
 import { renderBurndown } from './page-burndown';
@@ -612,6 +613,7 @@ function renderPage(page: string): void {
     case 'dashboard': withErrorBoundary('Dashboard', content, () => renderDashboard(content, currentFilter)); break;
     case 'usage': withErrorBoundary('Usage', content, () => renderUsage(content, currentFilter)); break;
     case 'models': withErrorBoundary('Models', content, () => renderModels(content, currentFilter)); break;
+    case 'changelog': withErrorBoundary('Changelog', content, () => renderChangelog(content, currentFilter)); break;
     case 'patterns': withErrorBoundary('Patterns', content, () => renderPatterns(content, currentFilter)); break;
     case 'output': withErrorBoundary('Output', content, () => renderOutput(content, currentFilter)); break;
     case 'burndown':

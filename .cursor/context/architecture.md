@@ -66,7 +66,8 @@ analytics, no writes outside the extension's own cache directory at
                 │   ├─ page-experiments.ts                     │
                 │   ├─ page-data-explorer.ts                   │
                 │   ├─ page-rule-playground.ts                 │
-                │   └─ page-models.ts                          │
+                │   ├─ page-models.ts                          │
+                │   └─ page-changelog.ts                       │
                 │                                              │
                 │ render.ts  →  Preact + htm                   │
                 │ shared.ts  →  rpc(), createChart(), helpers  │
@@ -254,7 +255,31 @@ cycle resets*. Three surfaces address it, all built on Tier 3 live usage:
   request→session map) plus the existing `getLiveUsage` RPC for the hero.
 - **Deep-link.** `DashboardPanel.revealPage(page)` posts `{type:'navigate',page}`
   (queued until `dataReady`); `app.ts` listens and routes. Used by the status bar
-  click and the `cursorEngineeringCoach.openUsage` command.
+  click and the `cursorEngineeringCoach.openUsage`/`.openChangelog` commands.
+
+### Changelog & facts (maintainer-only sync)
+
+The coach's volatile facts (model multipliers, token rates, plan credits, catalog)
+live in one bundled manifest, `src/core/data/cursor-facts.json`, loaded through the
+dependency-free `src/core/facts.ts`. **Fact sync is deliberately manual** — the
+running extension only ever reads the bundled manifest (no runtime auto-refresh).
+A maintainer regenerates it on demand via `npm run facts:refresh`
+(`scripts/refresh-cursor-facts.ts`) or the manually-triggered
+`.github/workflows/refresh-cursor-facts.yml`; `validateFacts` + `cursor-facts.test.ts`
+gate the committed JSON.
+
+The Changelog surfaces *when* a sync is due:
+- **Parser (pure).** `src/core/changelog.ts` parses Cursor's public RSS feed
+  (`https://cursor.com/changelog/rss.xml`) into `{ id, title, link, date, summary,
+  highlights }`; `unseenEntries()` diffs against the last-seen id. No `vscode`.
+- **Service (host).** `src/changelog-service.ts` fetches + caches the feed
+  (globalStorage), serves the `getChangelog` RPC (network handler in
+  `panel-request-service.ts`), and runs a throttled background check that fires a
+  notification on new entries. Gated by `changelog.notifications` (default on); the
+  only call is an unauthenticated GET of the public feed.
+- **Page.** `src/webview/page-changelog.ts` (nav: Observe → Changelog) renders the
+  summarized releases (new ones badged), plus a maintainer note pointing to the
+  facts re-sync. Opening it marks entries seen. Deep-linked by `openChangelog`.
 
 ## Rules pipeline
 

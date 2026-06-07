@@ -53,6 +53,7 @@ import type { ConfigHealthData } from './config-types';
 import type { InsightsData } from './insights-types';
 import type { ContextManagementData, FlowStateData, WorkspaceContextSessionsData } from './context-types';
 import type { BillingProfile, LiveUsage } from '../billing';
+import type { ChangelogData } from '../changelog';
 
 /* RPC method map: method name -> { params, result } */
 export interface RpcMethodMap {
@@ -137,6 +138,7 @@ export interface ExtensionMethodMap extends RpcMethodMap {
   loadModelBudgets: { params: Record<string, unknown> | undefined; result: Record<string, number> };
   getLiveUsage: { params: undefined; result: { enabled: boolean; usage: LiveUsage | null } };
   enableUsageTracking: { params: undefined; result: { ok: boolean } };
+  getChangelog: { params: { force?: boolean } | undefined; result: ChangelogData };
 }
 
 export type ExtensionMethodName = keyof ExtensionMethodMap;

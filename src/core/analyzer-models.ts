@@ -11,6 +11,7 @@ import {
   DateFilter, ModelClass, ModelInsightsData, ModelStat, ModelVerdict, ModelCatalogItem, ModelRecRow,
 } from './types';
 import { normalizeModel, modelMultiplier } from './helpers';
+import { getCatalog, getFactsMeta, isKnownModel } from './facts';
 import { BillingProfile, DEFAULT_BILLING_PROFILE, isRequestBased } from './billing';
 
 /* ── Classification helpers ──────────────────────────────────────── */
@@ -48,26 +49,6 @@ export function modelLabel(norm: string): string {
     })
     .join(' ');
 }
-
-/* ── Curated reference catalog (notable models available in Cursor) ── */
-/* Multipliers are looked up from the live rate table so this list never
- * drifts from constants.ts — only the id + "best for" copy lives here. */
-
-const CATALOG: { id: string; bestFor: string }[] = [
-  { id: 'claude-opus-4.8', bestFor: 'Hardest reasoning — large multi-file refactors, deep debugging, architecture.' },
-  { id: 'claude-opus-4.7', bestFor: 'Heavy agentic coding and complex multi-step features.' },
-  { id: 'claude-sonnet-4.6', bestFor: 'Fast, dependable everyday agentic coding.' },
-  { id: 'gpt-5.5', bestFor: 'Top-tier reasoning and persistence on long-running tasks.' },
-  { id: 'gpt-5.4', bestFor: 'Strong general-purpose coding with solid reasoning.' },
-  { id: 'composer-2.5', bestFor: "Cursor's own fast agentic model — cost-efficient everyday coding from the cheaper pool." },
-  { id: 'gemini-3.1-pro', bestFor: 'Large-context reads and multi-file understanding.' },
-  { id: 'claude-haiku-4.5', bestFor: 'Quick edits and cheap, low-stakes changes.' },
-  { id: 'gpt-5.4-mini', bestFor: 'Routine tasks at a fraction of the cost.' },
-  { id: 'gemini-3-flash', bestFor: 'Fast, cheap responses for simple work.' },
-  { id: 'grok-4.3', bestFor: 'Snappy responses for low-stakes edits.' },
-  { id: 'gpt-5-mini', bestFor: 'Included lightweight model for lookups and boilerplate.' },
-  { id: 'auto', bestFor: 'Cursor routes per task from the cheaper pool — a great default.' },
-];
 
 /* ── Analyzer ────────────────────────────────────────────────────── */
 
@@ -112,6 +93,7 @@ function buildStats(
       avgAiLoc: Math.round(avgAiLoc),
       cancelRate,
       agenticShare,
+      known: isKnownModel(norm),
       verdict: verdictFor(klass, billingModel, { avgAiLoc, cancelRate, agenticShare, requests: acc.requests }),
     });
   }
@@ -161,7 +143,7 @@ export class ModelAnalyzer extends AnalyzerBase {
     const cancelledShare = totalRequests > 0 ? cancelledAll / totalRequests : 0;
 
     const usedSet = new Set(models.map(m => m.model));
-    const catalog: ModelCatalogItem[] = CATALOG.map(c => {
+    const catalog: ModelCatalogItem[] = getCatalog().map(c => {
       const norm = normalizeModel(c.id);
       const mult = modelMultiplier(norm);
       return {
@@ -188,6 +170,7 @@ export class ModelAnalyzer extends AnalyzerBase {
       models,
       recommendations: RECS[billingModel],
       catalog,
+      factsMeta: getFactsMeta(),
     };
   }
 }

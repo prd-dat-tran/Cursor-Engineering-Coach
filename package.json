@@ -36,6 +36,7 @@
     "onCommand:cursorEngineeringCoach.openUsage",
     "onCommand:cursorEngineeringCoach.enableUsageTracking",
     "onCommand:cursorEngineeringCoach.refreshUsage",
+    "onCommand:cursorEngineeringCoach.openChangelog",
     "onStartupFinished",
     "onView:cursorEngineeringCoach.welcome"
   ],
@@ -76,6 +77,11 @@
         "command": "cursorEngineeringCoach.refreshUsage",
         "title": "Cursor Engineering Coach: Refresh Request Usage",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "cursorEngineeringCoach.openChangelog",
+        "title": "Cursor Engineering Coach: Open Cursor Changelog",
+        "icon": "$(megaphone)"
       }
     ],
     "viewsContainers": {
@@ -333,6 +339,11 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Show a one-time notification each billing cycle when you cross 90% of your request quota or are on pace to run out early. Only active when the request-usage status bar is enabled."
+        },
+        "cursorEngineeringCoach.changelog.notifications": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Notify me in the IDE when Cursor publishes new changelog entries, and surface them on the **Changelog** page. To check for new entries the extension makes an unauthenticated `GET` of Cursor's public changelog feed (`https://cursor.com/changelog/rss.xml`) — no token, no usage data, nothing about you is sent. Turn this off to stop the background check and the notification (you can still open the Changelog page on demand)."
         }
       }
     }
@@ -351,6 +362,7 @@
     "analyze:context-composition": "npx tsx scripts/explore-context-composition.ts",
     "analyze:e2e-real-data": "npx tsx scripts/e2e-real-data.ts",
     "analyze:catalog-fetch": "node scripts/test-catalog-fetch.mjs",
+    "facts:refresh": "npx tsx scripts/refresh-cursor-facts.ts",
     "smoke-test": "node scripts/smoke-test.mjs",
     "package": "node scripts/package-readme-swap.mjs",
     "deploy": "bash scripts/install-cursor.sh install",

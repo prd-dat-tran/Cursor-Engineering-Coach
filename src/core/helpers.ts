@@ -6,7 +6,7 @@
 /* Shared date and model helpers used across analyzer modules */
 
 import { WorkType } from './types';
-import { MODEL_MULTIPLIERS, MODEL_TOKEN_RATES } from './constants';
+import { getModelMultipliers, getModelTokenRates, inferModelTier } from './facts';
 
 /* ---- File-URI helper ---- */
 
@@ -136,11 +136,14 @@ export function normalizeModel(modelId: string): string {
 
 export function modelMultiplier(modelId: string): number {
   const key = normalizeModel(modelId);
-  if (MODEL_MULTIPLIERS[key] !== undefined) return MODEL_MULTIPLIERS[key];
-  for (const [k, v] of Object.entries(MODEL_MULTIPLIERS)) {
+  const multipliers = getModelMultipliers();
+  if (multipliers[key] !== undefined) return multipliers[key];
+  for (const [k, v] of Object.entries(multipliers)) {
     if (key.startsWith(k)) return v;
   }
-  return 1;
+  // Not in the manifest yet (e.g. a model Cursor shipped after this build):
+  // infer a sane tier from the id instead of a flat guess.
+  return inferModelTier(key);
 }
 
 /* ---- Reasoning effort inference ---- */
@@ -263,7 +266,7 @@ export function tokenCostInCredits(
   cacheReadTokens: number = 0,
   cacheWriteTokens: number = 0,
 ): number {
-  const rates = MODEL_TOKEN_RATES[normalizeModel(model)];
+  const rates = getModelTokenRates()[normalizeModel(model)];
   if (!rates) {
     // Fallback: use model multiplier as rough proxy (1 PRU ≈ 1 credit)
     return modelMultiplier(model);

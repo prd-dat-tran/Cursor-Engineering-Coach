@@ -41,3 +41,4 @@ This is a quick map of the docs tree so readers and agents can see the available
   - [Dashboard](/observe/dashboard/)
   - [Request Usage](/observe/usage/)
   - [Models](/observe/models/)
+  - [Changelog](/observe/changelog/)

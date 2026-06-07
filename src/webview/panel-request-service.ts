@@ -12,6 +12,8 @@ import { ParseResult } from '../core/parser';
 import { readFileSafe } from '../core/parser-shared';
 import { Workspace } from '../core/types';
 import { exportSummaryFiles } from '../summary-export-vscode';
+import { fetchLiveUsage, liveUsageEnabled } from '../billing-usage';
+import { getChangelog, markChangelogSeen } from '../changelog-service';
 import {
   callLlm,
   callLlmJson,
@@ -24,7 +26,6 @@ import {
   SCHEMA_TRIAGE,
 } from './panel-llm';
 import { getCatalogItems } from './panel-catalog';
-import { fetchLiveUsage, liveUsageEnabled } from '../billing-usage';
 import { validateDateFilter } from './panel-rpc';
 import { isNumber, isOptionalString, isRecord, isString, postError, postEvent, postResponse, RequestMessage } from './panel-shared';
 
@@ -45,7 +46,8 @@ type CustomPanelMethodName =
   | 'getWorkspaceDeps'
   | 'getSdlcToolAnalysis'
   | 'getSdlcRepoScan'
-  | 'getLiveUsage';
+  | 'getLiveUsage'
+  | 'getChangelog';
 
 type RequestHandler = (msg: RequestMessage) => void | Promise<void>;
 type QuizDifficulty = 'easy' | 'medium' | 'hard';
@@ -144,6 +146,7 @@ export class PanelRequestService {
     getSdlcToolAnalysis: this.handleGetSdlcToolAnalysis.bind(this),
     getSdlcRepoScan: this.handleGetSdlcRepoScan.bind(this),
     getLiveUsage: this.handleGetLiveUsage.bind(this),
+    getChangelog: this.handleGetChangelog.bind(this),
   };
 
   constructor(
@@ -264,6 +267,14 @@ Generate 3 ${context.difficulty} interview-style questions tailored to this deve
     const enabled = liveUsageEnabled();
     const usage = enabled ? await fetchLiveUsage() : null;
     postResponse(this.webview, msg.id, { enabled, usage });
+  }
+
+  private async handleGetChangelog(msg: RequestMessage): Promise<void> {
+    const params = (msg.params ?? {}) as Record<string, unknown>;
+    const data = await getChangelog(params.force === true);
+    // Opening (or refreshing) the page counts as reading it — clear the "new" badge.
+    markChangelogSeen(data.entries[0]?.id);
+    postResponse(this.webview, msg.id, data);
   }
 
   private async handleExportSummary(msg: RequestMessage): Promise<void> {

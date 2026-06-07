@@ -27,6 +27,7 @@ import { registerChatParticipant } from './chat/participant';
 import { exportSummaryFiles } from './summary-export-vscode';
 import { maybePromptForBillingModel } from './billing-vscode';
 import { registerUsageStatusBar } from './usage-statusbar';
+import { registerChangelog } from './changelog-service';
 
 type PanelModule = typeof import('./webview/panel');
 let panelModulePromise: Promise<PanelModule> | null = null;
@@ -181,6 +182,14 @@ export function activate(context: vscode.ExtensionContext) {
       DashboardPanel.createOrShow(context.extensionUri, context);
       DashboardPanel.current?.revealPage('usage');
     }),
+    vscode.commands.registerCommand('cursorEngineeringCoach.openChangelog', async () => {
+      runtimeDebug('extension', 'command-open-changelog');
+      await ready;
+      if (getPending().length > 0) await promptAndReload();
+      const { DashboardPanel } = await loadPanelModule();
+      DashboardPanel.createOrShow(context.extensionUri, context);
+      DashboardPanel.current?.revealPage('changelog');
+    }),
     vscode.commands.registerCommand('cursorEngineeringCoach.reviewLocalRules', async () => {
       runtimeDebug('extension', 'command-review-trust');
       await ready;
@@ -202,6 +211,11 @@ export function activate(context: vscode.ExtensionContext) {
       await promptAndReload();
     }),
   );
+
+  // Surface Cursor's changelog in-IDE: register the open command and run a
+  // throttled background check that notifies on new entries (so users stay
+  // current and maintainers know when to re-sync the model facts manifest).
+  registerChangelog(context);
 
   registerTools(context, () => panelCache.analyzerInstance);
   registerChatParticipant(context);

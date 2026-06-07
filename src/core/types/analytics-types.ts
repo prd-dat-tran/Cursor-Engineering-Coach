@@ -647,6 +647,8 @@ export interface ModelStat {
   cancelRate: number;
   /** Share of requests that used tools or edited files (agentic work), 0..1. */
   agenticShare: number;
+  /** True when the model id is in the bundled/refreshed facts manifest; false for brand-new models. */
+  known?: boolean;
   verdict: ModelVerdict;
 }
 
@@ -692,6 +694,8 @@ export interface ModelInsightsData {
   models: ModelStat[];
   recommendations: ModelRecRow[];
   catalog: ModelCatalogItem[];
+  /** Provenance and freshness of the bundled facts used to compute this (for the "facts as of ..." badge). */
+  factsMeta?: { generatedAt: string; source: string; schemaVersion: number; modelCount: number };
 }
 
 export interface WorkflowCluster {

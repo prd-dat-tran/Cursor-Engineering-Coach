@@ -1,0 +1,61 @@
+name: Refresh Cursor Facts
+
+# Maintainer-only helper to refresh src/core/data/cursor-facts.json from Cursor's
+# published Models & Pricing docs. There is NO schedule — fact sync is deliberate,
+# not automatic: a maintainer runs this on demand (Actions tab → "Run workflow",
+# or `npm run facts:refresh` locally) and the change is proposed as a reviewed PR.
+# The in-IDE Changelog page notifies maintainers when a sync may be warranted.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Refresh facts manifest
+        run: npm run facts:refresh
+
+      - name: Validate manifest (schema + invariants)
+        run: npx vitest run src/core/cursor-facts.test.ts
+
+      - name: Open / update pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          add-paths: src/core/data/cursor-facts.json
+          branch: bot/refresh-cursor-facts
+          delete-branch: true
+          commit-message: 'chore: refresh Cursor facts (models & pricing)'
+          title: 'chore: refresh Cursor facts (models & pricing)'
+          labels: |
+            facts
+          body: |
+            Maintainer-triggered refresh of `src/core/data/cursor-facts.json` from the
+            Cursor [Models & Pricing](https://cursor.com/docs/models-and-pricing) docs.
+
+            The schema/invariant test (`src/core/cursor-facts.test.ts`) passed on this
+            manifest, but please sanity-check before merging:
+
+            - [ ] **New models** added with an *inferred* multiplier — confirm the request-cost multiplier (esp. `*-fast` / large-context variants) is right.
+            - [ ] **Token rates** match the pricing table.
+            - [ ] Notable new models get a curated `catalog` entry with `bestFor` copy.
+            - [ ] Rule prose in `src/core/rules/` and docs still reference accurate model names.
+
+            If the job failed instead of opening this PR, the docs table layout may
+            have changed — update `scripts/refresh-cursor-facts.ts`.

@@ -46,6 +46,7 @@ function markup(d: ModelInsightsData): ComponentChildren {
       <div class="page-header">
         <h1>Model Advisor</h1>
         <p class="page-subtitle">Pick the best model for each task — balancing capability and how your plan bills you.</p>
+        ${FactsBadge(d)}
       </div>
       ${Headline(d)}
       <div class="models-grid">
@@ -68,6 +69,15 @@ function markup(d: ModelInsightsData): ComponentChildren {
         ${Catalog(d.catalog)}
       </div>
     </div>`;
+}
+
+function FactsBadge(d: ModelInsightsData): ComponentChildren {
+  const meta = d.factsMeta;
+  if (!meta) return '';
+  const when = new Date(meta.generatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  const tip = `Model facts from ${meta.source} (${meta.modelCount} models), bundled with this build. ` +
+    'Maintainers refresh these from Cursor\'s docs; the Changelog page flags when an update is due.';
+  return html`<div class="muted" style="font-size:11px;margin-top:2px" title=${tip}>Model facts as of ${when}</div>`;
 }
 
 function Headline(d: ModelInsightsData): ComponentChildren {
@@ -143,7 +153,10 @@ function ModelRow(r: ModelStat, max: number): ComponentChildren {
   const vColor = TONE_COLOR[r.verdict.tone] || COLORS.blue;
   return html`
     <tr>
-      <td><span class="models-name">${r.label}</span><span class="models-family">${r.family}</span></td>
+      <td>
+        <span class="models-name">${r.label}</span><span class="models-family">${r.family}</span>
+        ${r.known === false ? html`<span class="models-chip" style=${'color:' + COLORS.muted + ';border-color:' + COLORS.muted} title="Not in the model facts yet — using an inferred cost tier. Refresh model facts to update.">facts pending</span>` : ''}
+      </td>
       <td><span class="models-chip" style=${'color:' + cColor + ';border-color:' + cColor}>${CLASS_LABEL[r.klass] || r.klass}</span></td>
       <td>${costLabel(r.multiplier)}</td>
       <td>

@@ -43,6 +43,7 @@ FILES=(
   "$CONTENT_DIR/observe/dashboard.md"
   "$CONTENT_DIR/observe/usage.md"
   "$CONTENT_DIR/observe/models.md"
+  "$CONTENT_DIR/observe/changelog.md"
   "$CONTENT_DIR/measure/_index.md"
   "$CONTENT_DIR/measure/output.md"
   "$CONTENT_DIR/measure/burndown.md"
