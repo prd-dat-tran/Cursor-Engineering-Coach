@@ -26,10 +26,10 @@ export const FIELD_SCHEMA: FieldInfo[] = [
   { name: 'isCanceled',         type: 'boolean',      description: 'Whether the request was canceled',                    scope: 'request' },
   { name: 'agentName',          type: 'string',       description: 'Chat participant id (default Cursor agent or a custom @-agent)',            scope: 'request' },
   { name: 'agentMode',          type: 'string',       description: 'Agent mode: agent, ask, edit, plan, or custom agent name',  scope: 'request', example: '"agent"' },
-  { name: 'modelId',            type: 'string',       description: 'Model identifier (gpt-4.1, claude-sonnet, etc.)',      scope: 'request', example: '"gpt-4.1"' },
+  { name: 'modelId',            type: 'string',       description: 'Model identifier (claude-sonnet-4.6, gpt-5.5, composer-2.5, auto, etc.)', scope: 'request', example: '"auto"' },
   { name: 'toolsUsed',          type: 'string[]',     description: 'List of tools used in this request',                  scope: 'request' },
   { name: 'editedFiles',        type: 'string[]',     description: 'Files edited during this request',                    scope: 'request' },
-  { name: 'referencedFiles',    type: 'string[]',     description: 'Files referenced via #file or @workspace',            scope: 'request' },
+  { name: 'referencedFiles',    type: 'string[]',     description: 'Files referenced via @file / @folder / @-mentions',    scope: 'request' },
   { name: 'slashCommand',       type: 'string',       description: 'Slash command used (empty if none)',                   scope: 'request' },
   { name: 'variableKinds',      type: 'object',       description: 'Record<string,number> of variable kinds used',        scope: 'request', example: '{ "file": 2 }' },
   { name: 'customInstructions', type: 'string[]',     description: 'Custom instruction files active',                     scope: 'request' },
@@ -59,7 +59,7 @@ export const FIELD_SCHEMA: FieldInfo[] = [
   { name: 'requestCount',       type: 'number',       description: 'Number of requests in the session',                   scope: 'session', example: '12' },
   { name: 'requests',           type: 'object[]',     description: 'Array of SessionRequest objects',                     scope: 'session' },
   { name: 'hasDevcontainer',    type: 'boolean',      description: 'Session ran in a devcontainer (detected from runtime /workspaces/ paths)',  scope: 'session' },
-  { name: 'customInstructionsBytes', type: 'number',  description: 'Total bytes of Cursor rule files (AGENTS.md, .cursorrules, .cursor/rules/*.md). 0 if none exist.', scope: 'session', example: '4200' },
+  { name: 'customInstructionsBytes', type: 'number',  description: 'Total bytes of Cursor rule files (AGENTS.md, .cursor/rules/*.mdc, legacy .cursorrules). 0 if none exist.', scope: 'session', example: '4200' },
 ];
 
 /** Built-in named metric primitives that can be referenced in .metric.md or .rule.md files. */

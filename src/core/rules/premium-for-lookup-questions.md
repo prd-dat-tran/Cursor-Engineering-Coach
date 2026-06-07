@@ -20,7 +20,7 @@ Detects "lookup-style" questions ("what is X?", "where is Y?", "how do I Z?", "e
 {{count}} lookup-style questions ({{pct}}) used a premium model. Short factual questions almost never benefit from premium reasoning — they overpay on every request.
 
 # How to Improve
-Switch the default model to `auto` so lightweight questions are routed cheaply. Reserve premium models for tasks that need actual reasoning: planning, debugging, multi-step refactors. Custom-instruct your IDE to "use the cheapest model that can answer this" for short prompts.
+Set your default model to Auto so factual questions route to a cheaper model automatically, or switch to Ask mode (Shift+Tab) for read-only lookups. Reserve frontier models for tasks that need real reasoning: planning, debugging, multi-step refactors. A short User Rule like "prefer the cheapest model that can answer factual questions" also helps.
 
 # Examples
 {{normalizeModel(modelId)}}: "{{messageText | truncate:60}}"

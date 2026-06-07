@@ -28,7 +28,7 @@ Only {{extra.specDrivenCount}} of {{extra.totalSessions}} sessions ({{extra.spec
 Adopt Spec-Driven Development (SDD): write a brief spec before coding.
 How sessions are classified:
 - Spec-driven: first prompt references a .md/.spec file, contains structured bullet points/numbered lists, uses keywords like "requirements", "acceptance criteria", "must", "ensure", or starts in plan mode.
-- Planning: any request uses plan mode (/plan) or contains planning keywords (plan, architect, design, outline, roadmap).
+- Planning: any request uses Plan mode (Shift+Tab) or contains planning keywords (plan, architect, design, outline, roadmap).
 - Unstructured: everything else — typically vague, single-sentence prompts that lead to more iterations.
 Start each session with: 1) What you're building, 2) Acceptance criteria, 3) Constraints. Even 3 bullet points dramatically improve AI output quality.
 

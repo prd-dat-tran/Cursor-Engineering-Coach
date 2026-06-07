@@ -27,6 +27,7 @@ export function classifyModel(norm: string, mult: number): ModelClass {
 
 export function modelFamily(norm: string): string {
   if (/auto/i.test(norm)) return 'Auto';
+  if (norm.startsWith('composer')) return 'Composer';
   if (norm.startsWith('claude')) return 'Claude';
   if (/^(gpt|o\d)/.test(norm)) return 'GPT';
   if (norm.startsWith('gemini')) return 'Gemini';
@@ -53,18 +54,19 @@ export function modelLabel(norm: string): string {
  * drifts from constants.ts — only the id + "best for" copy lives here. */
 
 const CATALOG: { id: string; bestFor: string }[] = [
-  { id: 'claude-opus-4.7', bestFor: 'Hardest reasoning — large multi-file refactors, deep debugging, architecture.' },
-  { id: 'claude-opus-4.6', bestFor: 'Heavy agentic coding and complex multi-step features.' },
+  { id: 'claude-opus-4.8', bestFor: 'Hardest reasoning — large multi-file refactors, deep debugging, architecture.' },
+  { id: 'claude-opus-4.7', bestFor: 'Heavy agentic coding and complex multi-step features.' },
   { id: 'claude-sonnet-4.6', bestFor: 'Fast, dependable everyday agentic coding.' },
+  { id: 'gpt-5.5', bestFor: 'Top-tier reasoning and persistence on long-running tasks.' },
   { id: 'gpt-5.4', bestFor: 'Strong general-purpose coding with solid reasoning.' },
-  { id: 'gemini-3-pro', bestFor: 'Large-context reads and multi-file understanding.' },
+  { id: 'composer-2.5', bestFor: "Cursor's own fast agentic model — cost-efficient everyday coding from the cheaper pool." },
+  { id: 'gemini-3.1-pro', bestFor: 'Large-context reads and multi-file understanding.' },
   { id: 'claude-haiku-4.5', bestFor: 'Quick edits and cheap, low-stakes changes.' },
   { id: 'gpt-5.4-mini', bestFor: 'Routine tasks at a fraction of the cost.' },
   { id: 'gemini-3-flash', bestFor: 'Fast, cheap responses for simple work.' },
-  { id: 'grok-code-fast-1', bestFor: 'Snappy completions for low-stakes edits.' },
-  { id: 'gpt-4.1', bestFor: 'Included model — lookups, Q&A, and boilerplate.' },
-  { id: 'gpt-5-mini', bestFor: 'Included lightweight model for simple tasks.' },
-  { id: 'auto', bestFor: 'Cursor routes per task — can cut wasted requests.' },
+  { id: 'grok-4.3', bestFor: 'Snappy responses for low-stakes edits.' },
+  { id: 'gpt-5-mini', bestFor: 'Included lightweight model for lookups and boilerplate.' },
+  { id: 'auto', bestFor: 'Cursor routes per task from the cheaper pool — a great default.' },
 ];
 
 /* ── Analyzer ────────────────────────────────────────────────────── */
@@ -221,7 +223,7 @@ export function headlineFor(billing: ModelInsightsData['billingModel'], frontier
   const pct = Math.round(frontierShare * 100);
   if (billing === 'request') {
     return {
-      title: "Use the most capable model — it's free on your plan",
+      title: 'Use the most capable model — it costs the same on your plan',
       body: `You're on request-based billing: every request costs the same flat amount no matter which model runs it. Default to a frontier model and spend your effort reducing the NUMBER of requests, not the model. Right now ${pct}% of your model-bearing requests use a frontier/standard model.`,
       tone: frontierShare >= 0.7 ? 'good' : 'warn',
     };
@@ -229,7 +231,7 @@ export function headlineFor(billing: ModelInsightsData['billingModel'], frontier
   if (billing === 'usage') {
     return {
       title: 'Match the model to the task',
-      body: `You're on usage-based (token) billing: stronger models cost more. Reserve frontier models for complex features, refactors, and debugging; use standard models for everyday work; and free/light models for lookups and boilerplate. ${pct}% of your requests currently use a frontier/standard model.`,
+      body: `You're on usage-based (token) billing: stronger models cost more. Reserve frontier models for complex features, refactors, and debugging; let Auto or Composer 2.5 handle everyday work from Cursor's cheaper pool; and use free/light models for lookups and boilerplate. ${pct}% of your requests currently use a frontier/standard model.`,
       tone: frontierShare > 0.8 ? 'warn' : 'good',
     };
   }
@@ -246,14 +248,14 @@ export function topPickFor(billing: ModelInsightsData['billingModel'], models: M
       .filter(m => m.klass === 'frontier' || m.klass === 'standard')
       .sort((a, b) => b.multiplier - a.multiplier || b.requests - a.requests)[0];
     return {
-      label: usedFrontier ? usedFrontier.label : 'Claude Opus 4.7',
+      label: usedFrontier ? usedFrontier.label : 'Claude Opus 4.8',
       why: 'Same flat cost as any model — make the strongest one your default and save requests elsewhere.',
     };
   }
   if (billing === 'usage') {
     return {
-      label: 'Claude Sonnet 4.6 / GPT 5.4',
-      why: 'A 1× standard model is the cost-efficient default — escalate to Opus only for hard problems and drop to free models for lookups.',
+      label: 'Auto or Composer 2.5',
+      why: "Cursor routes everyday work to its cheaper included pool — reserve frontier models (Opus 4.8 / GPT-5.5) for hard problems and drop to free/light models for lookups.",
     };
   }
   return null;
@@ -261,20 +263,20 @@ export function topPickFor(billing: ModelInsightsData['billingModel'], models: M
 
 const RECS: Record<ModelInsightsData['billingModel'], ModelRecRow[]> = {
   request: [
-    { task: 'Complex feature, refactor, or debugging', recommended: 'Claude Opus 4.7 · GPT 5.4', note: 'Same cost as any model — use the strongest available.' },
-    { task: 'Everyday coding', recommended: 'Claude Sonnet 4.6 · GPT 5.4 (or Opus)', note: 'Still one request; pick capability over imaginary "savings".' },
+    { task: 'Complex feature, refactor, or debugging', recommended: 'Claude Opus 4.8 · GPT-5.5', note: 'Same cost as any model — use the strongest available.' },
+    { task: 'Everyday coding', recommended: 'Claude Sonnet 4.6 · GPT-5.4 (or Opus)', note: 'Still one request; pick capability over imaginary "savings".' },
     { task: 'Quick lookups & small edits', recommended: 'Any model · inline edit (⌘K)', note: 'Costs one request regardless — batch related asks to spend fewer.' },
-    { task: 'Large / long-context work', recommended: 'GPT 5.4 · Gemini 3 Pro', note: 'Big context windows land multi-file tasks in a single request.' },
+    { task: 'Large / long-context work', recommended: 'GPT-5.5 · Gemini 3.1 Pro · Max Mode', note: 'Big context windows land multi-file tasks in a single request.' },
   ],
   usage: [
-    { task: 'Complex feature, refactor, or debugging', recommended: 'Claude Opus 4.7 / 4.6 · GPT 5.4', note: 'Worth the premium for hard, multi-file work.' },
-    { task: 'Everyday coding', recommended: 'Claude Sonnet 4.6 · GPT 5.4 (1×)', note: 'Strong and cost-efficient — your default.' },
-    { task: 'Quick lookups & Q&A', recommended: 'GPT 4.1 · GPT 5 Mini (free)', note: 'No reason to spend premium tokens here.' },
-    { task: 'Boilerplate & repetitive edits', recommended: 'Claude Haiku 4.5 · Gemini 3 Flash · Grok Code Fast', note: 'Cheap and fast for low-stakes changes.' },
+    { task: 'Complex feature, refactor, or debugging', recommended: 'Claude Opus 4.8 / 4.7 · GPT-5.5', note: 'Worth the premium for hard, multi-file work.' },
+    { task: 'Everyday coding', recommended: 'Auto · Composer 2.5 · Claude Sonnet 4.6', note: 'Auto and Composer draw from the cheaper pool — your default.' },
+    { task: 'Quick lookups & Q&A', recommended: 'Auto · GPT-5 Mini', note: 'No reason to spend premium tokens here.' },
+    { task: 'Boilerplate & repetitive edits', recommended: 'Claude Haiku 4.5 · Gemini 3 Flash · GPT-5.4 Mini', note: 'Cheap and fast for low-stakes changes.' },
   ],
   unknown: [
-    { task: 'Complex feature, refactor, or debugging', recommended: 'A frontier model (Claude Opus · GPT 5.4)', note: 'Capability matters most on hard work.' },
-    { task: 'Everyday coding', recommended: 'A standard 1× model (Claude Sonnet · GPT 5.4)', note: 'Balanced default for most tasks.' },
-    { task: 'Quick lookups & boilerplate', recommended: 'A free/light model (GPT 4.1 · Gemini Flash)', note: 'On token billing this saves money; on request billing it costs the same.' },
+    { task: 'Complex feature, refactor, or debugging', recommended: 'A frontier model (Claude Opus 4.8 · GPT-5.5)', note: 'Capability matters most on hard work.' },
+    { task: 'Everyday coding', recommended: 'Auto · Composer 2.5 · Claude Sonnet 4.6', note: 'Balanced default for most tasks.' },
+    { task: 'Quick lookups & boilerplate', recommended: 'A free/light model (GPT-5 Mini · Gemini Flash)', note: 'On token billing this saves money; on request billing it costs the same.' },
   ],
 };

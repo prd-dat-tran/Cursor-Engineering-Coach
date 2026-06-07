@@ -20,7 +20,7 @@ Detects when the vast majority of requests use a single model, missing opportuni
 {{pct}} of requests use {{extra.topModel}}. Different tasks benefit from different models.
 
 # How to Improve
-Use lighter models (gpt-4.1-mini, gemini-flash) for simple tasks to save premium quota and get faster responses.
+Let Auto pick for everyday work, or run Cursor's own Composer 2.5 — both draw from Cursor's cheaper included usage pool. Reserve a pinned frontier model (Claude Opus/Sonnet, GPT-5.x) for hard reasoning, and drop to a lightweight model (GPT-5 Mini, Gemini Flash, Claude Haiku) for simple lookups and boilerplate.
 
 # Examples
 {{extra.model}}: {{extra.reqCount}} requests

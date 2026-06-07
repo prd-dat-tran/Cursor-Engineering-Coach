@@ -209,7 +209,7 @@ Audits your context engineering setup: custom agents, skills, MCP tools, file re
 {{count}} of 5 context engineering signals missing. Your AI lacks the context to be maximally effective.
 
 # How to Improve
-Level up your context engineering: create AGENTS.md for custom agents, SKILL.md for domain knowledge, connect MCP tools, use #file references, and add .instructions.md with project conventions.
+Level up your context engineering: add an AGENTS.md or .cursor/rules/*.mdc with your project conventions, create .cursor/skills/<name>/SKILL.md for repeatable workflows, connect MCP servers for external tools, use @file/@folder to give the agent precise context, and try custom subagents for focused tasks.
 
 # Examples
 {{extra.gapCount}} of 5 context engineering signals missing
@@ -412,7 +412,7 @@ Detects when the vast majority of requests use a single model, missing opportuni
 {{pct}} of requests use {{extra.topModel}}. Different tasks benefit from different models.
 
 # How to Improve
-Use lighter models (gpt-4.1-mini, gemini-flash) for simple tasks to save premium quota and get faster responses.
+Let Auto pick for everyday work, or use Composer 2.5. Reserve a pinned frontier model for hard reasoning, and drop to a lightweight model (GPT-5 Mini, Gemini Flash) for simple tasks.
 
 # Examples
 {{extra.model}}: {{extra.reqCount}} requests
@@ -452,10 +452,10 @@ Detects heavy agentic usage with no use of plan mode, which helps the agent unde
 {{extra.agenticReqs}} agentic requests but no use of plan mode.
 
 # How to Improve
-Use plan mode (or /plan) before complex tasks. Planning helps the agent understand scope and avoid wasted iterations.
+Use Plan mode (press Shift+Tab) before complex tasks. Planning helps the agent understand scope and avoid wasted iterations.
 
 # Examples
-Switch to Plan mode in the mode picker before starting large features
+Press Shift+Tab to enter Plan mode before starting large features
 
 # Detection Logic
 \\\`\\\`\\\`detect
@@ -491,7 +491,7 @@ Detects requests that have no file references, meaning the AI cannot see the rel
 {{pct}} of requests have no file references. The AI gives better answers with file context.
 
 # How to Improve
-Use #file to reference relevant files, or open files in the editor so the AI can use them as context.
+Use @file to reference relevant files, or open files in the editor so Cursor can use them as context.
 
 # Examples
 "{{message}}..."

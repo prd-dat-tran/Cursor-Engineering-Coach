@@ -674,10 +674,10 @@ Respond with a JSON object: {"items":[{"title":"...","url":"https://...","type":
       const isSkill = kind === 'skill';
       const targetPath = isSkill
         ? `${homeDir}/.cursor/skills/${slug}/${filename}`
-        : `${homeDir}/.cursor/rules/${slug}.md`;
+        : `${homeDir}/.cursor/rules/${slug}.mdc`;
       const targetUri = vscode.Uri.file(targetPath);
       await vscode.workspace.fs.writeFile(targetUri, Buffer.from(content, 'utf8'));
-      postResponse(this.webview, msg.id, { content, filename: isSkill ? `${slug}/${filename}` : `${slug}.md` });
+      postResponse(this.webview, msg.id, { content, filename: isSkill ? `${slug}/${filename}` : `${slug}.mdc` });
     } catch (error: unknown) {
       postError(this.webview, msg.id, error instanceof Error ? error.message : 'Install failed');
     }
@@ -876,7 +876,7 @@ ${JSON.stringify(candidates)}`;
       }
 
       const categories = ['clarity', 'specificity', 'structure', 'completeness', 'staleness', 'redundancy', 'actionability'];
-      const systemPrompt = `You are an expert at evaluating Cursor IDE context files (AGENTS.md, .cursorrules, .cursor/rules/*.md, .cursor/skills/*/SKILL.md, .cursor/hooks.json, etc.).
+      const systemPrompt = `You are an expert at evaluating Cursor IDE context files (AGENTS.md, .cursor/rules/*.mdc, legacy .cursorrules, .cursor/skills/*/SKILL.md, .cursor/hooks.json, etc.).
 
 You will receive workspace data including:
 - The file tree structure (top 2 levels)

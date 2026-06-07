@@ -27,7 +27,7 @@ interface FilePattern {
 const KNOWN_FILES: FilePattern[] = [
   { relativePath: 'AGENTS.md', kind: 'instruction' },
   { relativePath: '.cursorrules', kind: 'instruction' },
-  { relativePath: '.cursor/rules', kind: 'instruction', isDir: true, dirGlob: /\.md$/i, recurse: true },
+  { relativePath: '.cursor/rules', kind: 'instruction', isDir: true, dirGlob: /\.mdc?$/i, recurse: true },
   { relativePath: '.cursor/skills', kind: 'skill', isDir: true, dirGlob: /SKILL\.md$/i, recurse: true },
   { relativePath: '.cursor/hooks.json', kind: 'hook-config' },
   { relativePath: '.cursor/mcp.json', kind: 'other' },
@@ -256,7 +256,7 @@ function checkMarkdownQuality(content: string, relativePath: string): string[] {
   }
 
   if (isCursorRuleFile(relativePath) && content.length > CURSOR_RULE_FILE_MAX_CHARS) {
-    issues.push(`File exceeds ${CURSOR_RULE_FILE_MAX_CHARS} characters -- Cursor truncates oversized rule files and they bloat every request's context window. Split scoped rules into .cursor/rules/<topic>.md files.`);
+    issues.push(`File exceeds ${CURSOR_RULE_FILE_MAX_CHARS} characters -- Cursor truncates oversized rule files and they bloat every request's context window. Split scoped rules into .cursor/rules/<topic>.mdc files.`);
   }
 
   return issues;

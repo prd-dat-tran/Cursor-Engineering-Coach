@@ -32,7 +32,7 @@ How the multiplier translates into money depends entirely on your plan, which is
 The headline and top pick change based on the billing model the coach has detected (or that you set in settings):
 
 - **Request-based billing (per-request plans)** -- Every request costs the same flat amount no matter which model handles it. The economically *correct* move is to **default to the most capable model** and reduce the *number* of requests, not to downgrade the model. The page nudges you toward frontier/standard models and flags light/Auto usage as leaving capability on the table.
-- **Usage-based billing (token plans)** -- Model choice directly affects cost, so the advice flips: reach for capable models on hard, multi-step work where rework would be expensive, but keep light models for lookups and small edits. The page flags expensive models used on trivial work.
+- **Usage-based billing (token plans)** -- Model choice directly affects cost, so the advice flips: reach for capable models on hard, multi-step work where rework would be expensive, let **Auto** or Cursor's own **Composer 2.5** handle everyday work from the cheaper included usage pool, and keep light models for lookups and small edits. The page flags expensive models used on trivial work.
 - **Unknown** -- The page shows balanced guidance and links you to set your billing model so advice gets sharper.
 
 > Set your plan under **Settings → Cursor Engineering Coach → Billing**, or let the coach auto-detect it from your Cursor membership.

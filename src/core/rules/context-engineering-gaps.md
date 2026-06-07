@@ -19,7 +19,7 @@ Audits your context engineering setup: custom agents, skills, MCP tools, file re
 {{count}} of 5 context engineering signals missing. Your AI lacks the context to be maximally effective.
 
 # How to Improve
-Level up your context engineering: create AGENTS.md for custom agents, SKILL.md for domain knowledge, connect MCP tools, use #file references, and add .instructions.md with project conventions.
+Level up your context engineering: add an `AGENTS.md` or `.cursor/rules/*.mdc` with your project conventions, create `.cursor/skills/<name>/SKILL.md` for repeatable workflows, connect MCP servers for external tools, use `@file`/`@folder` to give the agent precise context, and try custom subagents for focused tasks.
 
 # Examples
 {{extra.gapCount}} of 5 context engineering signals missing

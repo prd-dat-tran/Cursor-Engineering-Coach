@@ -165,7 +165,7 @@ export class PatternsAnalyzer extends AnalyzerBase {
       checkId: 'model-switch', name: 'Model Diversity', category: 'Efficiency',
       score, status: scoreToStatus(score),
       finding: `Using ${count} model(s): ${Array.from(models).join(', ')}`,
-      recommendation: count < 3 ? 'Try lighter models (gpt-4.1-mini, gemini-flash) for simple tasks to save premium requests.' : 'Good model diversity.',
+      recommendation: count < 3 ? 'On usage-based billing, let Auto or a lightweight model (GPT-5 Mini, Gemini Flash) handle simple tasks to spend less, and reserve frontier models for complex work.' : 'Good model diversity.',
     };
   }
 

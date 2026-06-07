@@ -19,7 +19,7 @@ Detects users who pin a single premium model for every request and never let aut
 {{pct}} of requests use {{extra.topModel}} (a premium model) and no requests use auto routing. Pinning a top-tier model for every task overpays on simple work.
 
 # How to Improve
-Switch the default to "auto" or use Cursor's model picker. Reserve specific top-tier models for hard reasoning, planning, or large-context tasks. For routine edits and questions, the lighter model auto picks is usually enough.
+Switch your default to Auto (or Cursor's own Composer 2.5) so routine work runs on Cursor's cheaper, included usage pool. Reserve a pinned frontier model for hard reasoning, planning, or large-context tasks. For everyday edits and questions, Auto's pick is usually enough — and on usage-based billing it costs far less.
 
 # Examples
 {{extra.topModel}}: {{extra.topCount}} requests ({{pct}})

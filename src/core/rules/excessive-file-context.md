@@ -19,7 +19,7 @@ Detects outlier requests that attach a very large number of files to the prompt.
 {{count}} request(s) attached ≥{{thresholds.minFiles}} files to the prompt (largest: {{extra.maxFiles}} files). The model only reads a fraction of large attachments — the rest is paid-for context that contributes nothing.
 
 # How to Improve
-Be selective: attach only the 3–5 files most relevant to the task. Use `#codebase` or `#file:<glob>` patterns to let the model search on demand. For exploration tasks, ask the agent to `grep` first and read results into context only as needed.
+Be selective: attach only the 3–5 files most relevant to the task. When you're not sure which files matter, let Cursor's agent find them — it searches your codebase with grep and semantic search on demand. Use `@folder` to scope an area, or just describe the feature ("the authentication flow") and let the agent pull in what it needs.
 
 # Examples
 {{length(referencedFiles)}} files: "{{messageText | truncate:60}}"

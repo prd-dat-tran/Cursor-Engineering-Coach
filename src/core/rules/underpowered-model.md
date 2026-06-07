@@ -19,7 +19,7 @@ On request-based billing every request costs the same flat amount regardless of 
 {{count}} requests ({{pct}}) used a lightweight or auto-routed model. On request-based billing a weaker model costs exactly the same as the most capable one — you are leaving quality on the table for no savings.
 
 # How to Improve
-Set your default to the most capable model available (e.g. Claude Opus or the latest GPT-5.x / frontier model) and let it handle everything. Only drop to a lighter model when you specifically need lower latency, not to save cost. Because each request is a flat charge, the win comes from landing tasks in fewer, higher-quality requests — not from picking a cheaper model.
+Set your default to the most capable model available (e.g. Claude Opus 4.8, GPT-5.5, or the latest frontier model) and let it handle everything. Only drop to a lighter model when you specifically need lower latency, not to save cost. Because each request is a flat charge, the win comes from landing tasks in fewer, higher-quality requests — not from picking a cheaper model.
 
 # Examples
 {{normalizeModel(modelId)}}: "{{messageText | truncate:50}}"

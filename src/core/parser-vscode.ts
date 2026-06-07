@@ -96,7 +96,7 @@ function sizeOf(p: string): number {
 
 /**
  * Total size in bytes of always-on instructions Cursor prepends per request.
- * Sums `.cursorrules`, `AGENTS.md`, and every `.cursor/rules/*.md`.
+ * Sums `.cursorrules`, `AGENTS.md`, and every `.cursor/rules/*.mdc` (plus legacy `.md`).
  */
 function detectCustomInstructionsBytes(folderPath: string | null): number | undefined {
   if (!folderPath) return undefined;
@@ -107,7 +107,7 @@ function detectCustomInstructionsBytes(folderPath: string | null): number | unde
     const rulesDir = path.join(folderPath, '.cursor', 'rules');
     try {
       for (const entry of fs.readdirSync(rulesDir, { withFileTypes: true })) {
-        if (entry.isFile() && entry.name.endsWith('.md')) {
+        if (entry.isFile() && (entry.name.endsWith('.mdc') || entry.name.endsWith('.md'))) {
           total += sizeOf(path.join(rulesDir, entry.name));
         }
       }

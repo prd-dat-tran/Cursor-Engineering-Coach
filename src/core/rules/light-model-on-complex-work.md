@@ -21,7 +21,7 @@ On usage-based (token) billing it is tempting to default to a lightweight model 
 {{count}} complex requests ({{pct}}) — long prompts with multiple tool calls — ran on a lightweight model. The token savings on hard tasks are usually erased by correction turns and rework.
 
 # How to Improve
-Keep lightweight models for lookups, quick questions, and small edits. For complex, multi-file work — features, refactors, and debugging — switch to a standard or frontier model (e.g. Claude Sonnet/Opus or the latest GPT-5.x) so it lands correctly the first time. Use Plan mode to scope a big task first, then hand the plan to a capable model. The Models page shows which of your models fit which work.
+Keep lightweight models for lookups, quick questions, and small edits. For complex, multi-file work — features, refactors, and debugging — switch to a capable model (Claude Sonnet 4.6 / Opus 4.8, GPT-5.5, or Composer 2.5 for agentic coding) so it lands correctly the first time. Use Plan mode (Shift+Tab) to scope a big task first, then build with a capable model. The Models page shows which of your models fit which work.
 
 # Examples
 {{normalizeModel(modelId)}}: "{{messageText | truncate:50}}"

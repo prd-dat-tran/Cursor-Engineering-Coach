@@ -19,7 +19,7 @@ Detects simple requests (short prompt, no code output) that use premium models u
 {{count}} simple requests (short prompt, no code output) used premium models.
 
 # How to Improve
-Use lighter models for quick questions and simple tasks. Reserve premium models for complex code generation.
+Let Auto handle quick questions and simple tasks, or pick a lightweight model (GPT-5 Mini, Gemini Flash, Claude Haiku). On usage-based billing, Auto and Composer 2.5 draw from Cursor's cheaper pool — reserve frontier models for complex code generation.
 
 # Examples
 {{extra.model}}: "{{message}}..."

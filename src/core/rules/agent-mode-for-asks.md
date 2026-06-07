@@ -14,13 +14,13 @@ thresholds:
 ---
 
 # Description
-Detects agent-mode requests with very short prompts that didn't trigger any tools, edits, or file context. These look like simple questions that would be cheaper and faster in Ask/Chat mode without the agent loop overhead.
+Detects agent-mode requests with very short prompts that didn't trigger any tools, edits, or file context. These look like simple questions that would be cheaper and faster in Ask mode without the agent loop overhead.
 
 # When Triggered
 {{count}} agent-mode requests ({{pct}}) were trivially short ({{extra.maxMessageLength}} chars) with no tool calls, file edits, or code output. Routing simple questions through agent mode pays for the agent loop without using its capabilities.
 
 # How to Improve
-Use Ask/Chat mode for quick questions ("what does this error mean?", "how do I do X?"). Reserve agent mode for tasks that need to run terminal commands, edit files, or coordinate multiple steps.
+Use Ask mode for quick questions ("what does this error mean?", "how do I do X?") — press Shift+Tab to switch modes. Reserve agent mode for tasks that need to run terminal commands, edit files, or coordinate multiple steps.
 
 # Examples
 "{{messageText | truncate:60}}" ({{messageLength}} chars, agent mode)

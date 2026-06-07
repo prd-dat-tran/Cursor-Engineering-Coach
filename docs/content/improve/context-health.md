@@ -20,7 +20,7 @@ Eight signals are checked to determine whether your projects are prepared for ag
 
 | Signal | What it checks |
 |---|---|
-| **Rules Files** | Whether workspaces have `.cursor/rules/*.md`, `AGENTS.md`, or a `.cursorrules` file |
+| **Rules Files** | Whether workspaces have `.cursor/rules/*.mdc`, `AGENTS.md`, or a legacy `.cursorrules` file |
 | **Custom Skills** | Whether any custom skill definitions exist under `.cursor/skills/` |
 | **Custom Agents** | Whether custom agent definitions are configured |
 | **Prompt Templates** | Whether `.prompt.md` files are present |

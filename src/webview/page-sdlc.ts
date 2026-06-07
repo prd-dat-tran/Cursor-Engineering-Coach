@@ -259,7 +259,7 @@ function generateRecommendations(
   }
 
   if (ctxCount === 0) {
-    recs.push({ icon: SVG.pencilDoc, title: 'Add Context Files', description: 'Create AGENTS.md or .cursor/rules/<topic>.md files to give Cursor project-specific guidance.' });
+    recs.push({ icon: SVG.pencilDoc, title: 'Add Context Files', description: 'Create AGENTS.md or .cursor/rules/<topic>.mdc files to give Cursor project-specific guidance.' });
   }
 
   if (wfCount === 0) {

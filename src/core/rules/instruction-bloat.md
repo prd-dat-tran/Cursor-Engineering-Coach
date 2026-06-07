@@ -13,13 +13,13 @@ thresholds:
 ---
 
 # Description
-Detects oversized Cursor rules files (`.cursor/rules/*.md`, `AGENTS.md`, or `.cursorrules`). Rules are prepended to **every** matching request's system prompt — large files inflate input tokens on every turn, often by thousands of tokens that are never relevant to the current task.
+Detects oversized Cursor rules files (`.cursor/rules/*.mdc`, `AGENTS.md`, or legacy `.cursorrules`). Rules are prepended to **every** matching request's system prompt — large files inflate input tokens on every turn, often by thousands of tokens that are never relevant to the current task.
 
 # When Triggered
 {{extra.bloatedSessions}} workspace(s) have rules files larger than {{thresholds.maxBytes}} bytes (largest: {{extra.maxBytes}} bytes). Every request in those workspaces pays the bloat cost on input tokens.
 
 # How to Improve
-Trim your Cursor rules files (`.cursor/rules/*.md`, `AGENTS.md`, or `.cursorrules`) to the essentials: language/framework conventions, code style, "do not" rules, and pointers to longer docs. Move long examples and rationale into separate files referenced via `@file:`. Keep the always-on payload under ~4 KB.
+Trim your Cursor rules files (`.cursor/rules/*.mdc`, `AGENTS.md`, or legacy `.cursorrules`) to the essentials: language/framework conventions, code style, "do not" rules, and pointers to longer docs. Move long examples and rationale into separate files referenced via `@filename`. Keep rules focused (Cursor recommends under 500 lines) and the always-on payload small.
 
 # Examples
 {{extra.maxBytes}} bytes — largest custom-instructions file across {{extra.totalSessions}} workspace(s)

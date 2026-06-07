@@ -34,7 +34,7 @@ The primary data source. Cursor Engineering Coach parses chat panel and agent lo
 
 Cursor Engineering Coach inspects rules files in each workspace to score context quality and agentic readiness:
 
-- `<workspace>/.cursor/rules/*.md` — modern Cursor rules
+- `<workspace>/.cursor/rules/*.mdc` — modern Cursor project rules (plain `.md` here is ignored by Cursor)
 - `<workspace>/AGENTS.md` — universal agent instruction file
 - `<workspace>/.cursorrules` — legacy single-file rules
 
