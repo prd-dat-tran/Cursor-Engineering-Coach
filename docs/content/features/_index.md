@@ -8,6 +8,7 @@ Cursor Engineering Coach organizes its capabilities into three areas that mirror
 ## Observe
 
 - [Dashboard](/observe/dashboard/) -- At-a-glance practice scores, activity charts, and skill recommendations
+- [Request Usage](/observe/usage/) -- Request volume, waste analysis, run-out projection, and a status bar quota gauge
 - [Models](/observe/models/) -- Which models you use, how they map to request cost, and best-fit recommendations balancing effectiveness and billing
 
 ## Measure

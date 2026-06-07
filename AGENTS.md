@@ -10,7 +10,8 @@ Rules move pending→review→approve→reload; edits revoke trust. See [anti-pa
 
 ## Skills
 
-- `add-coaching-rule` ([.cursor/skills/add-coaching-rule/SKILL.md](.cursor/skills/add-coaching-rule/SKILL.md)): step-by-step pattern for adding a new built-in coaching rule (`src/core/rules/*.md`).
+- `add-coaching-rule` ([.cursor/skills/add-coaching-rule/SKILL.md](.cursor/skills/add-coaching-rule/SKILL.md)): step-by-step pattern for adding a new built-in coaching rule / anti-pattern (`src/core/rules/*.md`).
+- `add-coaching-page` ([.cursor/skills/add-coaching-page/SKILL.md](.cursor/skills/add-coaching-page/SKILL.md)): step-by-step pattern for adding a new dashboard page/view (analyzer → RPC → webview page → nav → docs).
 
 ## Documentation Index
 
@@ -38,4 +39,5 @@ This is a quick map of the docs tree so readers and agents can see the available
   - [Activity Patterns](/measure/patterns/)
 - [Observe](/observe/)
   - [Dashboard](/observe/dashboard/)
+  - [Request Usage](/observe/usage/)
   - [Models](/observe/models/)

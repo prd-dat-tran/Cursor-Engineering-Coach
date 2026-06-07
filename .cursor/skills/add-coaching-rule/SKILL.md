@@ -109,16 +109,18 @@ wrong advice for the user's plan:
 
 ## Step 4 — Bump the rule-count test
 
-Adding a file changes the built-in rule total. Update **both** assertions in
-[@src/core/antipatterns-e2e.test.ts](mdc:src/core/antipatterns-e2e.test.ts)
-(currently `46` → your new total):
+Adding a file changes the built-in rule total. Open
+[@src/core/antipatterns-e2e.test.ts](mdc:src/core/antipatterns-e2e.test.ts),
+read the **current** expected number (don't assume — it changes every time a
+rule is added), and increment **both** assertions by one:
 
 ```
 it('loads all N built-in rules from .md files' ...) → expect(rules.length).toBe(N);
 ... → expect(builtIn!.ruleCount).toBe(N);
 ```
 
-This is the only count to touch — there is no registry list.
+Tip: `ls src/core/rules/*.md | wc -l` is the authoritative new count. This is
+the only count to touch — there is no registry list.
 
 ## Step 5 — Build and verify
 

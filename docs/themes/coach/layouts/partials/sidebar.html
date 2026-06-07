@@ -11,6 +11,7 @@
   <div class="sidebar__section">
     <div class="sidebar__heading">Observe</div>
     <a href="{{ "observe/dashboard/" | relURL }}" class="sidebar__link{{ if eq .RelPermalink "/observe/dashboard/" }} sidebar__link--active{{ end }}">Dashboard</a>
+    <a href="{{ "observe/usage/" | relURL }}" class="sidebar__link{{ if eq .RelPermalink "/observe/usage/" }} sidebar__link--active{{ end }}">Request Usage</a>
     <a href="{{ "observe/models/" | relURL }}" class="sidebar__link{{ if eq .RelPermalink "/observe/models/" }} sidebar__link--active{{ end }}">Models</a>
   </div>
 
