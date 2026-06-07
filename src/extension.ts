@@ -26,6 +26,7 @@ import { registerTools } from './mcp/tools';
 import { registerChatParticipant } from './chat/participant';
 import { exportSummaryFiles } from './summary-export-vscode';
 import { maybePromptForBillingModel } from './billing-vscode';
+import { registerUsageStatusBar } from './usage-statusbar';
 
 type PanelModule = typeof import('./webview/panel');
 let panelModulePromise: Promise<PanelModule> | null = null;
@@ -172,6 +173,14 @@ export function activate(context: vscode.ExtensionContext) {
       if (getPending().length > 0) await promptAndReload();
       await exportSummaryFromLogs();
     }),
+    vscode.commands.registerCommand('cursorEngineeringCoach.openUsage', async () => {
+      runtimeDebug('extension', 'command-open-usage');
+      await ready;
+      if (getPending().length > 0) await promptAndReload();
+      const { DashboardPanel } = await loadPanelModule();
+      DashboardPanel.createOrShow(context.extensionUri, context);
+      DashboardPanel.current?.revealPage('usage');
+    }),
     vscode.commands.registerCommand('cursorEngineeringCoach.reviewLocalRules', async () => {
       runtimeDebug('extension', 'command-review-trust');
       await ready;
@@ -200,6 +209,8 @@ export function activate(context: vscode.ExtensionContext) {
   // One-time, non-blocking: confirm billing model for detected Teams/Enterprise plans.
   void maybePromptForBillingModel(context).catch(err =>
     runtimeDebug('extension', 'billing-prompt-error', String(err)));
+
+  registerUsageStatusBar(context);
 
   void ready.then(() => loadPanelModule()).then(({ DashboardSidebarProvider }) => {
     const sidebarProvider = new DashboardSidebarProvider(context.extensionUri);

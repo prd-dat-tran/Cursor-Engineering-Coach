@@ -80,9 +80,14 @@ correct.
 weak-model / cancelled-request counts) for request-based users and, when the
 user opted in via `billing.fetchLiveUsage`, awaits `fetchLiveUsage()` from
 [@src/billing-usage.ts](mdc:src/billing-usage.ts) to attach a live
-current-cycle usage block. `ToolDef.invoke` therefore returns
+current-cycle usage block. When live usage is present it also runs
+`projectUsage()` and leads with a run-out warning for request-based users on
+pace to exhaust their quota early. `ToolDef.invoke` therefore returns
 `LanguageModelToolResult | Promise<...>`. `billing-usage.ts` is the only
 analytics network call — keep it opt-in, Cursor-only, and never log the token.
+The same projection powers the status bar gauge
+([@src/usage-statusbar.ts](mdc:src/usage-statusbar.ts)) and the Usage page
+([@src/webview/page-usage.ts](mdc:src/webview/page-usage.ts)).
 
 ## Tool descriptions write themselves into the system prompt
 

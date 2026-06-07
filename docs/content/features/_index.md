@@ -8,8 +8,7 @@ Cursor Engineering Coach organizes its capabilities into three areas that mirror
 ## Observe
 
 - [Dashboard](/observe/dashboard/) -- At-a-glance practice scores, activity charts, and skill recommendations
-- [Timeline](/observe/timeline/) -- Gantt-style session timeline showing when and how long you worked with Cursor
-- [Coding Moments](/observe/coding-moments/) -- Screenshot gallery from your Cursor sessions with story reels and workspace filtering
+- [Models](/observe/models/) -- Which models you use, how they map to request cost, and best-fit recommendations balancing effectiveness and billing
 
 ## Measure
 

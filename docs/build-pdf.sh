@@ -41,7 +41,7 @@ FILES=(
   "$CONTENT_DIR/features/chat.md"
   "$CONTENT_DIR/observe/_index.md"
   "$CONTENT_DIR/observe/dashboard.md"
-  "$CONTENT_DIR/observe/timeline.md"
+  "$CONTENT_DIR/observe/models.md"
   "$CONTENT_DIR/measure/_index.md"
   "$CONTENT_DIR/measure/output.md"
   "$CONTENT_DIR/measure/burndown.md"

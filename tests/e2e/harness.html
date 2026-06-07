@@ -38,7 +38,7 @@ body { background: var(--vscode-editor-background); color: var(--vscode-editor-f
     <ul class="nav-links">
       <li class="nav-group-header">Observe</li>
       <li><a href="#" data-page="dashboard" class="active"><span class="nav-icon">&#9632;</span> Dashboard</a></li>
-      <li><a href="#" data-page="timeline"><span class="nav-icon">&#9472;</span> Timeline<span class="nav-badge" id="badge-sessions"></span></a></li>
+      <li><a href="#" data-page="models"><span class="nav-icon">&#9635;</span> Models</a></li>
       <li class="nav-group-header">Measure</li>
       <li><a href="#" data-page="output"><span class="nav-icon">&#9650;</span> Output<span class="nav-badge" id="badge-output"></span></a></li>
       <li><a href="#" data-page="burndown"><span class="nav-icon">&#9660;</span> Burndown<span class="nav-badge" id="badge-burndown"></span></a></li>
@@ -247,23 +247,30 @@ function getMockData(method, params) {
       harnessesWithoutRequestTokens: ['GitHub Copilot CLI']
     }),
 
-    getDayTimeline: () => ({
-      date: '2026-05-03',
-      mode: 'day',
-      rangeLabel: 'May 3, 2026',
-      dayStart: new Date('2026-05-03T00:00:00Z').getTime(),
-      dayEnd: new Date('2026-05-03T23:59:59Z').getTime(),
-      sessions: [
-        { sessionId: 's1', workspaceName: 'my-api', sessionName: 'Refactoring auth module', firstActivity: new Date('2026-05-03T09:00:00Z').getTime(), lastActivity: new Date('2026-05-03T09:45:00Z').getTime(), requestCount: 28, totalRequestCount: 28, requests: [] },
-        { sessionId: 's2', workspaceName: 'frontend-app', sessionName: 'Fix login page', firstActivity: new Date('2026-05-03T10:00:00Z').getTime(), lastActivity: new Date('2026-05-03T10:30:00Z').getTime(), requestCount: 15, totalRequestCount: 15, requests: [] },
-        { sessionId: 's3', workspaceName: 'data-pipeline', sessionName: 'Add ETL step', firstActivity: new Date('2026-05-03T11:15:00Z').getTime(), lastActivity: new Date('2026-05-03T12:00:00Z').getTime(), requestCount: 22, totalRequestCount: 22, requests: [] },
-        { sessionId: 's4', workspaceName: 'my-api', sessionName: 'API tests', firstActivity: new Date('2026-05-03T14:00:00Z').getTime(), lastActivity: new Date('2026-05-03T15:10:00Z').getTime(), requestCount: 35, totalRequestCount: 35, requests: [] },
-        { sessionId: 's5', workspaceName: 'mobile-sdk', sessionName: 'SDK integration', firstActivity: new Date('2026-05-03T16:00:00Z').getTime(), lastActivity: new Date('2026-05-03T16:45:00Z').getTime(), requestCount: 18, totalRequestCount: 18, requests: [] }
+    getModelInsights: () => ({
+      billingModel: 'request',
+      totalRequests: 2841,
+      withModel: 2600,
+      distinctModels: 3,
+      frontierShare: 0.62,
+      lightShare: 0.30,
+      autoShare: 0.08,
+      cancelledShare: 0.06,
+      headline: { title: "Use the most capable model — it's free on your plan", body: 'On request-based billing every request costs the same. Default to a frontier model and reduce the number of requests instead.', tone: 'warn' },
+      topPick: { label: 'Claude Opus 4.7', why: 'Same flat cost as any model — make the strongest your default.' },
+      models: [
+        { model: 'claude-sonnet-4.6', label: 'Claude Sonnet 4.6', family: 'Claude', klass: 'standard', multiplier: 1, requests: 1200, share: 0.46, avgAiLoc: 42, cancelRate: 0.05, agenticShare: 0.7, verdict: { kind: 'good-fit', label: 'Strong choice', tone: 'good', detail: 'Capable model.' } },
+        { model: 'gpt-5.4-mini', label: 'GPT 5.4 Mini', family: 'GPT', klass: 'light', multiplier: 0.33, requests: 800, share: 0.31, avgAiLoc: 12, cancelRate: 0.04, agenticShare: 0.3, verdict: { kind: 'underpowered', label: 'Underpowered for your plan', tone: 'warn', detail: 'Costs the same as a frontier model.' } },
+        { model: 'auto', label: 'Auto', family: 'Auto', klass: 'auto', multiplier: 1, requests: 600, share: 0.23, avgAiLoc: 20, cancelRate: 0.08, agenticShare: 0.5, verdict: { kind: 'underpowered', label: 'Underpowered for your plan', tone: 'warn', detail: 'Pin a frontier model.' } }
       ],
-      sessionCount: 5,
-      maxConcurrent: 1,
-      prevDay: '2026-05-02',
-      nextDay: null
+      recommendations: [
+        { task: 'Complex feature, refactor, or debugging', recommended: 'Claude Opus 4.7 · GPT 5.4', note: 'Same cost as any model — use the strongest available.' },
+        { task: 'Everyday coding', recommended: 'Claude Sonnet 4.6 · GPT 5.4', note: 'Still one request; pick capability over imaginary savings.' }
+      ],
+      catalog: [
+        { label: 'Claude Opus 4.7', family: 'Claude', klass: 'frontier', multiplier: 7.5, bestFor: 'Hardest reasoning, large refactors, deep debugging.', used: false },
+        { label: 'Claude Sonnet 4.6', family: 'Claude', klass: 'standard', multiplier: 1, bestFor: 'Fast, dependable everyday agentic coding.', used: true }
+      ]
     }),
 
     getHeatmap: () => ({

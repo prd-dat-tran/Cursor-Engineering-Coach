@@ -629,6 +629,8 @@ examples: "{{messageText | truncate:60}}"
 
 const rpcHandlers: TypedRpcHandlers = {
   getBillingProfile: (a) => a.getBillingProfile(),
+  getUsageBreakdown: (a, _p, params) => a.getUsageBreakdown(validateDateFilter(params)),
+  getModelInsights: (a, _p, params) => a.getModelInsights(validateDateFilter(params)),
   getWorkspaces: (a) => a.getWorkspaces(),
   getDailyActivity: (a, _p, params) => a.getDailyActivity(validateDateFilter(params)),
   getWorkspaceBreakdown: (a, _p, params) => a.getWorkspaceBreakdown(validateDateFilter(params)),
@@ -646,11 +648,6 @@ const rpcHandlers: TypedRpcHandlers = {
     isRecord(params?.filter) ? validateDateFilter(params.filter) : undefined,
   ) : errorResult('Token reporting is temporarily disabled'),
   getTokenCoverage: (a, _p, params) => FF_TOKEN_REPORTING_ENABLED ? a.getTokenCoverage(validateDateFilter(params)) : errorResult('Token reporting is temporarily disabled'),
-  getDayTimeline: (a, _p, params) => a.getDayTimeline(
-    isOptionalString(params?.date) ? params.date : undefined,
-    isOptionalString(params?.mode) ? params.mode : undefined,
-    isRecord(params?.filter) ? validateDateFilter(params.filter) : undefined,
-  ),
   getSessions: (a, _p, params) => a.getSessions(
     isNumber(params?.page) ? params.page : 1,
     isNumber(params?.pageSize) ? Math.min(params.pageSize, 100) : 20,
@@ -694,7 +691,6 @@ const rpcHandlers: TypedRpcHandlers = {
   getContextRangeAvailability: (a, _p, params) => a.getContextRangeAvailability(validateDateFilter(isRecord(params?.filter) ? params.filter : params)),
   getCalendarActivity: (a, _p, params) => a.getCalendarActivity(validateDateFilter(params)),
   getProjectOverview: (a, _p, params) => a.getProjectOverview(validateDateFilter(params)),
-  getImageGallery: (a, _p, params) => a.getImageGallery(validateDateFilter(params)),
   getSessionImages: (_a, p, params) => {
     const sessionId = isString(params?.sessionId) ? params.sessionId : '';
     const requestId = isString(params?.requestId) ? params.requestId : '';

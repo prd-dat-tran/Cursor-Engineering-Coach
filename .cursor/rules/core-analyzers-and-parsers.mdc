@@ -64,8 +64,9 @@ to imitate). Pass capabilities in as plain functions or values.
   - `analyzer-base.ts` is the shared filter / request-session map.
   - One file per domain (`flow`, `patterns`, `config`, `consumption`,
     `production`, `dashboard`, `insights`, `timeline`, `workflows`,
-    `images`, `context`). Extend the matching file; do not start a
-    parallel one.
+    `context`, `models`). Extend the matching file; do not start a
+    parallel one. `analyzer-models.ts` powers the Models page (model
+    mix, per-model fit, and billing-aware recommendations).
 - **DSL** — [@src/core/dsl/](mdc:src/core/dsl/). Lexer → parser →
   interpreter for the constrained expression language used in rule and
   metric `.md` files. `schema.ts` is the source of truth for available

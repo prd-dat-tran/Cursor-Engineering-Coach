@@ -26,7 +26,7 @@ import {
   formatContextHealth,
 } from './formatters';
 import { FF_TOKEN_REPORTING_ENABLED } from '../core/constants';
-import { isRequestBased, liveUsageSummary } from '../core/billing';
+import { isRequestBased, liveUsageSummary, paceSummary, projectUsage } from '../core/billing';
 import { fetchLiveUsage } from '../billing-usage';
 
 /* ---- shared helpers ---- */
@@ -88,18 +88,30 @@ const TOOL_DEFS: ToolDef[] = [
     inputSchema: { type: 'object', properties: { ...FILTER_SCHEMA } },
     invoke: async (a, input) => {
       const live = await fetchLiveUsage();
-      const liveBlock = live ? { liveUsage: { ...live, summary: liveUsageSummary(live) } } : {};
+      const proj = live ? projectUsage(live) : null;
+      const liveBlock = live
+        ? { liveUsage: { ...live, summary: liveUsageSummary(live), ...(proj ? { projection: { ...proj, summary: paceSummary(proj) } } : {}) } }
+        : {};
       if (isRequestBased(a.getBillingProfile())) {
         const econ = a.getRequestEconomics(parseFilter(input));
+        let runOut = '';
+        if (proj && live?.requestsLimit) {
+          if (proj.pace === 'over') {
+            runOut = `URGENT: the user has ALREADY hit their request limit (${live.requestsUsed}/${live.requestsLimit}) with ${proj.daysRemaining} days left in the cycle. Lead with how to stretch remaining requests. `;
+          } else if (proj.pace === 'behind') {
+            runOut = `WARNING: at the current burn rate (~${proj.perDay}/day) the user is projected to run OUT of requests ~${proj.runOutDaysEarly} days early (projected ${proj.projectedTotal}/${live.requestsLimit}). Lead with this — they are the kind of user who runs out before month end. `;
+          }
+        }
         return textResult({
           billingModel: 'request-based',
-          note: 'You are on a request-based plan: each request costs the same flat amount regardless of model or token count, so per-token credit breakdowns do not apply. The cost lever is the NUMBER of requests.',
+          note: 'You are on a request-based plan: each request costs the same flat amount regardless of model or token count, so per-token credit breakdowns do not apply. The cost lever is the NUMBER of requests — and running out before the cycle resets is the failure mode to prevent.',
           requestEconomics: econ,
           ...liveBlock,
           guidance:
+            runOut +
             `Of ${econ.requestsWithModel} model-bearing requests, ${econ.lightOrAutoRequests} (${econ.lightOrAutoPct}%) used a lightweight/auto model — on flat-rate billing that trades capability for savings that do not exist. ` +
             `${econ.cancelledRequests} requests (${econ.cancelledPct}%) were cancelled, which is pure wasted spend. ` +
-            'Coach toward: (1) defaulting to the most capable model on every request, and (2) cutting total request volume via clearer prompts, better upfront context, and fewer cancellations/re-tries. Do not suggest cheaper/lighter models to save cost.',
+            'Coach toward landing more per request and burning fewer: (1) default to the most capable model on every request; (2) use Plan mode for big features and attach context with @file so one request does more; (3) batch related questions into a single prompt instead of many small turns; (4) cut cancellations/re-tries with clearer upfront prompts. Do not suggest cheaper/lighter models to save cost.',
         });
       }
       if (FF_TOKEN_REPORTING_ENABLED) {

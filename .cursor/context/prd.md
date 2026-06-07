@@ -131,6 +131,25 @@ plan instead of always assuming token-cost matters.
 - [x] Dashboard shows a billing chip + tailored headline; `@coach` system
       prompt and `coach_summary` / `coach_credits` are billing-aware.
 
+### In scope — "Don't run out of requests" (request-usage tracking)
+
+Targets request-based teams whose members exhaust their quota before the cycle
+resets. Built on Tier 3 live usage.
+
+- [x] **Burn-rate projection.** `billing.projectUsage()` forecasts run-out date,
+      daily pace, and a `pace`/`level` from a live snapshot (pure + tested).
+- [x] **Status bar gauge** (`usage-statusbar.ts`): `$(pulse) 45/500`, threshold
+      colors, projection tooltip, click → Usage page. Visibility via
+      `usage.statusBar` (`auto`/`always`/`off`); opt-in network stays one click
+      away. Refreshes on activate/focus/10-min timer; one-time-per-cycle
+      notifications (`usage.notify`) at ≥90% or projected early run-out.
+- [x] **Usage page** (`page-usage.ts`, Observe → Usage): live cycle hero +
+      projection, per-day chart, per-model/per-workspace tables, waste analysis
+      (cancelled + light/auto), tailored advice. Backed by the `getUsageBreakdown`
+      RPC / `PatternsAnalyzer.getUsageBreakdown()`.
+- [x] `coach_credits` + system prompt lead with run-out risk for request-based
+      users and point to the Usage page.
+
 ### Out of scope (do not regress)
 
 - ❌ Auto-detecting the *billing model* (request vs token). The plan **tier**

@@ -5,14 +5,15 @@
 
 /* Webview entry -- runs in the browser context inside the VS Code webview */
 
-import { AntiPatternData, DateFilter, StatsResult } from '../core/types';
+import { AntiPatternData, DateFilter } from '../core/types';
 import { $, $$, rpc, destroyCharts, initMessageListener, withErrorBoundary } from './shared';
 import { html, render, unmount, ComponentChildren } from './render';
 import { renderDashboard } from './page-dashboard';
+import { renderUsage } from './page-usage';
+import { renderModels } from './page-models';
 import { renderPatterns } from './page-patterns';
 import { renderOutput } from './page-output';
 import { renderBurndown } from './page-burndown';
-import { renderTimeline } from './page-timeline';
 import { renderAntiPatterns } from './page-antipatterns';
 // page-rule-editor merged into page-antipatterns
 import { renderSkills } from './page-skills';
@@ -20,7 +21,6 @@ import { renderConfigHealth } from './page-config';
 import { renderLevelUp } from './page-experiments';
 import { renderDataExplorer } from './page-data-explorer';
 import { renderRulePlayground } from './page-rule-playground';
-import { renderImageGallery } from './page-image-gallery';
 import { FF_TOKEN_REPORTING_ENABLED } from '../core/constants';
 
 function normalizePageForFeatureFlags(page: string): string {
@@ -59,10 +59,6 @@ export function updateNavBadge(id: string, value: string | number): void { setBa
 
 /** Fetch lightweight counts and populate sidebar badges. Fire-and-forget. */
 function refreshNavBadges(filter: DateFilter): void {
-  void rpc<StatsResult>('getStats', filter as Record<string, unknown>).then(s => {
-    setBadge('badge-sessions', s.totalSessions);
-  }).catch(() => {/* best-effort */});
-
   void rpc<AntiPatternData>('getAntiPatterns', filter as Record<string, unknown>).then(d => {
     setBadge('badge-antipatterns', d.patterns.length);
   }).catch(() => {});
@@ -438,6 +434,12 @@ function onDataReady(currentWorkspace: string): void {
 
 initMessageListener(handleProgress, onDataReady);
 
+// Deep-link from the extension (e.g. status bar click) to a specific page.
+window.addEventListener('message', (ev) => {
+  const msg = ev.data as { type?: string; page?: string };
+  if (msg?.type === 'navigate' && typeof msg.page === 'string') navigateTo(msg.page);
+});
+
 /* ---- Navigation ---- */
 document.addEventListener('click', (e) => {
   const target = e.target as HTMLElement;
@@ -608,11 +610,12 @@ function renderPage(page: string): void {
 
   switch (page) {
     case 'dashboard': withErrorBoundary('Dashboard', content, () => renderDashboard(content, currentFilter)); break;
+    case 'usage': withErrorBoundary('Usage', content, () => renderUsage(content, currentFilter)); break;
+    case 'models': withErrorBoundary('Models', content, () => renderModels(content, currentFilter)); break;
     case 'patterns': withErrorBoundary('Patterns', content, () => renderPatterns(content, currentFilter)); break;
     case 'output': withErrorBoundary('Output', content, () => renderOutput(content, currentFilter)); break;
     case 'burndown':
       withErrorBoundary('Burndown', content, () => renderBurndown(content, currentFilter)); break;
-    case 'timeline': withErrorBoundary('Timeline', content, () => renderTimeline(content, currentFilter)); break;
     case 'anti-patterns': withErrorBoundary('Anti-Patterns', content, () => renderAntiPatterns(content, currentFilter)); break;
     case 'rule-editor': withErrorBoundary('Rule Editor', content, () => renderAntiPatterns(content, currentFilter)); break;
     case 'skills': withErrorBoundary('Skills', content, () => renderSkills(content, currentFilter)); break;
@@ -620,7 +623,6 @@ function renderPage(page: string): void {
     case 'level-up': withErrorBoundary('Level Up', content, () => renderLevelUp(content, currentFilter)); break;
     case 'data-explorer': withErrorBoundary('Data Explorer', content, () => renderDataExplorer(content, currentFilter)); break;
     case 'rule-playground': withErrorBoundary('Rule Playground', content, () => renderRulePlayground(content, currentFilter)); break;
-    case 'image-gallery': withErrorBoundary('Image Gallery', content, () => renderImageGallery(content, currentFilter)); break;
     default: render(html`<p>Unknown page</p>`, content);
   }
 }

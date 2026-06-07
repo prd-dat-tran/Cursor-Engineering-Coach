@@ -85,48 +85,6 @@ export interface ConsumptionData {
   monthly: { labels: string[]; values: number[]; byModel: Record<string, number[]> };
 }
 
-export interface TimelineSession {
-  sessionId: string;
-  workspaceName: string;
-  sessionName: string;
-  firstActivity: number;
-  lastActivity: number;
-  requestCount: number;
-  totalRequestCount: number;
-  requests: TimelineRequest[];
-}
-
-export interface TimelineRequest {
-  timestamp: number;
-  messageText: string;
-  responseText: string;
-  messageLength: number;
-  responseLength: number;
-  agentName: string;
-  modelId: string;
-  toolsUsed: string[];
-  editedFiles: string[];
-  referencedFiles: string[];
-  preview: string;
-  loc?: number;
-  workType?: string;
-}
-
-export interface DayTimeline {
-  date: string;
-  mode: string;
-  rangeLabel: string;
-  dayStart: number;
-  dayEnd: number;
-  sessions: TimelineSession[];
-  sessionCount: number;
-  maxConcurrent: number;
-  prevDay: string | null;
-  nextDay: string | null;
-  firstDay: string | null;
-  activeDates: { date: string; count: number }[];
-}
-
 export interface SessionListItem {
   sessionId: string;
   workspaceName: string;
@@ -637,6 +595,103 @@ export interface RequestEconomics {
   frontierPct: number;
   lightOrAutoPct: number;
   cancelledPct: number;
+}
+
+export type UsageTier = 'frontier' | 'light' | 'auto';
+export interface UsageModelSlice { model: string; tier: UsageTier; requests: number; }
+export interface UsageDaySlice { date: string; requests: number; }
+export interface UsageNamedSlice { name: string; requests: number; }
+
+/** Request-volume breakdowns for the Usage page (local session data). */
+export interface UsageBreakdown {
+  economics: RequestEconomics;
+  /** Models used, most requests first. */
+  byModel: UsageModelSlice[];
+  /** Requests per calendar day, chronological. */
+  byDay: UsageDaySlice[];
+  /** Top workspaces by request volume. */
+  byWorkspace: UsageNamedSlice[];
+}
+
+/* ── Model advisor (Models page) ─────────────────────────────────── */
+
+/** Capability/cost class of a model, derived from its request multiplier. */
+export type ModelClass = 'frontier' | 'standard' | 'light' | 'free' | 'auto' | 'unknown';
+
+export type ModelVerdictTone = 'good' | 'warn' | 'info';
+
+export interface ModelVerdict {
+  kind: string;
+  label: string;
+  detail: string;
+  tone: ModelVerdictTone;
+}
+
+/** Per-model usage + effectiveness stats for the user's own history. */
+export interface ModelStat {
+  /** Normalized model id (e.g. claude-opus-4.7). */
+  model: string;
+  /** Human label (e.g. Claude Opus 4.7). */
+  label: string;
+  /** Family bucket: Claude | GPT | Gemini | Grok | Auto | Other. */
+  family: string;
+  klass: ModelClass;
+  /** Request-cost multiplier (0 = included, 1 = standard premium, >1 = costly). */
+  multiplier: number;
+  requests: number;
+  /** Share of model-bearing requests, 0..1. */
+  share: number;
+  /** Avg AI lines of code produced per request. */
+  avgAiLoc: number;
+  /** Cancelled share, 0..1. */
+  cancelRate: number;
+  /** Share of requests that used tools or edited files (agentic work), 0..1. */
+  agenticShare: number;
+  verdict: ModelVerdict;
+}
+
+/** One row of the task → model cheat-sheet. */
+export interface ModelRecRow {
+  task: string;
+  recommended: string;
+  note: string;
+}
+
+/** A curated reference entry for a notable model available in Cursor. */
+export interface ModelCatalogItem {
+  label: string;
+  family: string;
+  klass: ModelClass;
+  multiplier: number;
+  bestFor: string;
+  /** Whether the user has used this model in range. */
+  used: boolean;
+}
+
+/** Everything the Models page needs: the user's usage, a headline default
+ *  recommendation, a task cheat-sheet, and a curated catalog — all tailored
+ *  to the detected billing model. */
+export interface ModelInsightsData {
+  billingModel: 'request' | 'usage' | 'unknown';
+  totalRequests: number;
+  /** Requests that carried a model id. */
+  withModel: number;
+  distinctModels: number;
+  /** Share of model-bearing requests on a frontier/standard (>=1x) model, 0..1. */
+  frontierShare: number;
+  /** Share on a light/free/non-premium model, 0..1. */
+  lightShare: number;
+  /** Share routed to Auto, 0..1. */
+  autoShare: number;
+  /** Cancelled share of all requests, 0..1. */
+  cancelledShare: number;
+  headline: { title: string; body: string; tone: ModelVerdictTone };
+  /** The single "set this as your default" suggestion, when one applies. */
+  topPick: { label: string; why: string } | null;
+  /** The user's models, most-used first. */
+  models: ModelStat[];
+  recommendations: ModelRecRow[];
+  catalog: ModelCatalogItem[];
 }
 
 export interface WorkflowCluster {

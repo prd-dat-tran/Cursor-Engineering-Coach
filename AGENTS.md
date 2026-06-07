@@ -38,4 +38,4 @@ This is a quick map of the docs tree so readers and agents can see the available
   - [Activity Patterns](/measure/patterns/)
 - [Observe](/observe/)
   - [Dashboard](/observe/dashboard/)
-  - [Timeline](/observe/timeline/)
+  - [Models](/observe/models/)

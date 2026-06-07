@@ -18,8 +18,7 @@ The extension is organized into four sections: **Observe**, **Measure**, **Impro
 | Page | What it shows |
 | --- | --- |
 | **Dashboard** | Practice scores with week-over-week and month-over-month trends, skill finder summary, daily activity chart, and top workspace stats |
-| **Timeline** | Gantt-style session timeline with per-day drill-down, session overlap detection, and a searchable list view |
-| **Coding Moments** | Screenshot gallery from your Cursor sessions with story reels, workspace filtering, and progressive image loading |
+| **Models** | Best-fit model advisor — your model mix, per-model fit scores, and task recommendations tuned to request- vs usage-based billing |
 
 ### Measure
 

@@ -27,7 +27,6 @@ Cursor Engineering Coach reads your local Cursor session logs and turns them int
 <details>
 <summary><strong>Screenshots</strong></summary>
 <br>
-<p align="center"><img src="assets/screen-timeline.png" alt="Timeline" width="820"></p>
 <p align="center"><img src="assets/screen-output.png" alt="Code Output" width="820"></p>
 <p align="center"><img src="assets/screen-consumption.png" alt="Premium Request Consumption" width="820"></p>
 <p align="center"><img src="assets/screen-patterns-projects.png" alt="Activity Patterns - Projects" width="820"></p>
@@ -130,8 +129,7 @@ After install:
 | Page               | Description                                                                           |
 | ------------------ | ------------------------------------------------------------------------------------- |
 | **Dashboard**      | Practice scores with week-over-week trends, daily activity chart, top workspace stats |
-| **Timeline**       | Gantt-style session timeline with per-day drill-down and overlap detection            |
-| **Coding Moments** | Screenshot gallery from your Cursor sessions with story reels and workspace filtering |
+| **Models**         | Best-fit model advisor — your model mix, per-model fit scores, and task recommendations tuned to your billing |
 
 ### Measure
 

@@ -210,9 +210,9 @@ describe('Anti-Patterns E2E', () => {
 
   /* ━━━ Layer 1: Rule Loading ━━━ */
   describe('Rule loading', () => {
-    it('loads all 46 built-in rules from .md files', () => {
+    it('loads all 47 built-in rules from .md files', () => {
       const rules = getAllRules();
-      expect(rules.length).toBe(46);
+      expect(rules.length).toBe(47);
     });
 
     it('every rule has required fields from frontmatter', () => {
@@ -251,11 +251,11 @@ describe('Anti-Patterns E2E', () => {
       expect(new Set(ids).size).toBe(ids.length);
     });
 
-    it('getRuleLayerInfo returns built-in layer with 46 rules', () => {
+    it('getRuleLayerInfo returns built-in layer with 47 rules', () => {
       const layers = getRuleLayerInfo(undefined);
       const builtIn = layers.find(l => l.layer === 'built-in');
       expect(builtIn).toBeDefined();
-      expect(builtIn!.ruleCount).toBe(46);
+      expect(builtIn!.ruleCount).toBe(47);
       expect(builtIn!.exists).toBe(true);
     });
   });

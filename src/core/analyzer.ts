@@ -9,7 +9,7 @@ import * as path from 'path';
 import {
   Session, SessionRequest, DateFilter, DailyActivity, HourlyDistribution, HeatmapData,
   CodeProductionData, ConsumptionData, BurndownConfig, BurndownData, AiCreditData, AiCreditBurndownData, TokenCoverageData,
-  DayTimeline, SessionList, WorkspaceBreakdown, RecommendationResult, RequestEconomics,
+  SessionList, WorkspaceBreakdown, RecommendationResult, RequestEconomics, UsageBreakdown, ModelInsightsData,
   AntiPatternData, WorkLifeBalanceResult, StatsResult, HarnessComparisonData,
   WorkflowOptimizationData, ConfigHealthData, FlowStateData, Workspace,
   CalendarActivityData, ProjectOverviewData, ContextManagementData, InsightsData,
@@ -25,7 +25,7 @@ import { ConfigAnalyzer } from './analyzer-config';
 import { FlowAnalyzer } from './analyzer-flow';
 import { ContextAnalyzer } from './analyzer-context';
 import { InsightsAnalyzer } from './analyzer-insights';
-import { ImageAnalyzer, ImageGalleryData } from './analyzer-images';
+import { ModelAnalyzer } from './analyzer-models';
 import { AnalyzerBase } from './analyzer-base';
 import { BillingProfile, DEFAULT_BILLING_PROFILE } from './billing';
 import { errorCore, infoCore, warnCore } from './log';
@@ -41,7 +41,7 @@ export class Analyzer {
   private readonly insights: InsightsAnalyzer;
   private readonly flow: FlowAnalyzer;
   private readonly context: ContextAnalyzer;
-  private readonly images: ImageAnalyzer;
+  private readonly models: ModelAnalyzer;
   private readonly sessions: Session[];
   private readonly editLocIndex: Map<string, Map<string, number>>;
   private readonly workspaces: Map<string, Workspace>;
@@ -65,7 +65,7 @@ export class Analyzer {
     this.insights = new InsightsAnalyzer(sessions, elIdx, sharedMap);
     this.flow = new FlowAnalyzer(sessions, elIdx, sharedMap);
     this.context = new ContextAnalyzer(sessions, elIdx, sharedMap);
-    this.images = new ImageAnalyzer(sessions, elIdx, sharedMap);
+    this.models = new ModelAnalyzer(sessions, elIdx, sharedMap, billing);
   }
 
   private getCached<T>(key: string, filter: DateFilter | undefined, compute: () => T): T {
@@ -212,13 +212,14 @@ export class Analyzer {
   getAiCreditBurndown(config: BurndownConfig, f?: DateFilter): AiCreditBurndownData { return this.consumption.getAiCreditBurndown(config, f); }
   getTokenCoverage(f?: DateFilter): TokenCoverageData { return this.consumption.getTokenCoverage(f); }
 
-  getDayTimeline(dateStr?: string, mode?: string, f?: DateFilter): DayTimeline { return this.timeline.getDayTimeline(dateStr, mode, f); }
   getSessions(page: number, pageSize: number, f?: DateFilter, search?: string): SessionList { return this.timeline.getSessions(page, pageSize, f, search); }
   getSessionDetail(sessionId: string): Session | null { return this.timeline.getSessionDetail(sessionId); }
   getWorkLifeBalance(f?: DateFilter): WorkLifeBalanceResult | null { return this.timeline.getWorkLifeBalance(f); }
 
   getRecommendations(f?: DateFilter): RecommendationResult[] { return this.patterns.getRecommendations(f); }
   getRequestEconomics(f?: DateFilter): RequestEconomics { return this.patterns.getRequestEconomics(f); }
+  getUsageBreakdown(f?: DateFilter): UsageBreakdown { return this.patterns.getUsageBreakdown(f); }
+  getModelInsights(f?: DateFilter): ModelInsightsData { return this.models.getModelInsights(f); }
   getProjectOverview(f?: DateFilter): ProjectOverviewData { return this.patterns.getProjectOverview(f); }
   getAntiPatterns(f?: DateFilter): AntiPatternData {
     if (!f && this.cache.has('getAntiPatterns')) return this.cache.get('getAntiPatterns') as AntiPatternData;
@@ -252,8 +253,6 @@ export class Analyzer {
   }
 
   getCalendarActivity(f?: DateFilter): CalendarActivityData { return this.dashboard.getCalendarActivity(f); }
-
-  getImageGallery(f?: DateFilter): ImageGalleryData { return this.images.getImageGallery(f); }
 
   getStats(f?: DateFilter): StatsResult {
     return this.getCached('getStats', f, () => this.dashboard.getStats(f));

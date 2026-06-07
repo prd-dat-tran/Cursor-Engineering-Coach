@@ -33,6 +33,10 @@
     "onCommand:cursorEngineeringCoach.reload",
     "onCommand:cursorEngineeringCoach.exportSummary",
     "onCommand:cursorEngineeringCoach.reviewLocalRules",
+    "onCommand:cursorEngineeringCoach.openUsage",
+    "onCommand:cursorEngineeringCoach.enableUsageTracking",
+    "onCommand:cursorEngineeringCoach.refreshUsage",
+    "onStartupFinished",
     "onView:cursorEngineeringCoach.welcome"
   ],
   "main": "./dist/extension.js",
@@ -57,6 +61,21 @@
         "command": "cursorEngineeringCoach.reviewLocalRules",
         "title": "Cursor Engineering Coach: Review Local Rule Approvals",
         "icon": "$(shield)"
+      },
+      {
+        "command": "cursorEngineeringCoach.openUsage",
+        "title": "Cursor Engineering Coach: Open Request Usage",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "cursorEngineeringCoach.enableUsageTracking",
+        "title": "Cursor Engineering Coach: Enable Request Usage Tracking",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "cursorEngineeringCoach.refreshUsage",
+        "title": "Cursor Engineering Coach: Refresh Request Usage",
+        "icon": "$(refresh)"
       }
     ],
     "viewsContainers": {
@@ -298,6 +317,22 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "**Opt-in network call.** When enabled, the extension reads your local Cursor access token and calls Cursor's own usage endpoint over HTTPS to show your current billing-cycle request usage (e.g. \"34 / 500 requests this cycle\"). This is the only analytics network request the extension makes. The token is used transiently, sent only to Cursor, and never stored or logged. Leave off to stay fully local."
+        },
+        "cursorEngineeringCoach.usage.statusBar": {
+          "type": "string",
+          "enum": ["auto", "always", "off"],
+          "enumDescriptions": [
+            "Show the request-usage status bar item only when your plan is request-based (or live usage is enabled).",
+            "Always show the request-usage status bar item.",
+            "Never show the request-usage status bar item."
+          ],
+          "default": "auto",
+          "markdownDescription": "Show a request-usage gauge (e.g. `45/500`) in the status bar. Requires live usage — enabling it will prompt you to turn on `#cursorEngineeringCoach.billing.fetchLiveUsage#` (the opt-in network call)."
+        },
+        "cursorEngineeringCoach.usage.notify": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show a one-time notification each billing cycle when you cross 90% of your request quota or are on pace to run out early. Only active when the request-usage status bar is enabled."
         }
       }
     }

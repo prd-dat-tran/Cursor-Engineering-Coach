@@ -5,7 +5,7 @@
 
 /* Recommendations + anti-pattern detection analytics */
 
-import { Session, SessionRequest, DateFilter, RecommendationResult, AntiPatternData, PracticeGroup, GroupScore, ProjectOverviewData, ProjectOverviewItem, RequestEconomics } from './types';
+import { Session, SessionRequest, DateFilter, RecommendationResult, AntiPatternData, PracticeGroup, GroupScore, ProjectOverviewData, ProjectOverviewItem, RequestEconomics, UsageBreakdown, UsageTier } from './types';
 import { toDateStr, normalizeModel, modelMultiplier } from './helpers';
 import { LONG_SESSION_REQS } from './constants';
 import { BillingProfile, DEFAULT_BILLING_PROFILE, isRequestBased } from './billing';
@@ -103,6 +103,43 @@ export class PatternsAnalyzer extends AnalyzerBase {
       lightOrAutoPct: pctOf(lightOrAutoRequests, requestsWithModel),
       cancelledPct: pctOf(cancelledRequests, totalRequests),
     };
+  }
+
+  /**
+   * Request-volume breakdowns for the Usage page: which models, days, and
+   * workspaces consume requests, plus the waste economics. Uses request-level
+   * date filtering and the request→session map for workspace attribution.
+   */
+  getUsageBreakdown(f?: DateFilter): UsageBreakdown {
+    const reqs = this.filter(f);
+    const modelMap = new Map<string, { tier: UsageTier; requests: number }>();
+    const dayMap = new Map<string, number>();
+    const wsMap = new Map<string, number>();
+    for (const r of reqs) {
+      if (r.timestamp == null) continue;
+      const day = toDateStr(r.timestamp);
+      dayMap.set(day, (dayMap.get(day) ?? 0) + 1);
+      const ws = this.requestSessionMap.get(r)?.workspaceName || 'Unknown';
+      wsMap.set(ws, (wsMap.get(ws) ?? 0) + 1);
+      if (r.modelId) {
+        const norm = normalizeModel(r.modelId);
+        const tier: UsageTier = /auto/i.test(norm) ? 'auto' : modelMultiplier(norm) >= 1 ? 'frontier' : 'light';
+        const cur = modelMap.get(norm) ?? { tier, requests: 0 };
+        cur.requests++;
+        modelMap.set(norm, cur);
+      }
+    }
+    const byModel = [...modelMap.entries()]
+      .map(([model, v]) => ({ model, tier: v.tier, requests: v.requests }))
+      .sort((a, b) => b.requests - a.requests);
+    const byDay = [...dayMap.entries()]
+      .map(([date, requests]) => ({ date, requests }))
+      .sort((a, b) => (a.date < b.date ? -1 : 1));
+    const byWorkspace = [...wsMap.entries()]
+      .map(([name, requests]) => ({ name, requests }))
+      .sort((a, b) => b.requests - a.requests)
+      .slice(0, 12);
+    return { economics: this.getRequestEconomics(f), byModel, byDay, byWorkspace };
   }
 
   private checkModelDiversity(reqs: SessionRequest[]): RecommendationResult {

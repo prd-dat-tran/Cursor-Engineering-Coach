@@ -40,6 +40,7 @@ export class DashboardPanel {
   private disposed = false;
   private loading = false;
   private loadCompletedAt = 0;
+  private initialNavPage: string | undefined;
 
   private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
     this.panel = panel;
@@ -127,6 +128,24 @@ export class DashboardPanel {
     void this.loadData();
   }
 
+  /** Reveal the panel and navigate to a specific page (queued until data is ready). */
+  public revealPage(page: string): void {
+    const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
+    try { this.panel.reveal(column); } catch { /* disposed */ }
+    if (this.dataReady) {
+      try { this.panel.webview.postMessage({ type: 'navigate', page }); } catch { /* disposed */ }
+    } else {
+      this.initialNavPage = page;
+    }
+  }
+
+  private flushInitialNav(): void {
+    if (!this.initialNavPage) return;
+    const page = this.initialNavPage;
+    this.initialNavPage = undefined;
+    try { this.panel.webview.postMessage({ type: 'navigate', page }); } catch { /* disposed */ }
+  }
+
   private updateSidebarStats(): void {
     if (!this.parseResult) return;
     const harnesses = new Set<string>();
@@ -205,6 +224,7 @@ export class DashboardPanel {
         this.updateSidebarStats();
         this.dataReady = true;
         safePost({ type: 'dataReady', currentWorkspace: vscode.workspace.name || '' });
+        this.flushInitialNav();
         return;
       }
 
@@ -250,6 +270,7 @@ export class DashboardPanel {
       this.dataReady = true;
 
       safePost({ type: 'dataReady', currentWorkspace: vscode.workspace.name || '' });
+      this.flushInitialNav();
       runtimeDebug('panel', 'data-ready-sent', `elapsedMs=${Date.now() - t0}`);
 
       try {
@@ -275,26 +296,38 @@ export class DashboardPanel {
     }
   }
 
-  private handleMessage(msg: unknown): void {
-    if (this.disposed) return;
-    if (!isRequestMessage(msg)) return;
-
-    // Open external URLs from webview
+  /**
+   * Command-style messages handled directly (no analyzer/data needed). Returns
+   * true when the message was consumed.
+   */
+  private tryHandleCommand(msg: Extract<WebviewMessage, { type: 'request' }>): boolean {
     if (msg.method === 'openExternal') {
       const url = (msg.params as Record<string, unknown> | undefined)?.url;
       if (typeof url === 'string') {
         void vscode.env.openExternal(vscode.Uri.parse(url));
         postResponse(this.panel.webview, msg.id, { ok: true });
       }
-      return;
+      return true;
     }
-
-    // Budget persistence — handled before data readiness check
+    // Enable opt-in live usage tracking from the Usage page CTA.
+    if (msg.method === 'enableUsageTracking') {
+      void vscode.commands.executeCommand('cursorEngineeringCoach.enableUsageTracking');
+      postResponse(this.panel.webview, msg.id, { ok: true });
+      return true;
+    }
+    // Budget persistence — handled before data readiness check.
     if (msg.method === 'saveModelBudgets' || msg.method === 'loadModelBudgets') {
       this.handleBudgetMessage(msg);
-      return;
+      return true;
     }
+    return false;
+  }
 
+  private handleMessage(msg: unknown): void {
+    if (this.disposed) return;
+    if (!isRequestMessage(msg)) return;
+
+    if (this.tryHandleCommand(msg)) return;
     if (this.requestService.tryHandle(msg)) return;
 
     if (!this.dataReady || !this.analyzer || !this.parseResult) {

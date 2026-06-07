@@ -59,14 +59,14 @@ analytics, no writes outside the extension's own cache directory at
                 │   ├─ page-patterns.ts                        │
                 │   ├─ page-output.ts                          │
                 │   ├─ page-burndown.ts                        │
-                │   ├─ page-timeline.ts                        │
+                │   ├─ page-usage.ts                           │
                 │   ├─ page-antipatterns.ts                    │
                 │   ├─ page-skills.ts                          │
                 │   ├─ page-config.ts                          │
                 │   ├─ page-experiments.ts                     │
                 │   ├─ page-data-explorer.ts                   │
                 │   ├─ page-rule-playground.ts                 │
-                │   └─ page-image-gallery.ts                   │
+                │   └─ page-models.ts                          │
                 │                                              │
                 │ render.ts  →  Preact + htm                   │
                 │ shared.ts  →  rpc(), createChart(), helpers  │
@@ -229,6 +229,32 @@ The user no longer *has* to configure billing — the setting is now an override
   `https://api2.cursor.sh/auth/usage` (Bearer) → `{ requestsUsed, requestsLimit,
   cycleStart }`. Token is never stored/logged; errors are swallowed. Surfaced via
   the `getLiveUsage` RPC (dashboard banner) and `coach_credits`.
+
+### Request-usage tracking (status bar, projection, Usage page)
+
+For request-based users the failure mode is *running out of requests before the
+cycle resets*. Three surfaces address it, all built on Tier 3 live usage:
+
+- **Burn-rate projection (pure).** `billing.projectUsage(LiveUsage, now)` turns a
+  snapshot into `{ pctUsed, daysRemaining, perDay, projectedTotal,
+  projectedRunOut, runOutDaysEarly, pace, level }` (cycle end = `cycleStart` + 1
+  month). `paceSummary()` renders the one-liner. Fully unit-tested; no `vscode`.
+- **Status bar gauge.** `src/usage-statusbar.ts` shows `$(pulse) 45/500`, colored
+  by `level` (warn/critical), with a projection tooltip. Visibility is governed by
+  `usage.statusBar` (`auto` = request-based plans or when live usage is on). When
+  live usage is off it becomes a one-click "enable" affordance (no network until
+  consent). Refreshes on activation, window focus, a 10-min timer, and config
+  change. One-time-per-cycle notifications (`usage.notify`, Memento-gated on
+  `cycleStart`) fire at ≥90% or projected early run-out. Click → `openUsage`.
+- **Usage page.** `src/webview/page-usage.ts` (nav: Observe → Usage) renders the
+  live cycle hero + projection, a per-day requests chart, per-model/per-workspace
+  tables, a waste analysis (cancelled + light/auto requests), and tailored advice.
+  Data comes from the `getUsageBreakdown` RPC → `PatternsAnalyzer.getUsageBreakdown()`
+  (byModel/byDay/byWorkspace + `RequestEconomics`, workspace via the
+  request→session map) plus the existing `getLiveUsage` RPC for the hero.
+- **Deep-link.** `DashboardPanel.revealPage(page)` posts `{type:'navigate',page}`
+  (queued until `dataReady`); `app.ts` listens and routes. Used by the status bar
+  click and the `cursorEngineeringCoach.openUsage` command.
 
 ## Rules pipeline
 

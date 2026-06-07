@@ -125,6 +125,116 @@ export function liveUsageSummary(u: LiveUsage): string {
   return `${u.requestsUsed} requests used this cycle`;
 }
 
+/* ---- Usage projection (burn rate, run-out forecast) ---- */
+
+const MS_PER_DAY = 86_400_000;
+
+/** End of the billing cycle that starts at `cycleStartIso` (one calendar month later). */
+export function cycleEnd(cycleStartIso: string): Date {
+  const end = new Date(cycleStartIso);
+  end.setMonth(end.getMonth() + 1);
+  return end;
+}
+
+export type UsagePace = 'no-limit' | 'ahead' | 'on-track' | 'behind' | 'over';
+export type UsageLevel = 'ok' | 'warn' | 'critical';
+
+export interface UsageProjection {
+  used: number;
+  limit: number | null;
+  /** 0..100 (0 when there is no fixed limit). */
+  pctUsed: number;
+  daysElapsed: number;
+  daysRemaining: number;
+  cycleLengthDays: number;
+  /** Requests per day so far (burn rate). */
+  perDay: number;
+  /** Burn-rate-projected total requests by cycle end. */
+  projectedTotal: number;
+  /** ISO date the user is projected to hit the limit; null if no limit or won't run out. */
+  projectedRunOut: string | null;
+  /** How many days before cycle end the limit is projected to be hit (>=0); null if N/A. */
+  runOutDaysEarly: number | null;
+  pace: UsagePace;
+  level: UsageLevel;
+}
+
+/**
+ * Project request burn for the current cycle. Pure and deterministic (pass
+ * `now` in tests). Returns null when the cycle start is unknown.
+ */
+export function projectUsage(u: LiveUsage, now: Date = new Date()): UsageProjection | null {
+  if (!u.cycleStart) return null;
+  const start = new Date(u.cycleStart);
+  if (Number.isNaN(start.getTime())) return null;
+  const end = cycleEnd(u.cycleStart);
+
+  const cycleLengthDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / MS_PER_DAY));
+  const elapsedRaw = (now.getTime() - start.getTime()) / MS_PER_DAY;
+  const daysElapsed = Math.min(cycleLengthDays, Math.max(0, elapsedRaw));
+  const daysRemaining = Math.max(0, cycleLengthDays - daysElapsed);
+  const perDay = daysElapsed > 0 ? u.requestsUsed / daysElapsed : u.requestsUsed;
+  const projectedTotal = Math.round(perDay * cycleLengthDays);
+  const limit = u.requestsLimit;
+  const pctUsed = limit && limit > 0 ? Math.round((u.requestsUsed / limit) * 100) : 0;
+
+  let pace: UsagePace = 'no-limit';
+  let level: UsageLevel = 'ok';
+  let projectedRunOut: string | null = null;
+  let runOutDaysEarly: number | null = null;
+
+  if (limit && limit > 0) {
+    if (u.requestsUsed >= limit) pace = 'over';
+    else if (projectedTotal > limit) pace = 'behind';
+    else if (projectedTotal >= limit * 0.9) pace = 'on-track';
+    else pace = 'ahead';
+
+    if (perDay > 0 && (pace === 'behind' || pace === 'over')) {
+      const remaining = Math.max(0, limit - u.requestsUsed);
+      const runOutDate = new Date(now.getTime() + (remaining / perDay) * MS_PER_DAY);
+      projectedRunOut = runOutDate.toISOString();
+      runOutDaysEarly = Math.max(0, Math.round((end.getTime() - runOutDate.getTime()) / MS_PER_DAY));
+    }
+
+    if (pace === 'over' || pctUsed >= 95) level = 'critical';
+    else if (pace === 'behind' || pctUsed >= 80) level = 'warn';
+    else level = 'ok';
+  }
+
+  return {
+    used: u.requestsUsed,
+    limit,
+    pctUsed,
+    daysElapsed: Math.round(daysElapsed),
+    daysRemaining: Math.round(daysRemaining),
+    cycleLengthDays,
+    perDay: Math.round(perDay * 10) / 10,
+    projectedTotal,
+    projectedRunOut,
+    runOutDaysEarly,
+    pace,
+    level,
+  };
+}
+
+/** Human one-liner about pace, e.g. "On pace to run out ~8 days early". */
+export function paceSummary(p: UsageProjection): string {
+  switch (p.pace) {
+    case 'no-limit':
+      return `${p.used} requests this cycle (no fixed limit)`;
+    case 'over':
+      return `Out of requests — ${p.used}/${p.limit} used with ${p.daysRemaining} days left`;
+    case 'behind':
+      return p.runOutDaysEarly != null
+        ? `On pace to run out ~${p.runOutDaysEarly} day${p.runOutDaysEarly === 1 ? '' : 's'} early (projected ${p.projectedTotal}/${p.limit})`
+        : `On pace to exceed your limit (projected ${p.projectedTotal}/${p.limit})`;
+    case 'on-track':
+      return `On track — projected ${p.projectedTotal}/${p.limit} by cycle end`;
+    case 'ahead':
+      return `Comfortable — projected ${p.projectedTotal}/${p.limit}, ${p.daysRemaining} days left`;
+  }
+}
+
 export function isRequestBased(profile?: BillingProfile | BillingModel | null): boolean {
   const model = typeof profile === 'string' ? profile : profile?.model;
   return model === 'request-based';
@@ -182,7 +292,11 @@ export function billingCoachNote(profile: BillingProfile): string {
       'never suggest switching to cheaper/lighter models or to Auto purely to save tokens or credits; ' +
       '(2) the real cost lever is the NUMBER of requests, so coach the user to get results in fewer, ' +
       'higher-quality requests (precise prompts, good upfront context, fewer cancellations and re-tries). ' +
-      'Do not frame advice around token cost or credit spend.'
+      'Do not frame advice around token cost or credit spend. ' +
+      'A common pain point on these plans is RUNNING OUT of requests before the cycle resets — when the ' +
+      'user asks about usage, call coach_credits (it returns live usage + a burn-rate run-out forecast) ' +
+      'and proactively warn if they are on pace to run out early. Point them to the Usage page for a ' +
+      'per-model/per-day/per-workspace breakdown and waste analysis.'
     );
   }
   return (

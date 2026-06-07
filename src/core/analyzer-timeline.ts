@@ -3,44 +3,16 @@
  *  Licensed under the MIT License. See LICENSE in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-/* Timeline + session detail analytics */
+/* Session list, session detail, and work-life-balance analytics */
 
 import {
-  Session, SessionRequest, DateFilter, DayTimeline, TimelineSession, TimelineRequest,
+  Session, SessionRequest, DateFilter,
   SessionList, SessionListItem, WorkLifeBalanceResult,
 } from './types';
-import { toDateStr, startOfDay, endOfDay, classifyWorkType, isoWeek } from './helpers';
+import { toDateStr, isoWeek } from './helpers';
 import { AnalyzerBase } from './analyzer-base';
 
 export class TimelineAnalyzer extends AnalyzerBase {
-
-  getDayTimeline(dateStr?: string, mode?: string, f?: DateFilter): DayTimeline {
-    const allSessions = this.filteredSessions(f);
-    const sortedDates = this.getSortedActiveDates(allSessions);
-    const targetDate = this.resolveTimelineDate(dateStr, sortedDates);
-    const dayStartTs = startOfDay(new Date(targetDate + 'T00:00:00').getTime());
-    const dayEndTs = endOfDay(dayStartTs);
-    const tlSessions = allSessions
-      .map(session => this.buildTimelineSession(session, dayStartTs, dayEndTs))
-      .filter((session): session is TimelineSession => session !== null)
-      .sort((a, b) => a.firstActivity - b.firstActivity);
-    const { prevDay, nextDay, firstDay } = this.getDateNavigation(targetDate, sortedDates);
-
-    return {
-      date: targetDate,
-      mode: mode || 'day',
-      rangeLabel: targetDate,
-      dayStart: dayStartTs,
-      dayEnd: dayEndTs,
-      sessions: tlSessions,
-      sessionCount: tlSessions.length,
-      maxConcurrent: this.getMaxConcurrent(tlSessions),
-      prevDay,
-      nextDay,
-      firstDay,
-      activeDates: this.getActiveDateCounts(allSessions, sortedDates),
-    };
-  }
 
   getSessions(page: number, pageSize: number, f?: DateFilter, search?: string): SessionList {
     let filtered = this.filteredSessions(f);
@@ -103,94 +75,6 @@ export class TimelineAnalyzer extends AnalyzerBase {
     };
   }
 
-  private getSortedActiveDates(sessions: Session[]): string[] {
-    const activeDates = new Set<string>();
-    for (const session of sessions) {
-      for (const request of session.requests) {
-        if (request.timestamp != null && request.timestamp > 0) activeDates.add(toDateStr(request.timestamp));
-      }
-    }
-    return Array.from(activeDates).sort();
-  }
-
-  private resolveTimelineDate(dateStr: string | undefined, sortedDates: string[]): string {
-    if (dateStr) return dateStr;
-    if (sortedDates.length > 0) return sortedDates[sortedDates.length - 1];
-    return toDateStr(Date.now());
-  }
-
-  private buildTimelineSession(session: Session, dayStartTs: number, dayEndTs: number): TimelineSession | null {
-    const dayReqs = session.requests.filter(r => r.timestamp != null && r.timestamp >= dayStartTs && r.timestamp <= dayEndTs);
-    if (dayReqs.length === 0) return null;
-
-    const firstMsg = dayReqs[0].messageText || '';
-    const sessionName = firstMsg.length > 60 ? firstMsg.substring(0, 60) + '...' : firstMsg || 'Untitled';
-    const requests: TimelineRequest[] = dayReqs.map(r => ({
-      timestamp: r.timestamp!,
-      messageText: r.messageText,
-      responseText: r.responseText,
-      messageLength: r.messageLength,
-      responseLength: r.responseLength,
-      agentName: r.agentName,
-      modelId: r.modelId,
-      toolsUsed: r.toolsUsed,
-      editedFiles: r.editedFiles,
-      referencedFiles: r.referencedFiles,
-      preview: r.messageText.substring(0, 100),
-      loc: this.requestLoc(r),
-      workType: r.workType || classifyWorkType(r.messageText),
-    }));
-    const timestamps = dayReqs.map(r => r.timestamp!);
-
-    return {
-      sessionId: session.sessionId,
-      workspaceName: session.workspaceName,
-      sessionName,
-      firstActivity: Math.min(...timestamps),
-      lastActivity: Math.max(...timestamps),
-      requestCount: dayReqs.length,
-      totalRequestCount: session.requests.length,
-      requests,
-    };
-  }
-
-  private getMaxConcurrent(sessions: TimelineSession[]): number {
-    const events: Array<{ time: number; type: 'start' | 'end' }> = [];
-    for (const session of sessions) {
-      events.push({ time: session.firstActivity, type: 'start' });
-      events.push({ time: session.lastActivity, type: 'end' });
-    }
-    events.sort((a, b) => a.time - b.time || (a.type === 'start' ? -1 : 1));
-
-    let maxConcurrent = 0;
-    let current = 0;
-    for (const event of events) {
-      current += event.type === 'start' ? 1 : -1;
-      if (current > maxConcurrent) maxConcurrent = current;
-    }
-    return maxConcurrent;
-  }
-
-  private getDateNavigation(dateStr: string, sortedDates: string[]): Pick<DayTimeline, 'prevDay' | 'nextDay' | 'firstDay'> {
-    const idx = sortedDates.indexOf(dateStr);
-    return {
-      prevDay: idx > 0 ? sortedDates[idx - 1] : (sortedDates.length > 0 ? sortedDates[sortedDates.length - 1] : null),
-      nextDay: idx >= 0 && idx < sortedDates.length - 1 ? sortedDates[idx + 1] : (sortedDates.length > 0 ? sortedDates[0] : null),
-      firstDay: sortedDates.length > 0 ? sortedDates[0] : null,
-    };
-  }
-
-  private getActiveDateCounts(sessions: Session[], sortedDates: string[]): DayTimeline['activeDates'] {
-    const dateCountMap = new Map<string, number>();
-    for (const session of sessions) {
-      for (const request of session.requests) {
-        if (request.timestamp == null) continue;
-        const date = toDateStr(request.timestamp);
-        dateCountMap.set(date, (dateCountMap.get(date) || 0) + 1);
-      }
-    }
-    return sortedDates.map(date => ({ date, count: dateCountMap.get(date) || 0 }));
-  }
 }
 
 function computeTimeDistribution(reqs: SessionRequest[]) {

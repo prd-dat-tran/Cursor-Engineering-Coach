@@ -21,7 +21,9 @@ import {
   isRequestBased,
   liveUsageSummary,
   mapMembershipToPlan,
+  paceSummary,
   planBillingIsAmbiguous,
+  projectUsage,
   resolveBillingModel,
   resolveCursorPlan,
 } from './billing';
@@ -178,6 +180,50 @@ describe('live usage summary', () => {
   });
 });
 
+describe('projectUsage (burn-rate forecast)', () => {
+  const cycleStart = '2026-06-01T00:00:00.000Z'; // June → 30-day cycle
+  const usage = (used: number, limit: number | null = 500): LiveUsage =>
+    ({ requestsUsed: used, requestsLimit: limit, cycleStart, fetchedAt: 0 });
+
+  it('returns null without a cycle start', () => {
+    expect(projectUsage({ requestsUsed: 10, requestsLimit: 500, cycleStart: null, fetchedAt: 0 })).toBeNull();
+  });
+
+  it('reports a comfortable pace when burn is low', () => {
+    const p = projectUsage(usage(50), new Date('2026-06-10T00:00:00.000Z'))!;
+    expect(p.pace).toBe('ahead');
+    expect(p.level).toBe('ok');
+    expect(p.pctUsed).toBe(10);
+    expect(p.cycleLengthDays).toBe(30);
+    expect(p.projectedTotal).toBeLessThan(500);
+    expect(p.projectedRunOut).toBeNull();
+  });
+
+  it('forecasts an early run-out when burning too fast', () => {
+    const p = projectUsage(usage(400), new Date('2026-06-15T00:00:00.000Z'))!;
+    expect(p.pace).toBe('behind');
+    expect(p.level).toBe('warn');
+    expect(p.projectedTotal).toBeGreaterThan(500);
+    expect(p.projectedRunOut).not.toBeNull();
+    expect(p.runOutDaysEarly).toBeGreaterThan(0);
+    expect(paceSummary(p)).toContain('run out');
+  });
+
+  it('flags being over the limit as critical', () => {
+    const p = projectUsage(usage(500), new Date('2026-06-20T00:00:00.000Z'))!;
+    expect(p.pace).toBe('over');
+    expect(p.level).toBe('critical');
+    expect(p.pctUsed).toBe(100);
+  });
+
+  it('handles plans with no fixed limit', () => {
+    const p = projectUsage(usage(120, null), new Date('2026-06-15T00:00:00.000Z'))!;
+    expect(p.pace).toBe('no-limit');
+    expect(p.pctUsed).toBe(0);
+    expect(p.projectedRunOut).toBeNull();
+  });
+});
+
 describe('detector filtering by billing model', () => {
   function activeRuleIds(model: 'usage-based' | 'request-based'): string[] {
     return getActiveDetectors(false, model)
@@ -257,5 +303,28 @@ describe('PatternsAnalyzer.getRequestEconomics', () => {
     expect(econ.frontierPct).toBe(50);
     expect(econ.lightOrAutoPct).toBe(50);
     expect(econ.cancelledPct).toBe(20);
+  });
+});
+
+describe('PatternsAnalyzer.getUsageBreakdown', () => {
+  const emptyEditIndex = new Map<string, Map<string, number>>();
+
+  it('aggregates requests by model, workspace, and day', () => {
+    const reqs = [
+      ...Array.from({ length: 4 }, () => makeReq({ modelId: 'claude-opus-4.6' })),
+      ...Array.from({ length: 2 }, () => makeReq({ modelId: 'gpt-4.1-mini' })),
+      ...Array.from({ length: 1 }, () => makeReq({ modelId: 'auto' })),
+    ];
+    const analyzer = new PatternsAnalyzer([makeSess(reqs)], emptyEditIndex, undefined, REQUEST_BASED);
+    const b = analyzer.getUsageBreakdown();
+
+    expect(b.byModel[0].requests).toBe(4); // sorted desc — opus first
+    expect(b.byModel[0].tier).toBe('frontier');
+    expect(b.byModel.find(m => m.model.includes('mini'))?.tier).toBe('light');
+    expect(b.byModel.find(m => m.tier === 'auto')?.requests).toBe(1);
+
+    expect(b.byWorkspace).toEqual([{ name: 'my-project', requests: 7 }]);
+    expect(b.byDay.reduce((s, d) => s + d.requests, 0)).toBe(7);
+    expect(b.economics.totalRequests).toBe(7);
   });
 });

@@ -171,30 +171,21 @@ for (const sku of ['pro', 'pro-plus', 'business', 'enterprise'] as const) {
 const bdCustom = analyzer.getBurndown({ sku: 'pro', customBudget: 500 });
 assert(bdCustom.budget === 500, `Custom budget: ${bdCustom.budget}`);
 
-// ---- 3i. getDayTimeline ----
-section('getDayTimeline');
-const tl = analyzer.getDayTimeline(); // defaults to latest active day
-assert(typeof tl.date === 'string', `Timeline date: ${tl.date}`);
-assert(tl.sessions.length >= 0, `Timeline sessions: ${tl.sessions.length}`);
-assert(typeof tl.dayStart === 'number', 'dayStart is number');
-assert(typeof tl.dayEnd === 'number', 'dayEnd is number');
-assert(typeof tl.maxConcurrent === 'number', `Max concurrent: ${tl.maxConcurrent}`);
+// ---- 3i. getModelInsights ----
+section('getModelInsights');
+const mi = analyzer.getModelInsights();
+assert(typeof mi.billingModel === 'string', `Billing model: ${mi.billingModel}`);
+assert(typeof mi.withModel === 'number', `Model-bearing requests: ${mi.withModel}`);
+assert(Array.isArray(mi.models), `Models used: ${mi.models.length}`);
+assert(mi.recommendations.length > 0, `Recommendations: ${mi.recommendations.length}`);
+assert(mi.catalog.length > 0, `Catalog entries: ${mi.catalog.length}`);
+assert(typeof mi.headline.title === 'string', `Headline: ${mi.headline.title}`);
 
-if (tl.sessions.length > 0) {
-  const ts = tl.sessions[0];
-  assert(typeof ts.sessionId === 'string', 'Timeline session has sessionId');
-  assert(typeof ts.workspaceName === 'string', `Timeline session workspace: ${ts.workspaceName}`);
-  assert(ts.requests.length > 0, `Timeline session requests: ${ts.requests.length}`);
-  const tr = ts.requests[0];
-  assert(typeof tr.timestamp === 'number', 'Timeline request has timestamp');
-  assert(typeof tr.preview === 'string', 'Timeline request has preview');
-  assert(typeof tr.workType === 'string', `Work type: ${tr.workType}`);
-}
-
-// Navigate to prev/next
-if (tl.prevDay) {
-  const tlPrev = analyzer.getDayTimeline(tl.prevDay);
-  assert(tlPrev.date === tl.prevDay, `Previous day navigation: ${tlPrev.date}`);
+if (mi.models.length > 0) {
+  const m = mi.models[0];
+  assert(typeof m.label === 'string', `Top model: ${m.label}`);
+  assert(typeof m.klass === 'string', `Class: ${m.klass}`);
+  assert(typeof m.verdict.label === 'string', `Verdict: ${m.verdict.label}`);
 }
 
 // ---- 3j. getSessions ----

@@ -34,7 +34,6 @@ import type {
   CodeProductionData,
   ConsumptionData,
   DailyActivity,
-  DayTimeline,
   HarnessComparisonData,
   HeatmapData,
   HourlyDistribution,
@@ -43,7 +42,9 @@ import type {
   ProjectOverviewData,
   SessionList,
   StatsResult,
+  ModelInsightsData,
   TokenCoverageData,
+  UsageBreakdown,
   WorkspaceBreakdown,
   WorkLifeBalanceResult,
   WorkflowOptimizationData,
@@ -51,12 +52,13 @@ import type {
 import type { ConfigHealthData } from './config-types';
 import type { InsightsData } from './insights-types';
 import type { ContextManagementData, FlowStateData, WorkspaceContextSessionsData } from './context-types';
-import type { ImageGalleryData } from '../analyzer-images';
 import type { BillingProfile, LiveUsage } from '../billing';
 
 /* RPC method map: method name -> { params, result } */
 export interface RpcMethodMap {
   getBillingProfile: { params: undefined; result: BillingProfile };
+  getUsageBreakdown: { params: DateFilter | undefined; result: UsageBreakdown };
+  getModelInsights: { params: DateFilter | undefined; result: ModelInsightsData };
   getWorkspaces: { params: undefined; result: { id: string; name: string; recent?: boolean; harnesses?: string[] }[] };
   getDailyActivity: { params: DateFilter | undefined; result: DailyActivity };
   getWorkspaceBreakdown: { params: DateFilter | undefined; result: WorkspaceBreakdown };
@@ -68,7 +70,6 @@ export interface RpcMethodMap {
   getAiCredits: { params: DateFilter | undefined; result: AiCreditData };
   getAiCreditBurndown: { params: { config: BurndownConfig; filter?: DateFilter }; result: AiCreditBurndownData };
   getTokenCoverage: { params: DateFilter | undefined; result: TokenCoverageData };
-  getDayTimeline: { params: { date?: string; mode?: string; filter?: DateFilter }; result: DayTimeline };
   getSessions: { params: { page: number; pageSize: number; filter?: DateFilter; search?: string }; result: SessionList };
   getSessionDetail: { params: { sessionId: string }; result: Session | null };
   getWorkLifeBalance: { params: DateFilter | undefined; result: WorkLifeBalanceResult | null };
@@ -86,7 +87,6 @@ export interface RpcMethodMap {
   getContextRangeAvailability: { params: { filter?: DateFilter } | undefined; result: { rangesWithTokens: number[]; matchingSessions: number; sessionsWithRequestTokens: number; harnessesWithoutRequestTokens: string[] } };
   getCalendarActivity: { params: DateFilter | undefined; result: CalendarActivityData };
   getProjectOverview: { params: DateFilter | undefined; result: ProjectOverviewData };
-  getImageGallery: { params: DateFilter | undefined; result: ImageGalleryData };
   getSessionImages: { params: { sessionId: string; requestId: string }; result: { images: string[] } };
   getRuleEditor: { params: DateFilter | Record<string, unknown>; result: unknown };
   getRulePreview: { params: Record<string, unknown>; result: unknown };
@@ -136,6 +136,7 @@ export interface ExtensionMethodMap extends RpcMethodMap {
   saveModelBudgets: { params: { budgets: Record<string, number> }; result: { ok: boolean } };
   loadModelBudgets: { params: Record<string, unknown> | undefined; result: Record<string, number> };
   getLiveUsage: { params: undefined; result: { enabled: boolean; usage: LiveUsage | null } };
+  enableUsageTracking: { params: undefined; result: { ok: boolean } };
 }
 
 export type ExtensionMethodName = keyof ExtensionMethodMap;
