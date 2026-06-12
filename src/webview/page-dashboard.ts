@@ -134,6 +134,7 @@ function renderDashboardMarkup(
   totalLoc: number,
   skillCache: ReturnType<typeof getSkillCache>,
   billing: BillingProfile,
+  singleWorkspace: boolean,
 ): void {
   const overallScore = scores.length > 0 ? Math.round(scores.reduce((s, g) => s + g.score, 0) / scores.length) : 0;
   const overallColor = scoreColor(overallScore);
@@ -166,8 +167,8 @@ function renderDashboardMarkup(
     ${scores.length > 0 && html`<section class="dash-section"><div class="dash-section-header"><h3>Anti-Patterns Summary</h3><a href="#" data-page="anti-patterns" style=${'font-size:12px;color:' + COLORS.blue + ';text-decoration:none;'}>View All Anti-Patterns \u2192</a></div><div class="ap-score-grid">${scores.map(g => html`<${PracticeCard} g=${g} />`)}</div></section>`}
     <section class="dash-section"><div class="dash-section-header"><h3>Skill Finder</h3><a href="#" data-page="skills" style=${'font-size:12px;color:' + COLORS.blue + ';text-decoration:none;'}>Open Full View \u2192</a></div><p class="dash-section-desc">Scans your prompt history for repeated patterns that waste time re-explaining the same tasks.</p><div id="dashSkillContent" class="dash-card">${!skillCache && html`<div style="text-align:center;"><p style="color:var(--text-muted);margin:0 0 12px 0;font-size:13px;">Analyze your prompt history to discover skill opportunities.</p><button id="dashScanBtn" class="dash-scan-btn">Scan for Skills</button></div>`}</div></section>
     <section class="dash-section"><div style="display:flex;align-items:baseline;gap:16px;margin-bottom:8px;flex-wrap:wrap;"><h3 style="margin:0;">Daily Activity</h3><div id="activityTabs" class="dash-tabs"><button class=${'dash-tab' + (activeMetric === 'requests' ? ' dash-tab-active' : '')} data-metric="requests">Requests <strong>${formatNum(totalReqs)}</strong></button><button class=${'dash-tab' + (activeMetric === 'sessions' ? ' dash-tab-active' : '')} data-metric="sessions">Sessions <strong>${formatNum(totalSessions)}</strong></button><button class=${'dash-tab' + (activeMetric === 'loc' ? ' dash-tab-active' : '')} data-metric="loc">LoC <strong>${formatNum(totalLoc)}</strong></button><button class=${'dash-tab' + (activeMetric === 'workspaces' ? ' dash-tab-active' : '')} data-metric="workspaces">Workspaces <strong>${formatNum(stats.totalWorkspaces)}</strong></button></div></div><${CanvasEl} id="dailyChart" height=${160} /></section>
-    <div style="margin-bottom:16px;"><${CanvasEl} id="wsChart" height=${140} title="Top Workspaces by Requests" /></div>
-    <div class="chart-modal-overlay" id="wsChartModal"><div class="chart-modal"><div class="chart-modal-header"><span class="chart-title" style="margin:0;">Top Workspaces by Requests</span><button class="chart-modal-close" id="wsChartModalClose" title="Close">\u00d7</button></div><div class="chart-modal-body"><div style="position:relative;height:360px;"><canvas id="wsChartFull"></canvas></div></div></div></div>
+    ${singleWorkspace ? null : html`<div style="margin-bottom:16px;"><${CanvasEl} id="wsChart" height=${140} title="Top Workspaces by Requests" /></div>
+    <div class="chart-modal-overlay" id="wsChartModal"><div class="chart-modal"><div class="chart-modal-header"><span class="chart-title" style="margin:0;">Top Workspaces by Requests</span><button class="chart-modal-close" id="wsChartModalClose" title="Close">\u00d7</button></div><div class="chart-modal-body"><div style="position:relative;height:360px;"><canvas id="wsChartFull"></canvas></div></div></div></div>`}
   `, container);
 }
 
@@ -253,6 +254,9 @@ export async function renderDashboard(container: HTMLElement, currentFilter: Dat
     .slice(0, 8);
 
   const skillCache = getSkillCache(currentFilter);
+  // When a single workspace is selected, "Top Workspaces by Requests" is just
+  // one slice — hide it as redundant.
+  const singleWorkspace = !!currentFilter.workspaceId;
 
   renderDashboardMarkup(
     container,
@@ -265,6 +269,7 @@ export async function renderDashboard(container: HTMLElement, currentFilter: Dat
     totalLoc,
     skillCache,
     billing,
+    singleWorkspace,
   );
 
   // ── Activity chart with switchable metrics ──
@@ -335,7 +340,7 @@ export async function renderDashboard(container: HTMLElement, currentFilter: Dat
     renderActivityChart();
   });
 
-  renderWorkspaceCharts(wsBreakdown);
+  if (!singleWorkspace) renderWorkspaceCharts(wsBreakdown);
   renderDashboardSkillFinder(skillCache, currentFilter);
   void loadBillingUsage();
 }

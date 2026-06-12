@@ -28,6 +28,7 @@ import { exportSummaryFiles } from './summary-export-vscode';
 import { maybePromptForBillingModel } from './billing-vscode';
 import { registerUsageStatusBar } from './usage-statusbar';
 import { registerChangelog } from './changelog-service';
+import { registerAiProviderCommands } from './ai-provider-commands';
 
 type PanelModule = typeof import('./webview/panel');
 let panelModulePromise: Promise<PanelModule> | null = null;
@@ -219,6 +220,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   registerTools(context, () => panelCache.analyzerInstance);
   registerChatParticipant(context);
+
+  // Opt-in AI provider (local Ollama by default) so in-panel analyses work in Cursor.
+  registerAiProviderCommands(context);
 
   // One-time, non-blocking: confirm billing model for detected Teams/Enterprise plans.
   void maybePromptForBillingModel(context).catch(err =>

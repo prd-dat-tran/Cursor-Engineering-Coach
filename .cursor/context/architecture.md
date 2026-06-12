@@ -178,6 +178,55 @@ The webview talks to the host via `postMessage` envelopes:
 - Tools registered via [`src/mcp/tools.ts`](../../src/mcp/tools.ts);
   each tool wraps an `Analyzer` method → `format*` → JSON text part.
 
+## In-panel AI in Cursor (no `vscode.lm` models)
+
+Cursor does **not** expose its AI models through the VS Code Language Model API:
+`vscode.lm.selectChatModels()` returns an empty array (and `vscode.lm.registerTool`
+/ chat participants are unsupported). See
+[Cursor Extension API](https://cursor.com/docs/extension-api) — only
+`vscode.cursor.mcp` / `vscode.cursor.plugins` exist; there is **no** API to fetch a
+completion. So inline AI must either use an **opt-in external provider** or
+degrade. Centralised in
+[`src/webview/panel-llm.ts`](../../src/webview/panel-llm.ts):
+
+- `isLlmAvailable()` — true when an external provider is configured **or** a
+  `vscode.lm` model exists; check before any AI action.
+- `sendOnce()` routes a single request: external provider when configured, else
+  `vscode.lm` streaming. `callLlm`/`callLlmJson` keep retry/timeout/JSON-repair.
+- `selectModel()` throws `NoLanguageModelError` (not a misleading "sign in" message).
+- `openInCursorChat(prompt)` — the Cursor-native fallback: hands a prompt to Cursor
+  Chat via `workbench.action.chat.open` (Cursor 2.3+; string arg, `{ query }` fallback).
+
+### Opt-in OpenAI-compatible provider
+
+[`src/llm-provider.ts`](../../src/llm-provider.ts) (host) + pure builders in
+[`src/core/llm-request.ts`](../../src/core/llm-request.ts) let the panel call any
+OpenAI-compatible `/chat/completions` endpoint. Controlled by
+`cursorEngineeringCoach.ai.*`; configured via the **Set Up AI Provider** command
+([`src/ai-provider-commands.ts`](../../src/ai-provider-commands.ts)).
+
+- `provider: auto` (default) → **no external call**; `vscode.lm`-only.
+- `provider: ollama` → local Ollama (`http://127.0.0.1:11434/v1`); prompts +
+  session summaries stay on-device.
+- `provider: openai-compatible` → OpenAI/OpenRouter/Azure/LiteLLM; API key from
+  **SecretStorage** (`setAiApiKey`/`clearAiApiKey`), sent only as a Bearer header,
+  never stored in settings or logged (mirrors the `billing-usage.ts` privacy contract).
+
+Resolution order per call: external provider (if configured) → `vscode.lm` (if a
+model exists) → fallbacks below. A configured-but-unreachable provider falls through
+to the same fallbacks, so a stopped Ollama never dead-ends.
+
+Degradation strategy (no model available, or provider failed):
+
+- **Prose answers** (anti-pattern "Why?" → `explainOccurrence`): hand off to Cursor
+  Chat; the result shows up there, not inline.
+- **Structured panel results** (Skill Finder "Analyze" → `triageSkills`): fall back to
+  a local, dependency-free heuristic in
+  [`src/core/skill-heuristic.ts`](../../src/core/skill-heuristic.ts) (with a note
+  explaining the local ranking).
+- **Everything else** (Learning Center, Context Health analyze, etc.) surfaces the
+  accurate `NoLanguageModelError` message. Extend with a handoff/heuristic as needed.
+
 ## Billing-aware coaching
 
 Coaching adapts to **how the user is charged**, because the optimal strategy

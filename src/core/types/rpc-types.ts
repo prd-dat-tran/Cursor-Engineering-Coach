@@ -97,7 +97,7 @@ export interface RpcMethodMap {
   reviewLocalRules: { params: undefined; result: { ok: boolean; error?: string } };
   generateRule: { params: { prompt: string }; result: { markdown: string } };
   testRuleLive: { params: { markdown: string; filter?: DateFilter }; result: { ok: boolean; triggered: boolean; occurrences: number; total: number; pct: string; severity: string; description: string; suggestion: string; examples: string[]; error?: string } };
-  explainOccurrence: { params: { ruleId: string; sessionId: string; filter?: DateFilter }; result: { ok: boolean; explanation: string; error?: string } };
+  explainOccurrence: { params: { ruleId: string; sessionId: string; mode?: 'why' | 'improve'; filter?: DateFilter }; result: { ok: boolean; explanation: string; openedInChat?: boolean; error?: string } };
   getRuleCoverage: { params: { filter?: DateFilter }; result: { rules: Array<{ id: string; name: string; group: string }>; workspaces: string[]; matrix: Record<string, Record<string, number>>; error?: string } };
   /* ---- DSL / Metric / Playground / Explorer methods ---- */
   getFieldSchema: { params: undefined; result: unknown };
@@ -127,7 +127,7 @@ export interface ExtensionMethodMap extends RpcMethodMap {
   exportSummary: { params: { filter?: DateFilter } | DateFilter | undefined; result: { ok: boolean; cancelled?: boolean; folder?: string; markdownPath?: string; jsonPath?: string } };
   installSkill: { params: { filename: string; content: string }; result: { ok: boolean; path?: string; error?: string } };
   installCatalogItem: { params: { path: string; kind?: string; title?: string }; result: { content: string; filename: string; error?: string } };
-  triageSkills: { params: Record<string, unknown>; result: { triaged: unknown[] } };
+  triageSkills: { params: Record<string, unknown>; result: { triaged: unknown[]; heuristic?: boolean; heuristicReason?: string } };
   discoverCatalog: { params: Record<string, unknown> | undefined; result: { items: unknown[]; totalScanned: number } };
   triageCatalog: { params: Record<string, unknown>; result: { items: unknown[] } };
   reviewContextFiles: { params: { workspaceIds: string[]; count?: number }; result: { reviews?: unknown[]; error?: string } };

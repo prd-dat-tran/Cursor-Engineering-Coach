@@ -50,11 +50,19 @@ rebrand and harden Cursor-native behavior**. Concretely:
 - ❌ Any code path that re-introduces Copilot / Claude Code / Codex /
   OpenCode / Xcode / Copilot CLI parsing or UI.
 - ❌ Telemetry of any kind.
-- ❌ Network requests for analytics **by default** (LLM calls inside the
-  panel are allowed because they use the user's own `vscode.lm` provider).
-  The single exception is the **opt-in** live-usage fetch behind
-  `cursorEngineeringCoach.billing.fetchLiveUsage` (default off), which calls
-  only Cursor's own backend — see the billing milestone below.
+- ❌ Network requests for analytics **by default**. Inline AI uses the user's
+  own `vscode.lm` provider where available; in Cursor (no `vscode.lm` model) it
+  degrades to a Cursor Chat handoff / local heuristics. Every network call is
+  **opt-in** and hits a single, declared endpoint:
+  - live-usage fetch behind `cursorEngineeringCoach.billing.fetchLiveUsage`
+    (default off) → Cursor's own backend (see the billing milestone below).
+  - changelog check behind `cursorEngineeringCoach.changelog.notifications`
+    → unauthenticated `GET` of Cursor's public changelog feed.
+  - AI provider behind `cursorEngineeringCoach.ai.provider` (default `auto` =
+    no call) → an OpenAI-compatible endpoint. The default target is **local
+    Ollama**, so prompts + session summaries stay on-device; hosted endpoints
+    use a SecretStorage key sent only to that endpoint, never stored or logged.
+    See [`src/llm-provider.ts`](../../src/llm-provider.ts).
 - ❌ Writing to the user's source tree. The extension only writes to its
   cache directory at `~/.cursor-engineering-coach/cache/` and (when
   explicitly invoked) to summary export targets the user picks.

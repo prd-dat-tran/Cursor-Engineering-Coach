@@ -10,13 +10,17 @@ import { fileUriToPath } from '../core/helpers';
 import { Analyzer } from '../core/analyzer';
 import { ParseResult } from '../core/parser';
 import { readFileSafe } from '../core/parser-shared';
-import { Workspace } from '../core/types';
+import { ContextReviewFinding, ContextReviewResult, Workspace } from '../core/types';
+import { heuristicTriageSkills } from '../core/skill-heuristic';
 import { exportSummaryFiles } from '../summary-export-vscode';
 import { fetchLiveUsage, liveUsageEnabled } from '../billing-usage';
 import { getChangelog, markChangelogSeen } from '../changelog-service';
 import {
   callLlm,
   callLlmJson,
+  isLlmAvailable,
+  NO_LM_MESSAGE,
+  openInCursorChat,
   SCHEMA_CATALOG_PICKS,
   SCHEMA_CODE_REVIEW,
   SCHEMA_CONTEXT_REVIEW,
@@ -335,12 +339,10 @@ Generate 3 ${context.difficulty} interview-style questions tailored to this deve
     const prompt = isString(params.prompt) ? params.prompt : '';
     if (!prompt) return;
 
-    void vscode.commands.executeCommand('workbench.action.chat.open', {
-      query: prompt,
-    }).then(
-      () => postResponse(this.webview, msg.id, { ok: true }),
-      () => postError(this.webview, msg.id, 'Failed to open Cursor Chat'),
-    );
+    void openInCursorChat(prompt).then((opened) => {
+      if (opened) postResponse(this.webview, msg.id, { ok: true });
+      else postError(this.webview, msg.id, 'Failed to open Cursor Chat');
+    });
   }
 
   private async handleGenerateSkillContent(msg: RequestMessage): Promise<void> {
@@ -713,6 +715,12 @@ Respond with a JSON object: {"items":[{"title":"...","url":"https://...","type":
       };
     });
 
+    // Cursor exposes no model via vscode.lm — rank locally so Analyze still works.
+    if (!(await isLlmAvailable())) {
+      postResponse(this.webview, msg.id, { triaged: heuristicTriageSkills(clusterSummaries), heuristic: true });
+      return;
+    }
+
     const context = this.getUserContext();
     const systemPrompt = `You are an expert at identifying repeatable activities in a developer's AI coding assistant usage.
 
@@ -762,7 +770,13 @@ Here are the top ${clusterSummaries.length} groups of similar prompts this devel
 
       postResponse(this.webview, msg.id, { triaged: result });
     } catch (error: unknown) {
-      postError(this.webview, msg.id, error instanceof Error ? error.message : 'AI triage failed');
+      // A configured provider (e.g. local Ollama) may be unreachable — rank locally
+      // instead of dead-ending, and explain why the local ranking was used.
+      postResponse(this.webview, msg.id, {
+        triaged: heuristicTriageSkills(clusterSummaries),
+        heuristic: true,
+        heuristicReason: `AI provider unavailable (${error instanceof Error ? error.message : 'request failed'}) — ranked locally instead.`,
+      });
     }
   }
 
@@ -929,7 +943,8 @@ Guidelines:
 - Reference specific file names and line-level issues when possible
 - Consider the PROJECT TYPE when evaluating (a simple CLI needs less context than a microservice)`;
 
-      const workspaceData = payloads.map(payload => {
+      const validCategories = new Set(categories);
+      const buildWorkspaceData = (payload: typeof payloads[number]): string => {
         const contextSection = payload.contextFiles.length > 0
           ? payload.contextFiles.map(file => {
             const content = file.content || '(empty)';
@@ -946,17 +961,9 @@ ${payload.fileTree || '(not available)'}
 
 ${payload.readmeSnippet ? `README:\n${payload.readmeSnippet}\n` : ''}${payload.packageSnippet ? `Project config:\n${payload.packageSnippet}\n` : ''}Context files:
 ${contextSection}`;
-      }).join('\n\n');
+      };
 
-      const userPrompt = `Review these ${payloads.length} workspace(s):\n${workspaceData}`;
-      const response = await callLlmJson<{ items: Array<Record<string, unknown>> }>([
-        vscode.LanguageModelChatMessage.User(systemPrompt),
-        vscode.LanguageModelChatMessage.User(userPrompt),
-      ], SCHEMA_CONTEXT_REVIEW);
-      const rawItems = Array.isArray(response) ? response as unknown as typeof response['items'] : response.items ?? [];
-      const validCategories = new Set(categories);
-
-      const results = rawItems.map(item => {
+      const mapReviewItem = (item: Record<string, unknown>, payload: typeof payloads[number]): ContextReviewResult => {
         const categoryScoresRaw = (item.categoryScores || {}) as Record<string, number>;
         const categoryScores: Record<string, number> = {};
         for (const category of categories) {
@@ -970,8 +977,8 @@ ${contextSection}`;
             const category = toText(finding.category);
             const severity = toText(finding.severity);
             return {
-              category: validCategories.has(category) ? category : 'clarity',
-              severity: ['good', 'warning', 'critical'].includes(severity) ? severity : 'warning',
+              category: (validCategories.has(category) ? category : 'clarity') as ContextReviewFinding['category'],
+              severity: (['good', 'warning', 'critical'].includes(severity) ? severity : 'warning') as ContextReviewFinding['severity'],
               file: toText(finding.file),
               finding: toText(finding.finding),
               suggestion: toText(finding.suggestion),
@@ -979,20 +986,53 @@ ${contextSection}`;
           })
           : [];
 
-        const workspaceId = toText(item.workspaceId);
-        const workspace = payloads.find(payload => payload.workspaceId === workspaceId);
         const overallGrade = toText(item.overallGrade);
         return {
-          workspaceId,
-          workspaceName: workspace?.workspaceName || workspaceId,
-          overallGrade: ['A', 'B', 'C', 'D', 'F'].includes(overallGrade) ? overallGrade : 'C',
+          workspaceId: payload.workspaceId,
+          workspaceName: payload.workspaceName,
+          overallGrade: (['A', 'B', 'C', 'D', 'F'].includes(overallGrade) ? overallGrade : 'C') as ContextReviewResult['overallGrade'],
           overallScore: typeof item.overallScore === 'number' ? Math.min(100, Math.max(0, item.overallScore)) : 0,
           categoryScores,
           findings,
           summary: toText(item.summary),
         };
-      });
+      };
 
+      // Fail fast (with a useful message) when no model is reachable, rather
+      // than running one doomed call per workspace.
+      if (!(await isLlmAvailable())) {
+        postError(this.webview, msg.id, NO_LM_MESSAGE);
+        return;
+      }
+
+      // Review one workspace per request so the panel can show real progress and
+      // stream results in as they complete (large projects can take a while). A
+      // single failed workspace no longer sinks the whole batch.
+      const results: ContextReviewResult[] = [];
+      const total = payloads.length;
+      for (let i = 0; i < total; i++) {
+        const payload = payloads[i];
+        postEvent(this.webview, 'reviewProgress', { phase: 'analyzing', index: i, total, workspaceId: payload.workspaceId, name: payload.workspaceName });
+        try {
+          const response = await callLlmJson<{ items: Array<Record<string, unknown>> }>([
+            vscode.LanguageModelChatMessage.User(systemPrompt),
+            vscode.LanguageModelChatMessage.User(`Review this workspace:\n${buildWorkspaceData(payload)}`),
+          ], SCHEMA_CONTEXT_REVIEW);
+          const rawItems = Array.isArray(response) ? response as unknown as typeof response['items'] : response.items ?? [];
+          const item = rawItems.find(it => toText(it.workspaceId) === payload.workspaceId) ?? rawItems[0];
+          if (item) {
+            const result = mapReviewItem(item, payload);
+            results.push(result);
+            postEvent(this.webview, 'reviewProgress', { phase: 'done', index: i, total, review: result });
+          } else {
+            postEvent(this.webview, 'reviewProgress', { phase: 'error', index: i, total, name: payload.workspaceName, error: 'No result returned' });
+          }
+        } catch (err: unknown) {
+          postEvent(this.webview, 'reviewProgress', { phase: 'error', index: i, total, name: payload.workspaceName, error: err instanceof Error ? err.message : 'Review failed' });
+        }
+      }
+
+      postEvent(this.webview, 'reviewProgress', { phase: 'complete', total });
       postResponse(this.webview, msg.id, { reviews: results });
     } catch (error: unknown) {
       postError(this.webview, msg.id, error instanceof Error ? error.message : 'AI review failed');

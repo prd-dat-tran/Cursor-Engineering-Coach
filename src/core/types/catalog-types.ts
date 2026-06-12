@@ -16,6 +16,10 @@ export interface TriagedCluster {
 
 export interface SkillTriageResult {
   triaged: TriagedCluster[];
+  /** True when ranked locally (no vscode.lm model, e.g. in Cursor) rather than by an LLM. */
+  heuristic?: boolean;
+  /** Why the local ranking was used (e.g. a configured provider was unreachable). */
+  heuristicReason?: string;
 }
 
 /* ---- Awesome Copilot Catalog ---- */

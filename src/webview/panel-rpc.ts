@@ -139,6 +139,46 @@ function buildOccurrenceSessionSummary(session: Session): {
   };
 }
 
+/** Build the system + user prompts for the anti-pattern occurrence explainer.
+ *  `why` explains the trigger; `improve` returns concrete remediation. */
+function buildExplainPrompts(
+  ruleName: string,
+  ruleDescription: string,
+  ruleDsl: string,
+  sessionSummary: unknown,
+  mode: 'why' | 'improve',
+): { systemPrompt: string; userPrompt: string } {
+  const systemPrompt = mode === 'improve'
+    ? `You are a Cursor IDE coaching expert. A coding session triggered a best-practice rule. Using the rule and the session summary, give the user concrete, actionable ways to avoid this anti-pattern next time.
+- If the rule is about prompt quality, rewrite 1-2 of the user's actual prompts into stronger versions.
+- If it is about tools/config (custom instructions, slash commands, MCP tools, plan mode, skills, model choice), give the exact setup steps (file paths, commands, which mode/model to pick).
+Use short bullet points the user can act on immediately. Under 130 words. No preamble.`
+    : `You are an expert explaining why a specific coding session triggered a Cursor Engineering Coach detection rule.
+You will receive the rule (in DSL form) and a summary of the session. Explain in 2-4 short sentences:
+1. What the rule is looking for
+2. Which specific aspects of this session match the rule
+3. One concrete action the user can take for this specific session
+
+Be specific. Reference actual values from the session. Keep it under 80 words. No preamble.`;
+
+  const closing = mode === 'improve'
+    ? 'Show concrete, actionable ways to do this better next time.'
+    : 'Explain why this session triggered the rule.';
+
+  const userPrompt = `Rule: ${ruleName}
+Description: ${ruleDescription}
+
+Rule DSL (markdown):
+${ruleDsl}
+
+Session summary:
+${JSON.stringify(sessionSummary, null, 2)}
+
+${closing}`;
+
+  return { systemPrompt, userPrompt };
+}
+
 /* ── Rule generation helpers ── */
 
 const GENERATE_RULE_SYSTEM_PROMPT = `You are an expert at writing detection rules for the Cursor Engineering Coach VS Code extension.
@@ -891,6 +931,7 @@ const rpcHandlers: TypedRpcHandlers = {
   explainOccurrence: async (a, _p, params) => {
     const ruleId = isString(params?.ruleId) ? params.ruleId : '';
     const sessionId = isString(params?.sessionId) ? params.sessionId : '';
+    const mode = isString(params?.mode) && params.mode === 'improve' ? 'improve' : 'why';
     if (!ruleId || !sessionId) return { ok: false, explanation: '', error: 'Missing ruleId or sessionId' };
     try {
       const rule = getRule(ruleId);
@@ -904,34 +945,43 @@ const rpcHandlers: TypedRpcHandlers = {
 
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const vscode = require('vscode') as typeof import('vscode');
-      const { callLlm } = await import('./panel-llm');
+      const { callLlm, isLlmAvailable, openInCursorChat, NO_LM_MESSAGE } = await import('./panel-llm');
 
-      const systemPrompt = `You are an expert explaining why a specific coding session triggered an Cursor Engineering Coach detection rule.
-You will receive the rule (in DSL form) and a summary of the session. Explain in 2-4 short sentences:
-1. What the rule is looking for
-2. Which specific aspects of this session match the rule
-3. One concrete action the user can take for this specific session
+      const { systemPrompt, userPrompt } = buildExplainPrompts(
+        rule.name,
+        rule.description,
+        rule.rawSource || serializeRule(rule),
+        sessionSummary,
+        mode,
+      );
 
-Be specific. Reference actual values from the session. Keep it under 80 words. No preamble.`;
+      // Hand the question to Cursor Chat when no model is in the panel (Cursor) or
+      // when a configured provider (e.g. local Ollama) is unreachable.
+      const handoff = async (): Promise<{ ok: boolean; openedInChat?: boolean; explanation: string; error?: string }> => {
+        const opened = await openInCursorChat(`${systemPrompt}\n\n${userPrompt}`);
+        if (opened) {
+          return {
+            ok: true,
+            openedInChat: true,
+            explanation: mode === 'improve'
+              ? 'I drafted an improvement request in Cursor Chat \u2014 press Enter there to get tailored suggestions.'
+              : 'I drafted this question in Cursor Chat \u2014 press Enter there to get the explanation.',
+          };
+        }
+        return { ok: false, explanation: '', error: NO_LM_MESSAGE };
+      };
 
-      const userPrompt = `Rule: ${rule.name}
-Description: ${rule.description}
+      if (!(await isLlmAvailable())) return handoff();
 
-Rule DSL (markdown):
-${rule.rawSource || serializeRule(rule)}
-
-Session summary:
-${JSON.stringify(sessionSummary, null, 2)}
-
-Explain why this session triggered the rule.`;
-
-      const messages = [
-        vscode.LanguageModelChatMessage.User(systemPrompt),
-        vscode.LanguageModelChatMessage.User(userPrompt),
-      ];
-
-      const explanation = await callLlm(messages);
-      return { ok: true, explanation: explanation.trim() };
+      try {
+        const explanation = await callLlm([
+          vscode.LanguageModelChatMessage.User(systemPrompt),
+          vscode.LanguageModelChatMessage.User(userPrompt),
+        ]);
+        return { ok: true, explanation: explanation.trim() };
+      } catch {
+        return handoff();
+      }
     } catch (err: unknown) {
       return { ok: false, explanation: '', error: err instanceof Error ? err.message : String(err) };
     }

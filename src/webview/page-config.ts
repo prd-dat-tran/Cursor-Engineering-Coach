@@ -72,6 +72,10 @@ export async function renderConfigHealth(container: HTMLElement, currentFilter: 
   // is reflected immediately.
   let visibleRanges = ALL_RANGES;
   let emptyRangeMessage = 'No token-bearing context data available.';
+  // True when sessions exist but none carry per-request token data — Cursor
+  // records context tokens per request only on recent sessions, so older
+  // history can't be charted here. Drives a dedicated, non-dead-end panel.
+  let perRequestUnavailable = false;
   if (activeSubTab === 'context-mgmt') {
     try {
       const avail = await rpc<{
@@ -100,10 +104,11 @@ export async function renderConfigHealth(container: HTMLElement, currentFilter: 
       if (visibleRanges.length === 0) {
         if (avail.matchingSessions === 0) {
           emptyRangeMessage = 'No sessions match the current filter.';
-        } else if (avail.sessionsWithRequestTokens === 0 && avail.harnessesWithoutRequestTokens.length > 0) {
-          // Sessions exist, but none have per-request token data.
-          const harnesses = avail.harnessesWithoutRequestTokens.join(', ');
-          emptyRangeMessage = `${harnesses} only emits session-aggregated tokens, not per-request — Context Management requires per-request data to chart utilization. Try a different harness, or view consumption in the Output tab.`;
+        } else if (avail.sessionsWithRequestTokens === 0) {
+          // Sessions exist, but none carry per-request token data. The detailed
+          // explanation + next steps render in the content area below.
+          perRequestUnavailable = true;
+          emptyRangeMessage = 'Per-request context data isn\u2019t available for this period yet.';
         } else {
           emptyRangeMessage = 'No token-bearing context data available.';
         }
@@ -189,10 +194,50 @@ export async function renderConfigHealth(container: HTMLElement, currentFilter: 
   render(html`<div class="loading-spinner" style="margin:40px auto;"></div>`, contentEl);
 
   if (activeSubTab === 'context-mgmt') {
-    await renderContextManagement(contentEl, effectiveFilter);
+    if (visibleRanges.length === 0) {
+      // No token data to chart for any range — show a helpful panel instead of
+      // letting renderContextManagement fall through to a bare "No Session Data".
+      renderContextMgmtUnavailable(contentEl, perRequestUnavailable, emptyRangeMessage);
+    } else {
+      await renderContextManagement(contentEl, effectiveFilter);
+    }
   } else {
     await renderConfigQuality(contentEl, effectiveFilter);
   }
+}
+
+/** Friendly empty state for Context Management when no per-request token data
+ *  is available, instead of a dead-end message. */
+function renderContextMgmtUnavailable(container: HTMLElement, perRequestUnavailable: boolean, fallbackMessage: string): void {
+  if (!perRequestUnavailable) {
+    render(html`
+      <div style="text-align:center;padding:48px 20px;color:var(--text-muted);">
+        <div style="font-size:36px;margin-bottom:12px;">&#128202;</div>
+        <div style="font-size:16px;margin-bottom:8px;color:var(--text-secondary, #c9d1d9);">No context data for this range</div>
+        <div style="max-width:440px;margin:0 auto;line-height:1.5;">${fallbackMessage}</div>
+      </div>`, container);
+    return;
+  }
+  render(html`
+    <div style="max-width:560px;margin:24px auto;padding:24px;border-radius:10px;background:var(--card-bg, #161b22);border:1px solid var(--border-color, #30363d);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <span style="font-size:24px;">&#128300;</span>
+        <h3 style="margin:0;font-size:16px;">Per-request context data not available yet</h3>
+      </div>
+      <p style="font-size:13px;color:var(--text-secondary, #c9d1d9);line-height:1.6;margin:0 0 10px;">
+        Context Management charts how full your context window gets on <em>each request</em>.
+        That needs per-request token data, which Cursor records on recent sessions.
+        Older history is stored at the session level only, so there is nothing to chart for this period.
+      </p>
+      <div style="font-size:13px;color:var(--text-secondary, #c9d1d9);line-height:1.6;">
+        <strong>What you can do:</strong>
+        <ul style="margin:6px 0 0;padding-left:18px;">
+          <li>Keep using Cursor — recent sessions populate this view automatically.</li>
+          <li>Check overall token consumption on the <a href="#" data-page="output" style="color:${COLORS.blue};text-decoration:none;">Output tab</a>.</li>
+          <li>Use the <strong>Context Quality</strong> sub-tab above to review your instruction files now.</li>
+        </ul>
+      </div>
+    </div>`, container);
 }
 
 async function renderConfigQuality(container: HTMLElement, currentFilter: DateFilter): Promise<void> {
@@ -289,6 +334,39 @@ const GRADE_COLORS: Record<string, string> = {
   A: COLORS.green, B: '#58a6ff', C: COLORS.yellow, D: COLORS.orange, F: COLORS.red,
 };
 
+/** Wire the collapse/expand toggle for one review card header. */
+function wireReviewCardCollapse(header: Element): void {
+  header.addEventListener('click', () => {
+    const body = header.nextElementSibling as HTMLElement | null;
+    if (!body) return;
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    const arrow = header.querySelector('.ctx-review-arrow');
+    if (arrow) arrow.textContent = open ? '\u25B6' : '\u25BC';
+  });
+}
+
+/** Append a single review card to the results list and wire its collapse. */
+function appendReviewCard(cardsEl: HTMLElement, review: ContextReviewResult): void {
+  const wrap = document.createElement('div');
+  render(renderReviewCard(review), wrap);
+  const card = wrap.firstElementChild;
+  if (!card) return;
+  cardsEl.appendChild(card);
+  const header = card.querySelector('.ctx-review-header');
+  if (header) wireReviewCardCollapse(header);
+}
+
+interface ReviewProgressEvent {
+  phase: 'start' | 'analyzing' | 'done' | 'error' | 'complete';
+  index?: number;
+  total?: number;
+  name?: string;
+  error?: string;
+  review?: ContextReviewResult;
+  workspaces?: { id: string; name: string }[];
+}
+
 async function runContextReview(workspaces: WorkspaceConfigHealth[]): Promise<void> {
   const btn = document.getElementById('ctxReviewBtn') as HTMLButtonElement | null;
   const countSelect = document.getElementById('ctxReviewCount') as HTMLSelectElement | null;
@@ -308,47 +386,120 @@ async function runContextReview(workspaces: WorkspaceConfigHealth[]): Promise<vo
     activeTreemapChart.update('none');
   }
 
-  // Show simple loading indicator
+  // Progress UI + an (initially empty) container that streams in result cards.
+  const started = Date.now();
   render(html`
-    <div style="margin:20px 0;padding:24px;border-radius:8px;background:var(--card-bg, #161b22);border:1px solid var(--border-color, #30363d);display:flex;align-items:center;gap:12px;">
-      <div class="loading-spinner" style="width:20px;height:20px;border-width:2px;flex-shrink:0;"></div>
-      <div>
-        <div style="font-size:14px;font-weight:600;color:var(--text-primary, #c9d1d9);">Reviewing context files\u2026</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Analyzing ${toReview.length} workspace${toReview.length > 1 ? 's' : ''}</div>
+    <div class="ctx-review-progress" id="ctxReviewProgress" style="margin:20px 0;padding:18px 20px;border-radius:8px;background:var(--card-bg, #161b22);border:1px solid var(--border-color, #30363d);">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="loading-spinner" style="width:18px;height:18px;border-width:2px;flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;font-weight:600;color:var(--text-primary, #c9d1d9);">Reviewing context files\u2026</div>
+          <div id="ctxReviewProgressSub" style="font-size:12px;color:var(--text-muted);margin-top:2px;">Preparing ${toReview.length} workspace${toReview.length > 1 ? 's' : ''}\u2026</div>
+        </div>
+        <div id="ctxReviewProgressCount" style="font-size:12px;font-weight:600;color:var(--text-muted);flex-shrink:0;">0/${toReview.length}</div>
       </div>
-    </div>`, resultsEl);
+      <div style="margin-top:12px;height:6px;border-radius:3px;background:rgba(48,54,61,0.6);overflow:hidden;">
+        <div id="ctxReviewProgressFill" style="width:0%;height:100%;border-radius:3px;background:${COLORS.blue};transition:width 0.3s ease;"></div>
+      </div>
+    </div>
+    <h3 id="ctxReviewHeading" style="margin-top:24px;display:none;">Context File Review</h3>
+    <div id="ctxReviewCards"></div>`, resultsEl);
+
+  const sub = document.getElementById('ctxReviewProgressSub');
+  const count = document.getElementById('ctxReviewProgressCount');
+  const fill = document.getElementById('ctxReviewProgressFill');
+  const heading = document.getElementById('ctxReviewHeading');
+  const cardsEl = document.getElementById('ctxReviewCards');
+
+  let total = toReview.length;
+  let completed = 0;
+  let errored = 0;
+  const renderedIds = new Set<string>();
+
+  const updateBar = (): void => {
+    if (count) count.textContent = `${completed}/${total}`;
+    if (fill && total > 0) fill.style.width = `${Math.round((completed / total) * 100)}%`;
+  };
+
+  const onMessage = (ev: MessageEvent): void => {
+    const m = ev.data as { type?: string; method?: string; data?: ReviewProgressEvent };
+    if (m?.type !== 'event' || m.method !== 'reviewProgress' || !m.data) return;
+    const d = m.data;
+    if (typeof d.total === 'number' && d.total > 0) total = d.total;
+    if (d.phase === 'start' && Array.isArray(d.workspaces)) {
+      total = d.workspaces.length || total;
+      updateBar();
+    } else if (d.phase === 'analyzing') {
+      if (sub) sub.textContent = `Analyzing ${d.name ?? 'workspace'}\u2026 (${(d.index ?? 0) + 1} of ${total})`;
+    } else if (d.phase === 'done') {
+      completed++;
+      updateBar();
+      if (d.review && cardsEl && !renderedIds.has(d.review.workspaceId)) {
+        renderedIds.add(d.review.workspaceId);
+        if (heading) heading.style.display = '';
+        appendReviewCard(cardsEl, d.review);
+      }
+    } else if (d.phase === 'error') {
+      completed++;
+      errored++;
+      updateBar();
+      if (cardsEl) {
+        const note = document.createElement('div');
+        render(html`<div style="margin:8px 0;padding:10px 14px;border-radius:6px;border-left:3px solid ${COLORS.yellow};background:rgba(210,153,34,0.06);font-size:12px;color:var(--text-secondary, #c9d1d9);">Couldn\u2019t review <strong>${d.name ?? 'a workspace'}</strong>: ${d.error ?? 'unknown error'}</div>`, note);
+        const child = note.firstElementChild;
+        if (child) cardsEl.appendChild(child);
+      }
+    }
+  };
+  window.addEventListener('message', onMessage);
 
   try {
     const result = await rpc<{ reviews?: ContextReviewResult[]; error?: string }>('reviewContextFiles', { workspaceIds: wsIds, count: reviewCount } as Record<string, unknown>);
+
+    const progressEl = document.getElementById('ctxReviewProgress');
+    if (progressEl) progressEl.remove();
 
     if (result.error) {
       render(html`<div style="margin:16px 0;padding:12px 16px;border-radius:6px;border-left:3px solid ${COLORS.red};background:rgba(248,81,73,0.06);font-size:13px;color:${COLORS.red};">Review failed: ${result.error}</div>`, resultsEl);
       return;
     }
+
+    // Safety net: append any reviews not already streamed in via events.
     const reviews = result.reviews || [];
-    if (reviews.length === 0) {
-      render(html`<div style="margin:16px 0;padding:12px;text-align:center;color:var(--text-muted);font-size:13px;">No review results returned.</div>`, resultsEl);
-      return;
+    if (cardsEl) {
+      for (const r of reviews) {
+        if (!renderedIds.has(r.workspaceId)) {
+          renderedIds.add(r.workspaceId);
+          if (heading) heading.style.display = '';
+          appendReviewCard(cardsEl, r);
+        }
+      }
     }
-    render(html`
-      <h3 style="margin-top:24px;">Context File Review</h3>
-      <p style="color:var(--text-muted);font-size:12px;margin:4px 0 12px;">AI-powered review of your instruction files across ${reviews.length} workspace(s).</p>
-      ${reviews.map(r => renderReviewCard(r))}`, resultsEl);
-    // Collapse/expand
-    for (const el of resultsEl.querySelectorAll('.ctx-review-header')) {
-      el.addEventListener('click', () => {
-        const body = el.nextElementSibling as HTMLElement | null;
-        if (!body) return;
-        const open = body.style.display !== 'none';
-        body.style.display = open ? 'none' : 'block';
-        const arrow = el.querySelector('.ctx-review-arrow');
-        if (arrow) arrow.textContent = open ? '\u25B6' : '\u25BC';
-      });
+
+    if (renderedIds.size === 0) {
+      // Append (don't preact-render-replace) so any per-workspace error notes
+      // streamed in via events stay visible alongside this summary.
+      const msg = errored > 0
+        ? 'All workspace reviews failed. Check that your AI provider is reachable (Command Palette \u2192 \u201CSet Up AI Provider\u201D).'
+        : 'No review results returned.';
+      const note = document.createElement('div');
+      note.style.cssText = 'margin:16px 0;padding:12px;text-align:center;color:var(--text-muted);font-size:13px;';
+      note.textContent = msg;
+      resultsEl.insertBefore(note, resultsEl.firstChild);
+    } else if (heading) {
+      const secs = Math.round((Date.now() - started) / 1000);
+      const intro = document.createElement('p');
+      intro.style.cssText = 'color:var(--text-muted);font-size:12px;margin:4px 0 12px;';
+      intro.textContent = `AI-powered review of ${renderedIds.size} workspace${renderedIds.size > 1 ? 's' : ''}${secs > 0 ? ` \u2014 ${secs}s` : ''}.`;
+      heading.after(intro);
     }
   } catch (err: unknown) {
+    const progressEl = document.getElementById('ctxReviewProgress');
+    if (progressEl) progressEl.remove();
     const msg = err instanceof Error ? err.message : 'Review failed';
     render(html`<div style="margin:16px 0;padding:12px 16px;border-radius:6px;border-left:3px solid ${COLORS.red};background:rgba(248,81,73,0.06);font-size:13px;color:${COLORS.red};">Error: ${msg}</div>`, resultsEl);
   } finally {
+    window.removeEventListener('message', onMessage);
     // Restore treemap colors
     if (activeTreemapChart) {
       const ds = (activeTreemapChart.data.datasets[0] as unknown as { backgroundColor: unknown; _origBg?: unknown });

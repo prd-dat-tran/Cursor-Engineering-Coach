@@ -6,11 +6,10 @@
 /* LLM schemas and request helpers for the dashboard panel. */
 
 import * as vscode from 'vscode';
+import { ChatMsg, ChatRole, JsonSchemaSpec } from '../core/llm-request';
+import { completeChat, externalProviderConfigured } from '../llm-provider';
 
-export interface JsonSchemaSpec {
-  name: string;
-  schema: Record<string, unknown>;
-}
+export type { JsonSchemaSpec };
 
 function structuredOutputOptions(spec: JsonSchemaSpec): Record<string, unknown> {
   return {
@@ -306,19 +305,86 @@ const LLM_FAMILY = 'gpt-4.1';
 const LLM_REQUEST_TIMEOUT_MS = 90_000;
 
 /**
- * Pick a Cursor chat model via the VS Code Language Model API. Tries the preferred
- * family first, then a short fallback list, then any available model. Throws a
- * descriptive error when nothing is available so callers can surface a useful message.
+ * Why this exists: Cursor does not expose its AI models through the VS Code
+ * Language Model API (`vscode.lm.selectChatModels` returns an empty array), and
+ * there is no Cursor extension API to fetch a completion. So in Cursor every
+ * inline AI feature must degrade — usually by handing the prompt to Cursor Chat.
+ * See https://cursor.com/docs/extension-api (only `vscode.cursor.mcp`/`plugins`).
+ */
+export const NO_LM_MESSAGE =
+  'Cursor doesn\u2019t expose its AI models to extensions yet, so the coach can\u2019t run AI analysis inside this panel. ' +
+  '(The VS Code Language Model API returns no models in Cursor — this is unrelated to being signed in.)';
+
+/** Thrown by {@link selectModel} when no chat model is reachable. Lets callers
+ *  distinguish "Cursor has no LM API model" from genuine request failures. */
+export class NoLanguageModelError extends Error {
+  constructor(message: string = NO_LM_MESSAGE) {
+    super(message);
+    this.name = 'NoLanguageModelError';
+  }
+}
+
+/** True when this error means "no model is available via vscode.lm". */
+export function isNoLanguageModelError(err: unknown): boolean {
+  return err instanceof NoLanguageModelError
+    || (err instanceof Error && /no language model available|doesn\u2019t expose its AI models|does not expose/i.test(err.message));
+}
+
+/**
+ * Whether the coach can run an inline AI request. True when the user configured an
+ * external OpenAI-compatible provider (e.g. local Ollama) OR a VS Code LM model is
+ * reachable. The external provider is assumed reachable; an actual connection error
+ * surfaces at call time (callers fall back). Never throws.
+ */
+export async function isLlmAvailable(): Promise<boolean> {
+  if (externalProviderConfigured()) return true;
+  try {
+    if (!vscode.lm || typeof vscode.lm.selectChatModels !== 'function') return false;
+    const models = await vscode.lm.selectChatModels({});
+    return models.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Hand a fully-formed prompt to Cursor's chat. Cursor 2.3+ accepts a bare string;
+ * stock VS Code expects `{ query }`. We try the string form first and fall back to
+ * the object form so the handoff works across both editors. The prompt is placed in
+ * the chat input for the user to review and send (it is not auto-submitted).
+ * Returns true on success.
+ */
+export async function openInCursorChat(prompt: string): Promise<boolean> {
+  try {
+    await vscode.commands.executeCommand('workbench.action.chat.open', prompt);
+    return true;
+  } catch {
+    try {
+      await vscode.commands.executeCommand('workbench.action.chat.open', { query: prompt });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+/**
+ * Pick a chat model via the VS Code Language Model API. Tries the preferred family
+ * first, then a short fallback list, then any available model. Throws
+ * {@link NoLanguageModelError} when nothing is available (always the case in Cursor)
+ * so callers can offer a Cursor Chat handoff instead of a dead-end error.
  */
 async function selectModel(): Promise<vscode.LanguageModelChat> {
-  const families = [LLM_FAMILY, 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4'];
-  for (const family of families) {
-    const models = await vscode.lm.selectChatModels({ family });
-    if (models.length > 0) return models[0];
+  if (vscode.lm && typeof vscode.lm.selectChatModels === 'function') {
+    const families = [LLM_FAMILY, 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4'];
+    for (const family of families) {
+      const models = await vscode.lm.selectChatModels({ family });
+      if (models.length > 0) return models[0];
+    }
+    const any = await vscode.lm.selectChatModels({});
+    if (any.length > 0) return any[0];
   }
-  const any = await vscode.lm.selectChatModels({});
-  if (any.length > 0) return any[0];
-  throw new Error('No language model available. Make sure Cursor IDE is signed in and a chat model is enabled.');
+  throw new NoLanguageModelError();
 }
 
 /** Race a promise against a timeout. Rejects with a clear message on timeout. */
@@ -332,48 +398,96 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   });
 }
 
-export async function callLlm(messages: vscode.LanguageModelChatMessage[]): Promise<string> {
-  const model = await selectModel();
+/** Convert VS Code chat messages to provider-neutral {role, content} pairs. */
+function partText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .map(p => (p && typeof p === 'object' && 'value' in p && typeof (p as { value: unknown }).value === 'string'
+      ? (p as { value: string }).value
+      : ''))
+    .join('');
+}
 
+function toChatMsgs(messages: vscode.LanguageModelChatMessage[]): ChatMsg[] {
+  return messages.map(m => {
+    const role: ChatRole = m.role === vscode.LanguageModelChatMessageRole.Assistant ? 'assistant' : 'user';
+    return { role, content: partText(m.content) };
+  });
+}
+
+/**
+ * Send one request and return the raw text, routing to the configured external
+ * OpenAI-compatible provider (Cursor/local Ollama) when set, otherwise the VS Code
+ * Language Model API. `disableStructured` drops JSON-schema output on retry.
+ */
+async function sendOnce(
+  messages: vscode.LanguageModelChatMessage[],
+  opts: { jsonSchema?: JsonSchemaSpec; disableStructured?: boolean } = {},
+): Promise<string> {
+  const schema = opts.disableStructured ? undefined : opts.jsonSchema;
+
+  if (externalProviderConfigured()) {
+    return completeChat(toChatMsgs(messages), schema ? { jsonSchema: schema } : {});
+  }
+
+  const model = await selectModel();
+  const requestOptions: vscode.LanguageModelChatRequestOptions = schema
+    ? { modelOptions: structuredOutputOptions(schema) }
+    : {};
+  const cts = new vscode.CancellationTokenSource();
+  try {
+    const stream = async () => {
+      const response = await model.sendRequest(messages, requestOptions, cts.token);
+      let text = '';
+      for await (const chunk of response.text) text += chunk;
+      return text;
+    };
+    return await withTimeout(stream(), LLM_REQUEST_TIMEOUT_MS, 'LLM request');
+  } catch (err) {
+    cts.cancel();
+    throw err;
+  } finally {
+    cts.dispose();
+  }
+}
+
+export async function callLlm(messages: vscode.LanguageModelChatMessage[]): Promise<string> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= LLM_MAX_RETRIES; attempt++) {
-    const cts = new vscode.CancellationTokenSource();
     try {
-      const streamText = async () => {
-        const response = await model.sendRequest(messages, {}, cts.token);
-        let text = '';
-        for await (const chunk of response.text) text += chunk;
-        return text;
-      };
-      return await withTimeout(streamText(), LLM_REQUEST_TIMEOUT_MS, 'LLM request');
+      return await sendOnce(messages);
     } catch (err) {
-      cts.cancel();
       lastError = err;
       if (err instanceof vscode.CancellationError) throw err;
-    } finally {
-      cts.dispose();
     }
   }
   throw lastError;
 }
 
+/** Classify a failed JSON attempt to decide how the next retry should adapt. */
+function classifyJsonError(err: unknown, attempt: number, hasSchema: boolean): { dropStructured: boolean; parseFailure: boolean } {
+  const msg = err instanceof Error ? err.message : '';
+  return {
+    dropStructured: attempt === 0 && hasSchema && /response_format|modelOptions|json_schema|not supported/i.test(msg),
+    parseFailure: /JSON|parse/i.test(msg),
+  };
+}
+
+function describeJsonFailure(parseFailures: number, lastError: unknown): string {
+  if (parseFailures > 0) return `LLM returned invalid JSON after ${LLM_MAX_RETRIES + 1} attempts. Please try again.`;
+  return lastError instanceof Error ? lastError.message : 'LLM request failed after retries';
+}
+
 export async function callLlmJson<T>(messages: vscode.LanguageModelChatMessage[], jsonSchema?: JsonSchemaSpec): Promise<T> {
-  const model = await selectModel();
-
-  const options: vscode.LanguageModelChatRequestOptions = jsonSchema
-    ? { modelOptions: structuredOutputOptions(jsonSchema) }
-    : {};
-
   let lastError: unknown;
   let parseFailures = 0;
+  let disableStructured = false;
   const retryMessages = [...messages];
 
   for (let attempt = 0; attempt <= LLM_MAX_RETRIES; attempt++) {
-    const cts = new vscode.CancellationTokenSource();
     try {
-      const response = await model.sendRequest(retryMessages, options, cts.token);
-      let text = '';
-      for await (const chunk of response.text) text += chunk;
+      const text = await sendOnce(retryMessages, { jsonSchema, disableStructured });
       try {
         return JSON.parse(text.trim()) as T;
       } catch {
@@ -381,13 +495,10 @@ export async function callLlmJson<T>(messages: vscode.LanguageModelChatMessage[]
       }
     } catch (err) {
       lastError = err;
-      if (err instanceof vscode.CancellationError) { cts.dispose(); throw err; }
-      // If structured output isn't supported, fall back to plain mode
-      if (attempt === 0 && jsonSchema && lastError instanceof Error && /response_format|modelOptions|not supported/i.test(lastError.message)) {
-        options.modelOptions = undefined;
-      }
-      // On parse failures, nudge the model to return valid JSON on the next attempt
-      if (lastError instanceof Error && /JSON|parse/i.test(lastError.message)) {
+      if (err instanceof vscode.CancellationError) throw err;
+      const { dropStructured, parseFailure } = classifyJsonError(err, attempt, !!jsonSchema);
+      if (dropStructured) disableStructured = true;
+      if (parseFailure) {
         parseFailures++;
         if (retryMessages.length === messages.length) {
           retryMessages.push(vscode.LanguageModelChatMessage.User(
@@ -395,13 +506,8 @@ export async function callLlmJson<T>(messages: vscode.LanguageModelChatMessage[]
           ));
         }
       }
-    } finally {
-      cts.dispose();
     }
   }
 
-  const label = parseFailures > 0
-    ? `LLM returned invalid JSON after ${LLM_MAX_RETRIES + 1} attempts. Please try again.`
-    : (lastError instanceof Error ? lastError.message : 'LLM request failed after retries');
-  throw new Error(label);
+  throw new Error(describeJsonFailure(parseFailures, lastError));
 }

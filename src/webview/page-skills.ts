@@ -7,7 +7,7 @@
 
 import { DateFilter, WorkflowCluster, WorkflowOptimizationData, SkillTriageResult, TriagedCluster, CatalogItem, CatalogDiscoverResult, CatalogTriageResult } from '../core/types';
 import { rpc, COLORS } from './shared';
-import { html, render } from './render';
+import { html, render, type ComponentChildren } from './render';
 import { consumeNavHint, updateNavBadge } from './app';
 import { getSkillCache, setSkillCache } from './skill-cache';
 
@@ -20,6 +20,8 @@ const dismissed = new Set<string>();
 let lastTriaged: TriagedCluster[] = [];
 let lastClusters: WorkflowCluster[] = [];
 let lastResultsEl: HTMLElement | null = null;
+/** Leading note (e.g. "ranked locally") kept in sync across dismiss re-renders */
+let lastNote: ComponentChildren = null;
 
 /** Current page-level filter for cache scoping */
 let activeFilter: DateFilter = {};
@@ -116,6 +118,7 @@ function renderCachedResults(clusters: WorkflowCluster[], triaged: TriagedCluste
   lastTriaged = strong;
   lastClusters = clusters;
   lastResultsEl = customEl;
+  lastNote = null;
 
   if (strong.length === 0) {
     statusEl.textContent = `Found ${clusters.length} patterns — no strong skill opportunities.`;
@@ -177,9 +180,9 @@ async function runAnalysis(): Promise<void> {
       return;
     }
 
-    // Send top 20 most repeated clusters with full examples to AI
+    // Send top 20 most repeated clusters with full examples to triage
     const top20 = clusters.slice(0, 20);
-    statusEl.textContent = `Found ${clusters.length} patterns \u2014 sending top ${top20.length} to AI triage...`;
+    statusEl.textContent = `Found ${clusters.length} patterns \u2014 analyzing top ${top20.length}...`;
 
     const result = await rpc<SkillTriageResult>('triageSkills', {
       clusters: top20.map(c => ({
@@ -197,12 +200,14 @@ async function runAnalysis(): Promise<void> {
     lastClusters = clusters;
     lastResultsEl = customEl;
 
+    lastNote = triageNote(result);
+
     if (strong.length === 0) {
       statusEl.textContent = 'No strong skill opportunities found.';
-      render(html`<p class="sk-empty">No repeating agent tasks detected. Your prompts may already be well-served or too diverse.</p>`, customEl);
+      render(html`${lastNote}<p class="sk-empty">No repeating agent tasks detected. Your prompts may already be well-served or too diverse.</p>`, customEl);
     } else {
-      statusEl.textContent = `${strong.length} skill ${strong.length === 1 ? 'opportunity' : 'opportunities'} found`;
-      renderTriageResults(customEl, strong, clusters);
+      statusEl.textContent = `${strong.length} skill ${strong.length === 1 ? 'opportunity' : 'opportunities'} found${result.heuristic ? ' (ranked locally)' : ''}`;
+      renderTriageResults(customEl, strong, clusters, lastNote);
     }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Analysis failed';
@@ -224,13 +229,22 @@ function triggerRunAnalysis(): void {
 
 /* ── Triage Results (Custom Skills) ───────────────────────────────── */
 
-function renderTriageResults(container: HTMLElement, triaged: TriagedCluster[], clusters: WorkflowCluster[]): void {
+/** Leading note explaining a local (heuristic) ranking, when one was used. */
+function triageNote(result: SkillTriageResult): ComponentChildren {
+  if (!result.heuristic) return null;
+  if (result.heuristicReason) {
+    return html`<p class="sk-note">${result.heuristicReason} Use <strong>Create Skill</strong> on a result to refine it in Cursor Chat.</p>`;
+  }
+  return html`<p class="sk-note">Ranked locally by repetition &amp; friction \u2014 Cursor doesn\u2019t expose a model to extensions for AI triage. Use <strong>Create Skill</strong> on a result to refine it in Cursor Chat, or set up an AI provider (Command Palette \u2192 \u201CSet Up AI Provider\u201D).</p>`;
+}
+
+function renderTriageResults(container: HTMLElement, triaged: TriagedCluster[], clusters: WorkflowCluster[], note: ComponentChildren = null): void {
   const visible = triaged.filter(t => !dismissed.has(t.id));
   if (visible.length === 0) {
-    render(html`<p class="sk-empty">All suggestions dismissed. Run analysis again to refresh.</p>`, container);
+    render(html`${note}<p class="sk-empty">All suggestions dismissed. Run analysis again to refresh.</p>`, container);
     return;
   }
-  render(html`<div class="sk-grid">${visible.map((t, i) => {
+  render(html`${note}<div class="sk-grid">${visible.map((t, i) => {
     const cluster = clusters.find(c => c.id === t.id);
     return html`
       <div class="sk-card" data-idx="${i}" data-id="${t.id}">
@@ -331,7 +345,7 @@ function renderTriageResults(container: HTMLElement, triaged: TriagedCluster[], 
       const id = (e.currentTarget as HTMLElement).dataset.dismissId || '';
       if (!id) return;
       dismissed.add(id);
-      if (lastResultsEl) renderTriageResults(lastResultsEl, lastTriaged, lastClusters);
+      if (lastResultsEl) renderTriageResults(lastResultsEl, lastTriaged, lastClusters, lastNote);
     });
   }
 }

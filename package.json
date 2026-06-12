@@ -37,6 +37,9 @@
     "onCommand:cursorEngineeringCoach.enableUsageTracking",
     "onCommand:cursorEngineeringCoach.refreshUsage",
     "onCommand:cursorEngineeringCoach.openChangelog",
+    "onCommand:cursorEngineeringCoach.setupAi",
+    "onCommand:cursorEngineeringCoach.setAiApiKey",
+    "onCommand:cursorEngineeringCoach.clearAiApiKey",
     "onStartupFinished",
     "onView:cursorEngineeringCoach.welcome"
   ],
@@ -82,6 +85,21 @@
         "command": "cursorEngineeringCoach.openChangelog",
         "title": "Cursor Engineering Coach: Open Cursor Changelog",
         "icon": "$(megaphone)"
+      },
+      {
+        "command": "cursorEngineeringCoach.setupAi",
+        "title": "Cursor Engineering Coach: Set Up AI Provider",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "cursorEngineeringCoach.setAiApiKey",
+        "title": "Cursor Engineering Coach: Set AI API Key",
+        "icon": "$(key)"
+      },
+      {
+        "command": "cursorEngineeringCoach.clearAiApiKey",
+        "title": "Cursor Engineering Coach: Clear AI API Key",
+        "icon": "$(trash)"
       }
     ],
     "viewsContainers": {
@@ -344,6 +362,27 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Notify me in the IDE when Cursor publishes new changelog entries, and surface them on the **Changelog** page. To check for new entries the extension makes an unauthenticated `GET` of Cursor's public changelog feed (`https://cursor.com/changelog/rss.xml`) — no token, no usage data, nothing about you is sent. Turn this off to stop the background check and the notification (you can still open the Changelog page on demand)."
+        },
+        "cursorEngineeringCoach.ai.provider": {
+          "type": "string",
+          "enum": ["auto", "ollama", "openai-compatible"],
+          "enumDescriptions": [
+            "Use only the host editor's language model (VS Code/Copilot). No external calls. In Cursor this means in-panel AI features hand off to Cursor Chat or rank locally, since Cursor exposes no model to extensions.",
+            "Send requests to a local Ollama server (default http://127.0.0.1:11434/v1). Prompts and session summaries never leave your machine.",
+            "Send requests to any OpenAI-compatible endpoint (OpenAI, OpenRouter, Azure, LiteLLM, …). Requires a base URL and, usually, an API key stored via the \"Set AI API Key\" command."
+          ],
+          "default": "auto",
+          "markdownDescription": "**Opt-in.** Which backend powers the coach's in-panel AI analyses (Skill Finder triage, anti-pattern \"Why?\", Learning Center, Context Health). `auto` (default) makes **no external call**. Choosing **ollama** or **openai-compatible** sends the prompt **and a summary of the relevant sessions** (prompt counts, models used, anti-pattern names — never your source code) to the endpoint in `#cursorEngineeringCoach.ai.baseUrl#`. With local Ollama nothing leaves your machine. Use **Cursor Engineering Coach: Set Up AI Provider** for a guided setup."
+        },
+        "cursorEngineeringCoach.ai.baseUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:11434/v1",
+          "markdownDescription": "Base URL of the OpenAI-compatible API used when `#cursorEngineeringCoach.ai.provider#` is **ollama** or **openai-compatible**. The extension POSTs to `<baseUrl>/chat/completions`. Examples: `http://127.0.0.1:11434/v1` (Ollama — prefer `127.0.0.1` over `localhost` to avoid IPv6 resolution issues), `https://api.openai.com/v1` (OpenAI), `https://openrouter.ai/api/v1` (OpenRouter)."
+        },
+        "cursorEngineeringCoach.ai.model": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Model name to request from the provider, e.g. `qwen2.5-coder` (after `ollama pull qwen2.5-coder`) or `gpt-4o-mini`. Required when a non-`auto` provider is selected; if empty the coach shows a \"set a model\" message instead of failing silently."
         }
       }
     }

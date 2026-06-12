@@ -37,6 +37,7 @@ FILES=(
   "$CONTENT_DIR/getting-started/_index.md"
   "$CONTENT_DIR/getting-started/installation.md"
   "$CONTENT_DIR/getting-started/cursor-sources.md"
+  "$CONTENT_DIR/getting-started/ai-provider.md"
   "$CONTENT_DIR/features/_index.md"
   "$CONTENT_DIR/features/chat.md"
   "$CONTENT_DIR/observe/_index.md"

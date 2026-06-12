@@ -418,19 +418,32 @@ function onDataReady(currentWorkspace: string): void {
   _dataIsReady = true;
   clearInterval(elapsedTimerId);
   setShellLoadingMode(false);
-  void rpc<{ id: string; name: string; recent?: boolean; harnesses?: string[] }[]>('getWorkspaces').then((wss) => {
-    wsOptions = wss;
-    for (const ws of wss) {
-      if (currentWorkspace && ws.name.toLowerCase().includes(currentWorkspace.toLowerCase())) {
-        matchedWorkspaceId = ws.id;
-        break;
+  // Resolve the workspace list first so we can default the view to the user's
+  // *current* workspace (when we can identify it) before the first render. A
+  // toggle + combobox still let them switch to All Workspaces at any time.
+  void (async () => {
+    try {
+      const wss = await rpc<{ id: string; name: string; recent?: boolean; harnesses?: string[] }[]>('getWorkspaces');
+      wsOptions = wss;
+      for (const ws of wss) {
+        if (currentWorkspace && ws.name.toLowerCase().includes(currentWorkspace.toLowerCase())) {
+          matchedWorkspaceId = ws.id;
+          break;
+        }
       }
+      if (matchedWorkspaceId && !currentFilter.workspaceId) {
+        const ws = wsOptions.find(w => w.id === matchedWorkspaceId);
+        currentFilter.workspaceId = matchedWorkspaceId;
+        if (wsFilterHidden) wsFilterHidden.value = matchedWorkspaceId;
+        if (wsFilterInput) wsFilterInput.value = ws?.name ?? '';
+      }
+      updateToggleState();
+    } catch {
+      /* No workspace list — fall back to All Workspaces. */
     }
-    updateToggleState();
-  }).catch(() => {});
-
-  navigateTo(currentPage);
-  refreshNavBadges(currentFilter);
+    navigateTo(currentPage);
+    refreshNavBadges(currentFilter);
+  })();
 }
 
 initMessageListener(handleProgress, onDataReady);

@@ -115,9 +115,22 @@ rather than throwing.
   state). MCP tools are read-only data accessors. For side-effectful
   flows, use a webview command via `panel-request-service.ts`.
 - ❌ Hide the prompt-injection bullet behind a feature flag.
-- ❌ Hardcode model names. Model selection lives in
-  [@src/webview/panel-llm.ts](mdc:src/webview/panel-llm.ts) and uses
-  `vscode.lm.selectChatModels`.
+- ❌ Hardcode model names. `vscode.lm` selection lives in
+  [@src/webview/panel-llm.ts](mdc:src/webview/panel-llm.ts); the external-provider
+  model comes from the `cursorEngineeringCoach.ai.model` setting.
+- ❌ Call a model backend directly. Route through `callLlm` / `callLlmJson` in
+  [@src/webview/panel-llm.ts](mdc:src/webview/panel-llm.ts). Their `sendOnce()`
+  picks the **opt-in external provider** ([@src/llm-provider.ts](mdc:src/llm-provider.ts),
+  OpenAI-compatible, local Ollama by default) when
+  `cursorEngineeringCoach.ai.provider !== 'auto'`, otherwise `vscode.lm`.
+- ❌ Assume a model is reachable. With `provider: auto` in **Cursor**, `vscode.lm`
+  returns none (`selectChatModels()` → `[]`; no Cursor API fetches a completion).
+  Any new inline AI feature must still degrade: gate UI on `isLlmAvailable()`, and
+  on a thrown request (provider unreachable too) either hand off to Cursor Chat via
+  `openInCursorChat()` (prose) or compute locally (structured results). The `@coach`
+  participant only works where the host provides `request.model` (i.e. not Cursor).
+  See "In-panel AI in Cursor" in
+  [@.cursor/context/architecture.md](mdc:.cursor/context/architecture.md).
 
 ## Sync `.cursor/` when you change tools or the participant
 

@@ -13,6 +13,7 @@ import { consumeNavHint } from './app';
 import { renderCoverageHeatmap } from './page-antipatterns-heatmap';
 import { openRuleEditor, wireRuleEditorModal } from './page-antipatterns-editor';
 import { renderDslReferenceContent } from './page-dsl-reference';
+import { renderRemediation } from './page-antipatterns-remediation';
 
 /* ── Interfaces ── */
 
@@ -532,8 +533,10 @@ export async function renderAntiPatterns(container: HTMLElement, currentFilter: 
     </div>
   </div>`, container);
 
-  // Render findings
-  renderFindings(container, scores, grouped, apData);
+  // Render findings. When a single workspace is selected, hide the (redundant)
+  // per-workspace name labels in the occurrence breakdowns.
+  const singleWorkspace = !!currentFilter.workspaceId;
+  renderFindings(container, scores, grouped, apData, singleWorkspace);
 
   // Wire tab switching
   wireTabBar(container);
@@ -567,6 +570,7 @@ function renderFindings(
   scores: GroupScore[],
   grouped: Map<PracticeGroup, ApPattern[]>,
   _apData: ApData,
+  singleWorkspace: boolean,
 ): void {
   const detailsContainer = container.querySelector('#apDetails')!;
   const allGroupKeys: PracticeGroup[] = ['prompt-quality', 'session-hygiene', 'code-review', 'tool-mastery'];
@@ -623,7 +627,8 @@ function renderFindings(
               <span class="ap-finding-label">Action</span>
               <span>${p.suggestion}</span>
             </div>
-            ${renderOccurrencePanel(p)}
+            ${renderRemediation(p.id)}
+            ${renderOccurrencePanel(p, singleWorkspace)}
           </div>
         </span>`, card);
         section.appendChild(card);
@@ -646,6 +651,11 @@ function renderFindings(
   wireExplainButtons(container, _apData);
 }
 
+function multilineVNode(text: string): ComponentChildren {
+  const lines = text.split('\n');
+  return html`<span>${lines.map((line, i) => html`<span>${line}${i < lines.length - 1 ? html`<br/>` : null}</span>`)}</span>`;
+}
+
 async function explainOccurrence(
   button: HTMLButtonElement,
   filter?: DateFilter,
@@ -654,45 +664,54 @@ async function explainOccurrence(
   const sessionId = getDatasetValue(button, 'sessionId');
   if (!ruleId || !sessionId) return;
 
+  const mode = getDatasetValue(button, 'mode') === 'improve' ? 'improve' : 'why';
   const row = button.closest<HTMLElement>('.occ-session-row');
   const resultDiv = row?.querySelector<HTMLElement>('.occ-explain-result');
   if (!resultDiv) return;
 
-  if (resultDiv.style.display === '' && resultDiv.dataset.loaded === 'true') {
+  // Toggle the panel closed only when re-clicking the same action that is
+  // currently shown; switching actions (Why? <-> Improve) reloads instead.
+  if (resultDiv.style.display === '' && resultDiv.dataset.loaded === 'true' && resultDiv.dataset.mode === mode) {
     resultDiv.style.display = 'none';
     return;
   }
 
+  const idleLabel = button.textContent || (mode === 'improve' ? 'Improve' : 'Why?');
   button.disabled = true;
-  button.textContent = 'Thinking...';
+  button.textContent = mode === 'improve' ? 'Improving\u2026' : 'Thinking\u2026';
   resultDiv.style.display = '';
+  resultDiv.dataset.mode = mode;
+  resultDiv.dataset.loaded = 'false';
   resultDiv.className = 'occ-explain-result occ-explain-loading';
-  resultDiv.textContent = 'Asking AI for an explanation...';
+  // Render the loading state through Preact too, so Preact owns this node and
+  // cleanly replaces it with the result (a raw textContent set here would leave
+  // the "loading" text behind once Preact renders the answer into the node).
+  render(html`<span>${mode === 'improve' ? 'Asking AI how to improve this\u2026' : 'Asking AI for an explanation\u2026'}</span>`, resultDiv);
 
   try {
-    const request: { ruleId: string; sessionId: string; filter?: Record<string, unknown> } = {
+    const request: { ruleId: string; sessionId: string; mode: string; filter?: Record<string, unknown> } = {
       ruleId,
       sessionId,
+      mode,
     };
     if (filter) {
       request.filter = filter as Record<string, unknown>;
     }
-    const res = await rpc<{ ok: boolean; explanation: string; error?: string }>('explainOccurrence', request);
+    const res = await rpc<{ ok: boolean; explanation: string; openedInChat?: boolean; error?: string }>('explainOccurrence', request);
     if (res.ok) {
-      resultDiv.className = 'occ-explain-result occ-explain-ok';
-      const lines = res.explanation.split('\n');
-      render(html`<span>${lines.map((line, i) => html`<span>${line}${i < lines.length - 1 ? html`<br/>` : null}</span>`)}</span>`, resultDiv);
+      resultDiv.className = res.openedInChat ? 'occ-explain-result occ-explain-chat' : 'occ-explain-result occ-explain-ok';
+      render(multilineVNode(res.explanation), resultDiv);
       resultDiv.dataset.loaded = 'true';
     } else {
       resultDiv.className = 'occ-explain-result occ-explain-error';
-      resultDiv.textContent = res.error || 'Failed to get explanation.';
+      render(html`<span>${res.error || 'Failed to get a response.'}</span>`, resultDiv);
     }
   } catch (err: unknown) {
     resultDiv.className = 'occ-explain-result occ-explain-error';
-    resultDiv.textContent = err instanceof Error ? err.message : String(err);
+    render(html`<span>${err instanceof Error ? err.message : String(err)}</span>`, resultDiv);
   } finally {
     button.disabled = false;
-    button.textContent = 'Why?';
+    button.textContent = idleLabel;
   }
 }
 
@@ -764,7 +783,7 @@ function renderExamplesBlock(examples: string[]): ComponentChildren {
     </details>`;
 }
 
-function renderOccurrencePanel(p: ApPattern): ComponentChildren {
+function renderOccurrencePanel(p: ApPattern, singleWorkspace: boolean): ComponentChildren {
   const details = p.details || [];
   const hist = p.weeklyHist;
   const hasHist = hist && hist.counts.length > 0;
@@ -781,14 +800,14 @@ function renderOccurrencePanel(p: ApPattern): ComponentChildren {
   const isWorkspaceLevel = details.length > 0 && details[0].kind === 'workspace';
 
   if (isWorkspaceLevel) {
-    return renderWorkspaceOccurrences(p, details, histVNode, color);
+    return renderWorkspaceOccurrences(p, details, histVNode, color, singleWorkspace);
   }
 
-  return renderSessionOccurrences(p, details, histVNode);
+  return renderSessionOccurrences(p, details, histVNode, singleWorkspace);
 }
 
 function renderWorkspaceOccurrences(
-  p: ApPattern, details: ApOccurrence[], histVNode: ComponentChildren, color: string,
+  p: ApPattern, details: ApOccurrence[], histVNode: ComponentChildren, color: string, singleWorkspace: boolean,
 ): ComponentChildren {
   const hasFlaggedMetric = details.some(d => d.stats?.isLow !== undefined || d.stats?.ratio !== undefined);
   const flagged = hasFlaggedMetric
@@ -816,7 +835,7 @@ function renderWorkspaceOccurrences(
     return html`
       <div class="occ-ws-row ${isFlagged ? 'occ-ws-flagged' : ''}">
         <div class="occ-ws-header">
-          <span class="occ-ws-name">${truncName}</span>
+          ${singleWorkspace ? null : html`<span class="occ-ws-name">${truncName}</span>`}
           <span class="occ-ws-stats">${statsLabel}</span>
         </div>
         ${d.message ? html`<div class="occ-ws-message">${d.message}</div>` : null}
@@ -850,7 +869,7 @@ function fmtK(n: number): string {
 }
 
 function renderSessionOccurrences(
-  p: ApPattern, details: ApOccurrence[], histVNode: ComponentChildren,
+  p: ApPattern, details: ApOccurrence[], histVNode: ComponentChildren, singleWorkspace: boolean,
 ): ComponentChildren {
   // Group details by session to show unique sessions
   const sessionMap = new Map<string, { workspace: string; count: number; firstTs: number; lastTs: number; messages: string[] }>();
@@ -880,10 +899,13 @@ function renderSessionOccurrences(
     return html`
       <div class="occ-session-row" title=${sid}>
         <div class="occ-session-meta">
-          <span class="occ-session-ws">${truncWs}</span>
+          ${singleWorkspace ? null : html`<span class="occ-session-ws">${truncWs}</span>`}
           <span class="occ-session-date">${dateStr} ${timeStr}</span>
           <span class="occ-session-count">${info.count}x</span>
-          <button class="occ-explain-btn" data-rule-id=${p.id} data-session-id=${sid} title="Ask AI why this session triggered the rule">Why?</button>
+          <div class="occ-session-actions">
+            <button class="occ-explain-btn" data-rule-id=${p.id} data-session-id=${sid} data-mode="why" title="Ask AI why this session triggered the rule">Why?</button>
+            <button class="occ-explain-btn occ-improve-btn" data-rule-id=${p.id} data-session-id=${sid} data-mode="improve" title="Ask AI how to do this better next time">Improve</button>
+          </div>
         </div>
         ${info.messages.length > 0 ? html`<div class="occ-msg-preview">${info.messages.map(m => html`<span>${m.length > 80 ? m.substring(0, 78) + '...' : m}</span>`)}</div>` : null}
         <div class="occ-explain-result" data-session-id=${sid} style="display:none;"></div>
