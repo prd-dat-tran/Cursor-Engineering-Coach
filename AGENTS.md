@@ -13,6 +13,17 @@ Rules move pending→review→approve→reload; edits revoke trust. See [anti-pa
 - `add-coaching-rule` ([.cursor/skills/add-coaching-rule/SKILL.md](.cursor/skills/add-coaching-rule/SKILL.md)): step-by-step pattern for adding a new built-in coaching rule / anti-pattern (`src/core/rules/*.md`).
 - `add-coaching-page` ([.cursor/skills/add-coaching-page/SKILL.md](.cursor/skills/add-coaching-page/SKILL.md)): step-by-step pattern for adding a new dashboard page/view (analyzer → RPC → webview page → nav → docs).
 
+## Agent Team
+
+Every chat in this repo runs as a 4-persona pod — auto-routed, with in-reply handoffs and proactive QA — defined in the always-on rule [.cursor/rules/agent-team.mdc](.cursor/rules/agent-team.mdc):
+
+- **[Product Manager]** — user value, scope, user stories (anchors to [.cursor/context/prd.md](.cursor/context/prd.md)).
+- **[Lead Developer]** — implementation, fixes, performance (follows [.cursor/context/flow.md](.cursor/context/flow.md) + the skills above).
+- **[Technical Researcher]** — tech / API discovery + recommendations (anchors to [.cursor/context/architecture.md](.cursor/context/architecture.md)).
+- **[QA & UX Engineer]** — tests, edge cases, UX ([.cursor/rules/testing.mdc](.cursor/rules/testing.mdc)).
+
+Summon one explicitly with the slash commands in [.cursor/commands/](.cursor/commands/) — `/pm`, `/dev`, `/research`, `/qa`, or `/team` (full round-table).
+
 ## Documentation Index
 
 This is a quick map of the docs tree so readers and agents can see the available pages at a glance.
