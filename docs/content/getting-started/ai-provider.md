@@ -77,10 +77,14 @@ Change the key later with **Set AI API Key**, or remove it with **Clear AI API K
 | Setting | Default | Purpose |
 |---|---|---|
 | `cursorEngineeringCoach.ai.provider` | `auto` | `auto` (no external calls), `ollama`, `gemini`, or `openai-compatible`. A non-`auto` provider is used in preference to the host editor's model. |
-| `cursorEngineeringCoach.ai.baseUrl` | `http://127.0.0.1:11434/v1` | OpenAI-compatible base; requests are POSTed to `<baseUrl>/chat/completions`. Leave blank to use the provider's default (e.g. `https://generativelanguage.googleapis.com/v1beta/openai` for Gemini). |
+| `cursorEngineeringCoach.ai.baseUrl` | *(blank)* | OpenAI-compatible base; requests are POSTed to `<baseUrl>/chat/completions`. **Leave blank (the default) to use the selected provider's endpoint automatically** — `http://127.0.0.1:11434/v1` (ollama), `https://generativelanguage.googleapis.com/v1beta/openai` (gemini), `https://api.openai.com/v1` (openai-compatible). Only set it to override (e.g. OpenRouter or a self-hosted gateway). |
 | `cursorEngineeringCoach.ai.model` | *(empty)* | Model name to request. Required for a non-`auto` provider. |
 
 The API key is **not** a setting — manage it only through the commands above so it stays in secret storage.
+
+## Seeing the active provider
+
+The dashboard's left sidebar shows an **AI Provider** badge under the workspace filter — e.g. `Google Gemini · gemini-2.5-pro` — so you always know which provider and model in-panel AI will use, and where requests are routed. A coloured dot signals health: green (ready), amber (model or API key missing), grey (off / Cursor-only). **Click the badge** to run the guided setup and switch provider or model at any time.
 
 ## If the provider is unreachable
 
@@ -91,6 +95,20 @@ If you see **"Couldn't reach the AI provider…"** (or the older `fetch failed`)
 3. Is the URL right? Prefer `http://127.0.0.1:11434/v1` over `http://localhost:11434/v1` — Node can resolve `localhost` to IPv6 while Ollama listens on IPv4, which looks like a connection failure.
 
 For **Google Gemini**, a `model ... not found` (HTTP 404) means the configured model id isn't available to your key — preview ids like `gemini-3.5-flash` often aren't on a standard tier. Re-run **Set Up AI Provider** and pick a model from the fetched list (e.g. `gemini-2.5-pro`). A `401`/`403` instead means the key itself was rejected — re-enter it with **Set AI API Key** using your [Google AI Studio](https://aistudio.google.com/apikey) key.
+
+### Gemini: Flash works but Pro returns `429 Too Many Requests`
+
+A `429` is a **quota / rate-limit** error from Google, not a bug in the coach. It is the most common Gemini Pro stumble, and it comes down to two facts:
+
+- **The free API tier throttles Pro hard.** Free-tier `gemini-2.5-pro` is capped at roughly **5 requests/min and ~50–100/day**, while Flash models get far higher limits — so Flash works while Pro 429s almost immediately.
+- **A consumer "Gemini Advanced" (Google One AI Premium) subscription grants _no_ API quota.** It unlocks the Gemini *app*, not the *API*. API quota is governed only by the Google Cloud project behind your API key.
+
+To use a Pro model through the API:
+
+1. Open [Google AI Studio → Get API key](https://aistudio.google.com/apikey) and **enable Cloud Billing** on the key's project. Tier 1 unlocks instantly with no minimum spend (you're billed only for usage beyond the free allowance), lifting Pro to ~150–1,000 requests/min. See [Gemini API rate limits](https://ai.google.dev/gemini-api/docs/rate-limits).
+2. Or keep the free tier and switch the model to **`gemini-2.5-flash`** (run **Set Up AI Provider** again) — plenty for the coach's short analyses.
+
+If you *have* billing enabled and still see a 429 whose detail mentions `free_tier`, your key's project may not be linked to billing (re-link it, or create a fresh key inside the billing-enabled project).
 
 Even when a provider fails, the coach does not dead-end:
 

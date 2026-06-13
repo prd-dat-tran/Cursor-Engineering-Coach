@@ -18,6 +18,7 @@ import {
 } from '../core/billing';
 import { rpc, createChart, COLORS, formatNum, destroyChartById } from './shared';
 import { html, render, ComponentChildren } from './render';
+import { mdInline } from './markdown';
 
 const LEVEL_COLOR: Record<string, string> = { ok: COLORS.green, warn: COLORS.yellow, critical: COLORS.red };
 const TIER_LABEL: Record<string, string> = { frontier: 'Frontier', light: 'Lightweight', auto: 'Auto' };
@@ -197,7 +198,7 @@ function Advice(b: UsageBreakdown, billing: BillingProfile, proj: UsageProjectio
   }
   tips.push('Land more per request: use Plan mode for big features, attach context with `@file`, and batch related questions into one prompt instead of many small ones.');
   tips.push('Avoid one-shot lookups as separate agent requests — ask several related things together, or use inline edits for trivial changes.');
-  return html`<ul class="usage-advice">${tips.map(t => html`<li>${t}</li>`)}</ul>`;
+  return html`<ul class="usage-advice">${tips.map(t => html`<li>${mdInline(t)}</li>`)}</ul>`;
 }
 
 function renderDailyChart(b: UsageBreakdown): void {

@@ -9,6 +9,7 @@ import { DateFilter, PracticeGroup, PRACTICE_GROUPS } from '../core/types';
 import type { RuleSource } from '../core/types/rule-types';
 import { rpc, el, COLORS, scoreColor, scoreLabel } from './shared';
 import { html, render, type ComponentChildren, ScoreRing, PctBadge } from './render';
+import { mdBlock, mdInline } from './markdown';
 import { consumeNavHint } from './app';
 import { renderCoverageHeatmap } from './page-antipatterns-heatmap';
 import { openRuleEditor, wireRuleEditorModal } from './page-antipatterns-editor';
@@ -273,9 +274,9 @@ export async function renderAntiPatterns(container: HTMLElement, currentFilter: 
               </div>
               ${spark ? html`<div class="ap-sparkline-row">${spark}</div>` : null}
               ${g.improvements.length > 0
-                ? html`<div class="ap-score-tip ap-improvements">${g.improvements.map(i => html`<span>${i}</span>`)}</div>`
+                ? html`<div class="ap-score-tip ap-improvements">${g.improvements.map(i => html`<span>${mdInline(i)}</span>`)}</div>`
                 : g.topIssue
-                  ? html`<div class="ap-score-tip">${g.topIssue}</div>`
+                  ? html`<div class="ap-score-tip">${mdInline(g.topIssue)}</div>`
                   : html`<div class="ap-score-tip muted">No issues detected</div>`}
             </div>`;
         })}
@@ -621,11 +622,11 @@ function renderFindings(
           <div class="ap-finding-body">
             <div class="ap-finding-section ap-finding-problem">
               <span class="ap-finding-label">Problem</span>
-              <span>${p.description}</span>
+              <span>${mdBlock(p.description)}</span>
             </div>
             <div class="ap-finding-section ap-finding-action">
               <span class="ap-finding-label">Action</span>
-              <span>${p.suggestion}</span>
+              <span>${mdBlock(p.suggestion)}</span>
             </div>
             ${renderRemediation(p.id)}
             ${renderOccurrencePanel(p, singleWorkspace)}
@@ -649,11 +650,6 @@ function renderFindings(
 
   // Wire AI "Why?" explainer buttons (delegated)
   wireExplainButtons(container, _apData);
-}
-
-function multilineVNode(text: string): ComponentChildren {
-  const lines = text.split('\n');
-  return html`<span>${lines.map((line, i) => html`<span>${line}${i < lines.length - 1 ? html`<br/>` : null}</span>`)}</span>`;
 }
 
 async function explainOccurrence(
@@ -700,7 +696,7 @@ async function explainOccurrence(
     const res = await rpc<{ ok: boolean; explanation: string; openedInChat?: boolean; error?: string }>('explainOccurrence', request);
     if (res.ok) {
       resultDiv.className = res.openedInChat ? 'occ-explain-result occ-explain-chat' : 'occ-explain-result occ-explain-ok';
-      render(multilineVNode(res.explanation), resultDiv);
+      render(html`<div class="md-body">${mdBlock(res.explanation)}</div>`, resultDiv);
       resultDiv.dataset.loaded = 'true';
     } else {
       resultDiv.className = 'occ-explain-result occ-explain-error';
@@ -986,7 +982,7 @@ function renderRuleCard(
           ${severityBadge(rule.severity)}
           ${sourceBadge(rule.source)}
         </div>
-        <div class="rule-card-desc">${rule.description}</div>
+        <div class="rule-card-desc">${mdBlock(rule.description)}</div>
       </div>
       <div class="rule-card-bottom">
         <div class="rule-card-stats">
@@ -1131,7 +1127,7 @@ function renderRuleDetailContent(rule: RuleDetail, preview: RulePreview | undefi
         ${severityBadge(rule.severity)}
         ${sourceBadge(rule.source)}
       </div>
-      <p class="rule-detail-desc">${rule.description}</p>
+      <p class="rule-detail-desc">${mdBlock(rule.description)}</p>
       <div class="rule-detail-meta">
         <span>ID: <code>${rule.id}</code></span>
         <span>Scope: <code>${rule.scope}</code></span>
@@ -1165,12 +1161,12 @@ function renderRuleDetailContent(rule: RuleDetail, preview: RulePreview | undefi
 
       <div class="rule-detail-section">
         <h3>When Triggered</h3>
-        <div class="rule-template-block">${rule.descriptionTemplate}</div>
+        <div class="rule-template-block">${mdBlock(rule.descriptionTemplate)}</div>
       </div>
 
       <div class="rule-detail-section">
         <h3>How to Improve</h3>
-        <div class="rule-template-block">${rule.suggestionTemplate}</div>
+        <div class="rule-template-block">${mdBlock(rule.suggestionTemplate)}</div>
       </div>
 
       ${rule.tags.length > 0 ? html`

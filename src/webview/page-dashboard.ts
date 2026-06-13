@@ -10,6 +10,7 @@ import { FF_TOKEN_REPORTING_ENABLED } from '../core/constants';
 import { BillingProfile, DEFAULT_BILLING_PROFILE, LiveUsage, billingHeadline, billingModelLabel, cursorPlanLabel, liveUsageSummary } from '../core/billing';
 import { rpc, rpcAllSettled, createChart, formatNum, COLORS, PALETTE, harnessColor, destroyChartById, scoreColor, scoreLabel } from './shared';
 import { html, render, CanvasEl, ScoreRing, PctBadge } from './render';
+import { mdInline } from './markdown';
 import { setSkillCache, getSkillCache } from './skill-cache';
 
 // Module-level view state — survives filter/harness changes.
@@ -114,9 +115,9 @@ function PracticeCard({ g }: { g: GroupScore }) {
         </div>
       </div>
       ${g.improvements.length > 0
-        ? html`<div class="ap-score-tip ap-improvements">${g.improvements.slice(0, 2).map(i => html`<span>${i}</span>`)}</div>`
+        ? html`<div class="ap-score-tip ap-improvements">${g.improvements.slice(0, 2).map(i => html`<span>${mdInline(i)}</span>`)}</div>`
         : g.topIssue
-          ? html`<div class="ap-score-tip">${g.topIssue}</div>`
+          ? html`<div class="ap-score-tip">${mdInline(g.topIssue)}</div>`
           : html`<div class="ap-score-tip muted">${g.patternCount > 0 ? g.patternCount + ' finding' + (g.patternCount !== 1 ? 's' : '') : 'No issues detected'}</div>`}
     </a>`;
 }

@@ -46,6 +46,9 @@ export class DashboardPanel {
     this.panel = panel;
     this.extensionUri = extensionUri;
     this.globalState = context.globalState;
+    // Brand the editor tab with the extension icon. Tab chrome is rendered by
+    // VS Code itself, so this is not gated by the webview's localResourceRoots.
+    this.panel.iconPath = vscode.Uri.joinPath(extensionUri, 'assets', 'icon.png');
     this.requestService = new PanelRequestService(
       this.panel.webview,
       () => this.analyzer,

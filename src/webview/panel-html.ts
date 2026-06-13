@@ -53,6 +53,16 @@ export function getDashboardHtml(webview: vscode.Webview, extensionUri: vscode.U
           <input type="hidden" id="ws-filter" />
         </div>
       </div>
+      <div class="sidebar-filter">
+        <label>AI Provider</label>
+        <button class="ai-status" id="ai-status" type="button" title="Set up the AI provider used for in-panel analyses">
+          <span class="ai-status-dot" id="ai-status-dot"></span>
+          <span class="ai-status-body">
+            <span class="ai-status-provider" id="ai-status-provider">Checking\u2026</span>
+            <span class="ai-status-model" id="ai-status-model"></span>
+          </span>
+        </button>
+      </div>
     </div>
   </nav>
   <main id="content"></main>

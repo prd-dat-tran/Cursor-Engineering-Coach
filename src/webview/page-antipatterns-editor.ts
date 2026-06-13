@@ -8,6 +8,7 @@
 import { DateFilter } from '../core/types';
 import { rpc } from './shared';
 import { html, render, type ComponentChildren } from './render';
+import { mdBlock } from './markdown';
 import { DSL_CHEATSHEET } from './dsl-cheatsheet';
 
 const RULE_EDITOR_SYSTEM_PROMPT = `You are an expert at writing detection rules for the Cursor Engineering Coach VS Code extension.
@@ -308,7 +309,7 @@ export function wireRuleEditorModal(
         className = 'rule-test-results rule-test-triggered';
         bodyVNode = html`
           <div class="rule-test-header"><strong>TRIGGERED</strong> \u2014 ${result.pct} (${result.occurrences} / ${result.total})</div>
-          <div class="rule-test-desc">${result.description}</div>
+          <div class="rule-test-desc">${mdBlock(result.description)}</div>
           ${result.examples.length > 0 ? html`<details class="rule-test-examples"><summary>${result.examples.length} example(s)</summary><ul>${result.examples.map(ex => html`<li>${ex}</li>`)}</ul></details>` : null}
         `;
       } else {

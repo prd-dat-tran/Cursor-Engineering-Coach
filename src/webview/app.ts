@@ -74,6 +74,50 @@ function refreshNavBadges(filter: DateFilter): void {
 
 }
 
+/* ---- AI Provider status badge ---- */
+const AI_PROVIDER_LABELS: Record<string, string> = {
+  auto: 'Off \u00b7 Cursor / local',
+  ollama: 'Local Ollama',
+  gemini: 'Google Gemini',
+  'openai-compatible': 'OpenAI-compatible',
+};
+
+interface AiStatus { provider: string; model: string; baseUrl: string; hasKey: boolean }
+
+/** Fetch the configured AI provider/model and reflect it in the sidebar badge so
+ *  the user can always see where in-panel AI requests are routed. Fire-and-forget. */
+function refreshAiStatus(): void {
+  const provEl = document.getElementById('ai-status-provider');
+  const modelEl = document.getElementById('ai-status-model');
+  const dotEl = document.getElementById('ai-status-dot');
+  const btnEl = document.getElementById('ai-status');
+  if (!provEl || !modelEl || !dotEl) return;
+  void rpc<AiStatus>('getAiStatus').then(s => {
+    const label = AI_PROVIDER_LABELS[s.provider] ?? s.provider;
+    if (s.provider === 'auto') {
+      provEl.textContent = label;
+      modelEl.textContent = '';
+      dotEl.className = 'ai-status-dot ai-status-dot-off';
+      if (btnEl) btnEl.title = 'In-panel AI hands off to Cursor Chat or ranks locally. Click to set up a provider.';
+      return;
+    }
+    // Provider on its own line, full model id on the next (wraps — long ids stay readable).
+    provEl.textContent = label;
+    modelEl.textContent = s.model || 'no model set';
+    const needsKey = (s.provider === 'gemini' || s.provider === 'openai-compatible') && !s.hasKey;
+    const healthy = !!s.model && !needsKey;
+    dotEl.className = 'ai-status-dot ' + (healthy ? 'ai-status-dot-on' : 'ai-status-dot-warn');
+    const issues = [s.model ? '' : 'model not set', needsKey ? 'API key missing' : ''].filter(Boolean).join(', ');
+    const suffix = issues ? ` (${issues})` : '';
+    // Multi-line native tooltip carries the full model + endpoint even if the row is narrow.
+    if (btnEl) btnEl.title = `${label}\nModel: ${s.model || 'not set'}\nEndpoint: ${s.baseUrl}${suffix}\nClick to reconfigure.`;
+  }).catch(() => {
+    provEl.textContent = 'Unavailable';
+    modelEl.textContent = '';
+    dotEl.className = 'ai-status-dot ai-status-dot-off';
+  });
+}
+
 /* ---- Progress + Data Ready ---- */
 
 /** Phase labels matching LOAD_PHASES from parser.ts */
@@ -443,6 +487,7 @@ function onDataReady(currentWorkspace: string): void {
     }
     navigateTo(currentPage);
     refreshNavBadges(currentFilter);
+    refreshAiStatus();
   })();
 }
 
@@ -602,6 +647,16 @@ if (wsToggle) {
     } else {
       setWsSelection('', '');
     }
+  });
+}
+
+/* ---- AI provider badge → guided setup ---- */
+const aiStatusBtn = document.getElementById('ai-status');
+if (aiStatusBtn) {
+  aiStatusBtn.addEventListener('click', () => {
+    // runSetup resolves only once the user finishes the quick-pick flow, so
+    // re-reading status afterwards reflects whatever they just chose.
+    void rpc('configureAiProvider').then(() => refreshAiStatus()).catch(() => {});
   });
 }
 

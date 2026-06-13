@@ -377,8 +377,8 @@
         },
         "cursorEngineeringCoach.ai.baseUrl": {
           "type": "string",
-          "default": "http://127.0.0.1:11434/v1",
-          "markdownDescription": "Base URL of the OpenAI-compatible API used when `#cursorEngineeringCoach.ai.provider#` is **ollama**, **gemini**, or **openai-compatible**. The extension POSTs to `<baseUrl>/chat/completions`. Examples: `http://127.0.0.1:11434/v1` (Ollama — prefer `127.0.0.1` over `localhost` to avoid IPv6 resolution issues), `https://generativelanguage.googleapis.com/v1beta/openai` (Gemini), `https://api.openai.com/v1` (OpenAI), `https://openrouter.ai/api/v1` (OpenRouter). Leave blank to use the selected provider's default."
+          "default": "",
+          "markdownDescription": "Base URL of the OpenAI-compatible API used when `#cursorEngineeringCoach.ai.provider#` is **ollama**, **gemini**, or **openai-compatible**. The extension POSTs to `<baseUrl>/chat/completions`. **Leave blank (the default) to use the selected provider's endpoint automatically** — `http://127.0.0.1:11434/v1` for **ollama**, `https://generativelanguage.googleapis.com/v1beta/openai` for **gemini**, `https://api.openai.com/v1` for **openai-compatible**. Only set this to override (e.g. `https://openrouter.ai/api/v1` for OpenRouter, or a self-hosted gateway). Prefer `127.0.0.1` over `localhost` for Ollama to avoid IPv6 resolution issues."
         },
         "cursorEngineeringCoach.ai.model": {
           "type": "string",

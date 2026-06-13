@@ -1308,6 +1308,34 @@ const rpcHandlers: TypedRpcHandlers = {
       })),
     };
   },
+
+  /* ---- AI provider status + setup ---- */
+  // Surface which provider/model in-panel AI will use so the dashboard can show
+  // it. Lazy-import llm-provider (it pulls in `vscode`) so this module still
+  // loads in non-vscode test contexts. The key value itself is never returned —
+  // only whether one is set.
+  getAiStatus: async () => {
+    try {
+      const { getLlmConfig, hasApiKey } = await import('../llm-provider');
+      const cfg = getLlmConfig();
+      return { provider: cfg.provider, model: cfg.model, baseUrl: cfg.baseUrl, hasKey: await hasApiKey() };
+    } catch {
+      return { provider: 'auto', model: '', baseUrl: '', hasKey: false };
+    }
+  },
+
+  // Launch the guided "Set Up AI Provider" quick-pick from a dashboard click,
+  // mirroring reviewLocalRules' command-exec pattern.
+  configureAiProvider: async () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const vscode = require('vscode') as typeof import('vscode');
+      await vscode.commands.executeCommand('cursorEngineeringCoach.setupAi');
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  },
 };
 
 function buildNumericHistogram(sorted: number[], buckets: number): { label: string; count: number }[] {

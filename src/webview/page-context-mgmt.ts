@@ -9,6 +9,7 @@
 import { DateFilter, ContextManagementData, ContextVerdictThresholds, WorkspaceContextScore, WorkspaceContextSessionsData, SessionContextDetail } from '../core/types';
 import { rpc, COLORS, createChart, destroyChartById, formatNum, PALETTE } from './shared';
 import { html, render, StatCard, CanvasEl, ComponentChildren } from './render';
+import { mdInline } from './markdown';
 
 const VERDICT_COLORS: Record<string, string> = {
   optimal: COLORS.green,
@@ -622,7 +623,7 @@ function renderTips(tips: string[]): ComponentChildren {
   return html`
     <div style="margin:16px 0;padding:14px 16px;border-radius:8px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.2);">
       <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:${COLORS.blue};">Insights</div>
-      ${tips.map(t => html`<div style="font-size:12px;color:var(--text-secondary, #8b949e);line-height:1.5;margin-bottom:4px;">• ${t}</div>`)}
+      ${tips.map(t => html`<div style="font-size:12px;color:var(--text-secondary, #8b949e);line-height:1.5;margin-bottom:4px;">• ${mdInline(t)}</div>`)}
     </div>`;
 }
 

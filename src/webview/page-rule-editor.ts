@@ -9,6 +9,7 @@ import { DateFilter, PracticeGroup, PRACTICE_GROUPS } from '../core/types';
 import type { RuleSource } from '../core/types/rule-types';
 import { rpc, COLORS } from './shared';
 import { html, render, type ComponentChildren } from './render';
+import { mdBlock } from './markdown';
 
 interface RulePreview {
   ruleId: string;
@@ -377,7 +378,7 @@ function renderRuleCard(rule: RuleDetail, preview?: RulePreview): ComponentChild
           ${severityBadge(rule.severity)}
           ${sourceBadge(rule.source)}
         </div>
-        <div class="rule-card-desc">${rule.description}</div>
+        <div class="rule-card-desc">${mdBlock(rule.description)}</div>
       </div>
       <div class="rule-card-stats">
         <div class="rule-card-stat">
@@ -547,7 +548,7 @@ function showRuleDetail(
         ${groupPill(rule.group)}
         ${sourceBadge(rule.source)}
       </div>
-      <p class="rule-detail-desc">${rule.description}</p>
+      <p class="rule-detail-desc">${mdBlock(rule.description)}</p>
       <div class="rule-detail-meta">
         <span>ID: <code>${rule.id}</code></span>
         <span>Scope: <code>${rule.scope}</code></span>
@@ -562,11 +563,11 @@ function showRuleDetail(
       ${buildThresholdSection(thresholdEntries, ruleId)}
       <div class="rule-detail-section">
         <h3>When Triggered</h3>
-        <div class="rule-template-block">${rule.descriptionTemplate}</div>
+        <div class="rule-template-block">${mdBlock(rule.descriptionTemplate)}</div>
       </div>
       <div class="rule-detail-section">
         <h3>How to Improve</h3>
-        <div class="rule-template-block">${rule.suggestionTemplate}</div>
+        <div class="rule-template-block">${mdBlock(rule.suggestionTemplate)}</div>
       </div>
       ${buildRuleTagsSection(rule.tags)}
     </div>

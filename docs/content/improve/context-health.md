@@ -45,6 +45,18 @@ A table shows how context is provided across each Cursor mode (agent vs ask), in
 
 A treemap visualization where tile size represents request volume and tile color represents the rules-file quality score. This lets you spot which workspaces get the most Cursor usage and which ones lack proper context configuration.
 
+### Review Context Files (AI)
+
+When an [AI provider](/getting-started/ai-provider/) is configured, **Review Context Files** reads each workspace's context files (`AGENTS.md`, `.cursor/rules/*.mdc`, and friends) and returns a graded report card per workspace:
+
+- An **overall score** (0--100) and a matching **letter grade** -- the grade is derived directly from the score (≥90 = A, ≥80 = B, ≥70 = C, ≥60 = D, below = F), so the two always agree.
+- Per-category scores (clarity, specificity, structure, completeness, staleness, redundancy, actionability).
+- Findings flagged as good, warning, or critical, each with a concrete suggestion.
+
+#### Auto-fix with AI
+
+Any card with warnings or critical findings shows an **Auto-fix with AI** button. It asks your configured provider to draft ready-to-save content for the affected context file (for example a stronger `AGENTS.md`), shows you a preview, and then opens it in **Cursor Chat** so you can review and apply it. The extension never writes to your project files directly -- you stay in control of every change, mirroring the **Create Skill** flow in the [Skill Finder](/improve/skill-finder/).
+
 ## Context Management
 
 ![Context Management](/screenshots/screen-context-management.png)

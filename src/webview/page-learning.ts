@@ -8,6 +8,7 @@
 import { DateFilter } from '../core/types';
 import { rpc, COLORS } from './shared';
 import { html, render, LoadingScreen } from './render';
+import { mdBlock } from './markdown';
 import { renderSnakeGame } from './page-learning-snake';
 import { renderCodeReviewRound, renderDidYouKnowHtml, renderQuiz, renderResourcesHtml } from './page-learning-templates';
 import { SVG } from './svg-icons';
@@ -417,7 +418,7 @@ function wireCodeReviewHandlers(container: HTMLElement, rounds: CodeComparisonRo
         feedback.className = `learn-cr-feedback ${correct ? 'learn-cr-fb-correct' : 'learn-cr-fb-wrong'}`;
         render(html`
           <strong>${correct ? html`${SVG.checkCircle} Correct!` : html`${SVG.xCircle} Not quite`}</strong> Snippet ${r.betterSnippet} is better.
-          <p>${r.explanation}</p>
+          <div class="md-body">${mdBlock(r.explanation)}</div>
           <button class="btn btn-secondary btn-sm learn-cr-next">${SVG.arrowRight} Next</button>`, feedback);
         feedback.querySelector('.learn-cr-next')?.addEventListener('click', () => {
           const next = currentIndex + 1;
@@ -823,7 +824,7 @@ function wireQuizHandlers(
         feedback.className = `learn-quiz-feedback ${correct ? 'learn-quiz-fb-correct' : 'learn-quiz-fb-wrong'}`;
         render(html`
           <strong>${correct ? html`${SVG.checkCircle} Correct!` : html`${SVG.xCircle} Wrong`}</strong>
-          <p>${q.explanation}</p>
+          <div class="md-body">${mdBlock(q.explanation)}</div>
           <button class="btn btn-secondary btn-sm learn-quiz-next">${SVG.arrowRight} Next</button>
         `, feedback);
         feedback.querySelector('.learn-quiz-next')?.addEventListener('click', () => {

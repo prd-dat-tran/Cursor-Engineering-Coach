@@ -37,6 +37,14 @@ render(html`<${MyCard} value=${42} label="requests" />`, container);
 - Reusable building blocks (`StatCard`, `CanvasEl`, `ScoreRing`,
   `PctBadge`, `LoadingScreen`, `ErrorMsg`, `withErrorBoundary`) live in
   `render.ts`. Add new shared atoms there, not in page modules.
+- Render **coaching copy** (rule descriptions / advice, config suggestions)
+  through `mdInline` / `mdBlock` from
+  [@src/webview/markdown.ts](mdc:src/webview/markdown.ts) so authored Markdown
+  (inline `code`, `**bold**`, lists, links) renders formatted instead of
+  leaking raw backticks into the UI. Never drop a rule/advice string into a
+  template as a bare `${value}`. **Verbatim user data** (example rows, prompt
+  previews, occurrence messages) stays plain — Markdown-rendering it would
+  mangle a stray `*` or backtick the user actually typed.
 
 ## Page module pattern
 

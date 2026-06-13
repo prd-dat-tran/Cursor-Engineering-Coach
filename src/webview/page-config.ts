@@ -9,6 +9,7 @@ import { DateFilter, ConfigHealthData, WorkspaceConfigHealth, ConfigFileInfo, Ho
 import { TOKEN_DATA_AVAILABLE_FROM } from '../core/constants';
 import { rpc, COLORS, Chart, trackChart, destroyCharts } from './shared';
 import { html, render, StatCard, ComponentChildren } from './render';
+import { mdBlock, mdInline } from './markdown';
 import { renderContextManagement } from './page-context-mgmt';
 
 /* Harness colors (Cursor is the only source) */
@@ -355,6 +356,66 @@ function appendReviewCard(cardsEl: HTMLElement, review: ContextReviewResult): vo
   cardsEl.appendChild(card);
   const header = card.querySelector('.ctx-review-header');
   if (header) wireReviewCardCollapse(header);
+  wireContextFix(card, review);
+}
+
+// "Auto-fix with AI": generate ready-to-save context-file content from this
+// workspace's findings (via the configured AI provider), preview it, then hand
+// it to Cursor Chat to write into the repo. Mirrors the Skill Finder flow; the
+// extension itself never writes to the user's source tree.
+function wireContextFix(card: Element, review: ContextReviewResult): void {
+  const btn = card.querySelector<HTMLButtonElement>('.ctx-fix-btn');
+  const preview = card.querySelector<HTMLElement>('.ctx-fix-preview');
+  if (!btn || !preview) return;
+  const idle = '\u2728 Auto-fix with AI';
+
+  btn.addEventListener('click', () => {
+    void (async () => {
+      btn.disabled = true;
+      btn.textContent = 'Generating\u2026';
+      try {
+        const actionable = review.findings.filter(f => f.severity !== 'good');
+        const res = await rpc<{ content: string; filename: string; title: string }>('generateContextFix', {
+          workspaceName: review.workspaceName,
+          summary: review.summary,
+          findings: actionable,
+        } as Record<string, unknown>);
+
+        render(html`
+          <details class="ctx-fix-details" open>
+            <summary>Proposed ${res.filename}</summary>
+            <pre class="ctx-fix-code">${res.content}</pre>
+            <div class="ctx-fix-actions">
+              <button class="ctx-fix-apply" type="button">Open in Cursor Chat to apply</button>
+              <button class="ctx-fix-cancel" type="button">Close</button>
+            </div>
+          </details>`, preview);
+        btn.textContent = 'Review proposal below';
+
+        preview.querySelector<HTMLElement>('.ctx-fix-apply')?.addEventListener('click', () => {
+          void (async () => {
+            const prompt = `In this workspace, create or update \`${res.filename}\` to strengthen its Cursor context engineering, based on a context-health review of "${res.title}". Review and adapt the draft below to fit the repo, then save it:\n\n${res.content}`;
+            try {
+              await rpc<{ ok: boolean }>('createSkill', { prompt } as Record<string, unknown>);
+              render(html`<span class="ctx-fix-done">Opened in Cursor Chat \u2014 review &amp; send it there to write ${res.filename}.</span>`, preview);
+            } catch (err: unknown) {
+              render(html`<span class="ctx-fix-err">${err instanceof Error ? err.message : 'Failed to open Cursor Chat'}</span>`, preview);
+            }
+          })();
+        });
+
+        preview.querySelector<HTMLElement>('.ctx-fix-cancel')?.addEventListener('click', () => {
+          render(null, preview);
+          btn.disabled = false;
+          btn.textContent = idle;
+        });
+      } catch (err: unknown) {
+        render(html`<span class="ctx-fix-err">${err instanceof Error ? err.message : 'Generation failed'}</span>`, preview);
+        btn.disabled = false;
+        btn.textContent = idle;
+      }
+    })();
+  });
 }
 
 interface ReviewProgressEvent {
@@ -538,12 +599,18 @@ function renderReviewCard(review: ContextReviewResult): ComponentChildren {
         </div>
       </div>
       <div style="display:block;padding:0 16px 16px;border-top:1px solid var(--border-color, #30363d);">
-        <div style="padding:10px 0 8px;font-size:12px;color:var(--text-muted);line-height:1.5;font-style:italic;">${review.summary}</div>
+        <div style="padding:10px 0 8px;font-size:12px;color:var(--text-muted);line-height:1.5;font-style:italic;">${mdBlock(review.summary)}</div>
         ${renderCategoryBars(cats)}
         <div style="margin-top:12px;">
           <div style="font-weight:600;font-size:13px;margin-bottom:8px;">Findings</div>
           ${findings.map(f => renderFinding(f))}
         </div>
+        ${warnCount + critCount > 0 ? html`
+          <div class="ctx-fix">
+            <button class="ctx-fix-btn" type="button">${'\u2728'} Auto-fix with AI</button>
+            <span class="ctx-fix-hint">Drafts fixed context-file content with your AI provider, then opens it in Cursor Chat to apply.</span>
+            <div class="ctx-fix-preview"></div>
+          </div>` : null}
       </div>
     </div>`;
 }
@@ -567,8 +634,8 @@ function renderFinding(f: ContextReviewFinding): ComponentChildren {
         <span style="font-weight:600;">${catLabel}</span>
         ${f.file ? html`<span style="color:var(--text-muted);font-family:monospace;font-size:11px;">${f.file}</span>` : null}
       </div>
-      <div style="color:var(--text-secondary, #c9d1d9);line-height:1.4;">${f.finding}</div>
-      ${f.suggestion ? html`<div style="color:var(--text-muted);margin-top:3px;font-style:italic;">${f.suggestion}</div>` : null}
+      <div style="color:var(--text-secondary, #c9d1d9);line-height:1.4;">${mdBlock(f.finding)}</div>
+      ${f.suggestion ? html`<div style="color:var(--text-muted);margin-top:3px;font-style:italic;">${mdBlock(f.suggestion)}</div>` : null}
     </div>`;
 }
 
@@ -795,7 +862,7 @@ function renderHooks(hooks: HookCoverageInfo): ComponentChildren {
 /* ── Suggestions ──────────────────────────────────────────────────── */
 
 function renderSuggestions(suggestions: string[]): ComponentChildren {
-  return html`<div style="margin:8px 0;padding:8px 12px;border-radius:6px;border-left:3px solid ${COLORS.yellow};background:rgba(210,153,34,0.05);"><div style="font-size:12px;font-weight:500;color:${COLORS.yellow};margin-bottom:4px;">Suggestions</div><ul style="margin:0;padding-left:16px;font-size:12px;color:var(--text-secondary, #8b949e);">${suggestions.slice(0, 5).map(s => html`<li style="margin:2px 0;">${s}</li>`)}</ul></div>`;
+  return html`<div style="margin:8px 0;padding:8px 12px;border-radius:6px;border-left:3px solid ${COLORS.yellow};background:rgba(210,153,34,0.05);"><div style="font-size:12px;font-weight:500;color:${COLORS.yellow};margin-bottom:4px;">Suggestions</div><ul style="margin:0;padding-left:16px;font-size:12px;color:var(--text-secondary, #8b949e);">${suggestions.slice(0, 5).map(s => html`<li style="margin:2px 0;">${mdInline(s)}</li>`)}</ul></div>`;
 }
 
 /* ── Helpers ──────────────────────────────────────────────────────── */

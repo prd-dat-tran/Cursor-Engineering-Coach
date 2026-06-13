@@ -143,6 +143,22 @@ describe('describeProviderHttpError', () => {
     expect(msg).toMatch(/\/models/);
   });
 
+  it('explains a Gemini 429 quota error with billing + Flash guidance', () => {
+    const body = '{"error":{"code":429,"message":"You exceeded your current quota"}}';
+    const msg = describeProviderHttpError(429, 'Too Many Requests', body, 'gemini', 'gemini-2.5-pro');
+    expect(msg).toMatch(/rate limit|quota/i);
+    expect(msg).toMatch(/billing/i);
+    expect(msg).toMatch(/Gemini Advanced/);
+    expect(msg).toMatch(/gemini-2\.5-flash/);
+  });
+
+  it('gives a generic 429 rate-limit message for non-Gemini providers', () => {
+    const msg = describeProviderHttpError(429, 'Too Many Requests', '', 'openai-compatible', 'gpt-4o-mini');
+    expect(msg).toMatch(/429/);
+    expect(msg).toMatch(/rate-limited|quota/i);
+    expect(msg).not.toMatch(/Gemini Advanced/);
+  });
+
   it('flags a rejected key on 401/403', () => {
     expect(describeProviderHttpError(401, 'Unauthorized', 'bad key', 'gemini', 'gemini-2.5-pro'))
       .toMatch(/API key was rejected/);

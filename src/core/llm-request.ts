@@ -169,11 +169,15 @@ export function providerHelpText(provider: AiProvider): string {
 }
 
 /**
- * Turn a non-2xx chat-completions response into an actionable message. The two
+ * Turn a non-2xx chat-completions response into an actionable message. The
  * common, recoverable cases get tailored guidance:
  *   - 4xx that mentions the model → the model id isn't available to this key
  *     (the most common Gemini stumble: copying a preview id like
  *     `gemini-3.5-flash` that a standard AI Studio key can't use).
+ *   - 429 → rate limit / quota exhausted. For Gemini this is the usual Pro
+ *     stumble: the free API tier caps Pro at a few requests/day (Flash is far
+ *     higher), and a consumer "Gemini Advanced" subscription grants no API
+ *     quota — only Cloud Billing (Tier 1) does.
  *   - 401/403 → the API key was rejected.
  * Anything else returns the raw status + (truncated) body.
  */
@@ -194,6 +198,13 @@ export function describeProviderHttpError(
       return `${base}. The model "${model}" isn't available to your Google AI Studio key (ids like \`gemini-3.5-flash\` are preview/limited). Re-run "Cursor Engineering Coach: Set Up AI Provider" and pick a model from the list — for Gemini Pro use \`gemini-2.5-pro\`. To see what your key supports: GET https://generativelanguage.googleapis.com/v1beta/openai/models.`;
     }
     return `${base}. The model "${model}" isn't available at this endpoint — set cursorEngineeringCoach.ai.model to a model your provider supports.`;
+  }
+
+  if (status === 429) {
+    if (provider === 'gemini') {
+      return `${base}. Your Google Gemini API key hit its rate limit / quota. On the free API tier, Pro models like \`${model}\` are capped at roughly 5 requests/min and ~50-100/day, while Flash models get far higher limits — which is why Flash works but Pro returns 429. A consumer "Gemini Advanced" (Google One) subscription does NOT include API quota. To run Pro through the API, enable Cloud Billing on the key's Google Cloud project (Google AI Studio -> Get API key -> enable billing; Tier 1 is instant, no minimum spend), or set cursorEngineeringCoach.ai.model to \`gemini-2.5-flash\`. Details: https://ai.google.dev/gemini-api/docs/rate-limits.`;
+    }
+    return `${base}. The provider rate-limited the request (429 - quota exhausted). Wait and retry with backoff, lower the request rate, or raise your plan's quota.`;
   }
 
   if (status === 401 || status === 403) {

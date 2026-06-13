@@ -36,6 +36,7 @@ import { isNumber, isOptionalString, isRecord, isString, postError, postEvent, p
 type CustomPanelMethodName =
   | 'createSkill'
   | 'generateSkillContent'
+  | 'generateContextFix'
   | 'generateLearningQuiz'
   | 'generateLearningResources'
   | 'generateCodeComparison'
@@ -126,6 +127,18 @@ function slugify(title: string): string {
     .replaceAll(/^-|-$/g, '');
 }
 
+// Context review grade is derived from the 0-100 score, not taken from the model.
+// SCHEMA_CONTEXT_REVIEW only asks for `overallScore`, so any model-supplied grade was
+// always absent — which used to default every card to "C" regardless of score
+// (e.g. 94/100 shown as C). Keep score and grade in lockstep here.
+function scoreToContextGrade(score: number): ContextReviewResult['overallGrade'] {
+  if (score >= 90) return 'A';
+  if (score >= 80) return 'B';
+  if (score >= 70) return 'C';
+  if (score >= 60) return 'D';
+  return 'F';
+}
+
 export class PanelRequestService {
   private matchesWorkspace(session: { workspaceId: string; workspaceName: string }, workspaceId?: string): boolean {
     if (!workspaceId) return true;
@@ -135,6 +148,7 @@ export class PanelRequestService {
   private readonly handlers: Record<CustomPanelMethodName, RequestHandler> = {
     createSkill: this.handleCreateSkill.bind(this),
     generateSkillContent: this.handleGenerateSkillContent.bind(this),
+    generateContextFix: this.handleGenerateContextFix.bind(this),
     generateLearningQuiz: this.handleGenerateLearningQuiz.bind(this),
     generateLearningResources: this.handleGenerateLearningResources.bind(this),
     generateCodeComparison: this.handleGenerateCodeComparison.bind(this),
@@ -390,6 +404,62 @@ ${skillDraft}`;
 
       const slug = label.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/-+/g, '-').replaceAll(/^-|-$/g, '');
       postResponse(this.webview, msg.id, { content, filename: `${slug}/SKILL.md` });
+    } catch (error: unknown) {
+      postError(this.webview, msg.id, error instanceof Error ? error.message : 'Generation failed');
+    }
+  }
+
+  // Auto-fix for Context Health findings. Mirrors handleGenerateSkillContent:
+  // turns a workspace's review findings into ready-to-save context-file content
+  // using the configured AI provider. The webview previews it, then hands it to
+  // Cursor Chat to actually write into the repo (we never touch the source tree).
+  private async handleGenerateContextFix(msg: RequestMessage): Promise<void> {
+    const params = (msg.params ?? {}) as Record<string, unknown>;
+    const workspaceName = isString(params.workspaceName) && params.workspaceName ? params.workspaceName : 'this project';
+    const summary = isString(params.summary) ? params.summary : '';
+    const findings = (Array.isArray(params.findings) ? params.findings as Array<Record<string, unknown>> : [])
+      .map(f => ({
+        category: toText(f.category),
+        severity: toText(f.severity),
+        file: toText(f.file),
+        finding: toText(f.finding),
+        suggestion: toText(f.suggestion),
+      }))
+      .filter(f => f.finding)
+      .slice(0, 15);
+
+    if (findings.length === 0) {
+      postError(this.webview, msg.id, 'No findings to fix');
+      return;
+    }
+
+    // Fix an existing referenced file when the review points at one; else default
+    // to AGENTS.md (the most common project context file).
+    const referenced = findings.find(f => /agents\.md$/i.test(f.file))?.file
+      || findings.find(f => /\.mdc$/i.test(f.file))?.file
+      || findings.find(f => f.file)?.file
+      || 'AGENTS.md';
+
+    const systemPrompt = `You are an expert at Cursor IDE context engineering — the AGENTS.md and .cursor/rules/*.mdc files that steer AI agents in a repo.
+You are given the findings from a context-health review of a single project. Produce the COMPLETE, ready-to-save contents of \`${referenced}\` that resolve the findings: a clear project overview, concrete tech stack and conventions, testing/build commands, and any durable constraints the findings imply.
+Write tight, easy-to-skim Markdown with headings and short bullets. Use placeholders like <your test command> only when a detail is genuinely unknown.
+Respond with ONLY the file contents — no commentary, no surrounding code fences.`;
+
+    const userPrompt = `Project: ${workspaceName}
+Target file: ${referenced}
+${summary ? `Review summary: ${summary}\n` : ''}Findings to address:
+${findings.map(f => `- [${f.severity || 'warning'}/${f.category || 'general'}]${f.file ? ` (${f.file})` : ''} ${f.finding}${f.suggestion ? ` -> ${f.suggestion}` : ''}`).join('\n')}`;
+
+    try {
+      const text = await callLlm([
+        vscode.LanguageModelChatMessage.User(systemPrompt),
+        vscode.LanguageModelChatMessage.User(userPrompt),
+      ]);
+      let content = text.trim();
+      if (content.startsWith('```')) {
+        content = content.replace(/^```(?:markdown|md)?\n?/, '').replace(/\n?```$/, '');
+      }
+      postResponse(this.webview, msg.id, { content, filename: referenced, title: workspaceName });
     } catch (error: unknown) {
       postError(this.webview, msg.id, error instanceof Error ? error.message : 'Generation failed');
     }
@@ -986,12 +1056,12 @@ ${contextSection}`;
           })
           : [];
 
-        const overallGrade = toText(item.overallGrade);
+        const overallScore = typeof item.overallScore === 'number' ? Math.min(100, Math.max(0, item.overallScore)) : 0;
         return {
           workspaceId: payload.workspaceId,
           workspaceName: payload.workspaceName,
-          overallGrade: (['A', 'B', 'C', 'D', 'F'].includes(overallGrade) ? overallGrade : 'C') as ContextReviewResult['overallGrade'],
-          overallScore: typeof item.overallScore === 'number' ? Math.min(100, Math.max(0, item.overallScore)) : 0,
+          overallGrade: scoreToContextGrade(overallScore),
+          overallScore,
           categoryScores,
           findings,
           summary: toText(item.summary),

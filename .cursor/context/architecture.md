@@ -71,6 +71,7 @@ analytics, no writes outside the extension's own cache directory at
                 │                                              │
                 │ render.ts  →  Preact + htm                   │
                 │ shared.ts  →  rpc(), createChart(), helpers  │
+                │ markdown.ts  →  coaching md → vnodes         │
                 └──────────────────────────────────────────────┘
 ```
 
@@ -208,10 +209,15 @@ key's available models (`listModels` → `GET <baseUrl>/models`, parsed by the p
 `extractModelIds`) and offers a pick-list — falling back to free-text entry — then ends
 with a one-shot **verify** ping (`completeChat`) so a bad key/model/URL fails at setup
 time. Non-2xx responses are turned into actionable guidance by `describeProviderHttpError`
-(404 "model not found" → pick a supported id; 401/403 → key rejected). Per-provider
-presets (default base URL, model hint, failure-help text) are pure functions in
-`llm-request.ts` (`defaultBaseUrlFor` / `modelHintFor` / `providerHelpText`),
-unit-tested without `vscode`.
+(404 "model not found" → pick a supported id; 429 → quota/rate-limit, with Gemini-specific
+billing guidance since free-tier Pro is throttled and consumer "Gemini Advanced" grants no
+API quota; 401/403 → key rejected). Per-provider presets (default base URL, model hint,
+failure-help text) are pure functions in `llm-request.ts`
+(`defaultBaseUrlFor` / `modelHintFor` / `providerHelpText`), unit-tested without `vscode`.
+The `ai.baseUrl` setting defaults to **blank** so `getLlmConfig` resolves it via
+`defaultBaseUrlFor(provider)` (Gemini→Google, Ollama→localhost) — no cross-provider
+routing. The dashboard sidebar shows the active provider/model via the `getAiStatus`
+RPC, and the badge click runs setup through `configureAiProvider`.
 
 - `provider: auto` (default) → **no external call**; `vscode.lm`-only.
 - `provider: ollama` → local Ollama (`http://127.0.0.1:11434/v1`); prompts +
@@ -239,6 +245,15 @@ Degradation strategy (no model available, or provider failed):
   explaining the local ranking).
 - **Everything else** (Learning Center, Context Health analyze, etc.) surfaces the
   accurate `NoLanguageModelError` message. Extend with a handoff/heuristic as needed.
+
+Context Health (`page-config.ts`) reviews each workspace via `reviewContextFiles`;
+its letter grade is **derived from `overallScore`** in `scoreToContextGrade`
+(≥90 A … <60 F), never trusted from the model (the review schema asks only for a
+score, so a model grade was always absent and used to default every card to "C").
+Each review card offers **Auto-fix with AI** (`generateContextFix`): the configured
+provider drafts ready-to-save context-file content from the findings, the panel
+previews it, then `createSkill` hands it to Cursor Chat to write into the repo —
+mirroring Skill Finder so the extension never touches the source tree.
 
 ## Billing-aware coaching
 

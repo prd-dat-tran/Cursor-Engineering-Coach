@@ -112,6 +112,9 @@ export interface RpcMethodMap {
   getDataExplorerFields: { params: DateFilter | undefined; result: unknown };
   importRegistryRules: { params: { ruleIds?: string[] }; result: unknown };
   getRegistryCatalog: { params: undefined; result: unknown };
+  /* ---- AI provider status (read-only) + guided setup launcher ---- */
+  getAiStatus: { params: undefined; result: { provider: string; model: string; baseUrl: string; hasKey: boolean } };
+  configureAiProvider: { params: undefined; result: { ok: boolean; error?: string } };
 }
 
 export type RpcMethodName = keyof RpcMethodMap;
@@ -120,6 +123,7 @@ export interface ExtensionMethodMap extends RpcMethodMap {
   openExternal: { params: { url: string }; result: { ok: boolean } };
   createSkill: { params: { prompt: string }; result: { ok: boolean } };
   generateSkillContent: { params: Record<string, unknown>; result: { content: string; filename: string } };
+  generateContextFix: { params: Record<string, unknown>; result: { content: string; filename: string; title: string } };
   generateLearningQuiz: { params: Record<string, unknown>; result: { questions: unknown[] } };
   generateLearningResources: { params: Record<string, unknown>; result: { resources: unknown[]; error?: string } };
   generateCodeComparison: { params: Record<string, unknown>; result: { rounds: unknown[] } };

@@ -12,6 +12,7 @@
  * the panel always offers an actionable path, with or without an AI provider. */
 
 import { html, type ComponentChildren } from './render';
+import { mdInline } from './markdown';
 
 interface Remediation {
   /** Ordered, actionable steps. */
@@ -229,7 +230,7 @@ export function renderRemediation(ruleId: string): ComponentChildren {
         <span class="ap-remediation-hint">step-by-step</span>
       </summary>
       <div class="ap-remediation-body">
-        <ol class="ap-remediation-steps">${r.steps.map(s => html`<li>${s}</li>`)}</ol>
+        <ol class="ap-remediation-steps">${r.steps.map(s => html`<li>${mdInline(s)}</li>`)}</ol>
         ${snippetBlock(r)}
         ${docBlock(r)}
       </div>
