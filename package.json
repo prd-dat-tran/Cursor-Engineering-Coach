@@ -365,24 +365,25 @@
         },
         "cursorEngineeringCoach.ai.provider": {
           "type": "string",
-          "enum": ["auto", "ollama", "openai-compatible"],
+          "enum": ["auto", "ollama", "gemini", "openai-compatible"],
           "enumDescriptions": [
             "Use only the host editor's language model (VS Code/Copilot). No external calls. In Cursor this means in-panel AI features hand off to Cursor Chat or rank locally, since Cursor exposes no model to extensions.",
             "Send requests to a local Ollama server (default http://127.0.0.1:11434/v1). Prompts and session summaries never leave your machine.",
+            "Send requests to Google Gemini via its OpenAI-compatible endpoint, authed with your Google AI Studio API key (stored via the \"Set AI API Key\" command). Keeps your Cursor request/token budget free; the prompt + session summary go to Google.",
             "Send requests to any OpenAI-compatible endpoint (OpenAI, OpenRouter, Azure, LiteLLM, …). Requires a base URL and, usually, an API key stored via the \"Set AI API Key\" command."
           ],
           "default": "auto",
-          "markdownDescription": "**Opt-in.** Which backend powers the coach's in-panel AI analyses (Skill Finder triage, anti-pattern \"Why?\", Learning Center, Context Health). `auto` (default) makes **no external call**. Choosing **ollama** or **openai-compatible** sends the prompt **and a summary of the relevant sessions** (prompt counts, models used, anti-pattern names — never your source code) to the endpoint in `#cursorEngineeringCoach.ai.baseUrl#`. With local Ollama nothing leaves your machine. Use **Cursor Engineering Coach: Set Up AI Provider** for a guided setup."
+          "markdownDescription": "**Opt-in.** Which backend powers the coach's in-panel AI analyses (Skill Finder triage, anti-pattern \"Why?\", Learning Center, Context Health). `auto` (default) makes **no external call**. Choosing **ollama**, **gemini**, or **openai-compatible** sends the prompt **and a summary of the relevant sessions** (prompt counts, models used, anti-pattern names — never your source code) to the endpoint in `#cursorEngineeringCoach.ai.baseUrl#`. With local Ollama nothing leaves your machine; **gemini** sends to Google using a key you store securely. Use **Cursor Engineering Coach: Set Up AI Provider** for a guided setup."
         },
         "cursorEngineeringCoach.ai.baseUrl": {
           "type": "string",
           "default": "http://127.0.0.1:11434/v1",
-          "markdownDescription": "Base URL of the OpenAI-compatible API used when `#cursorEngineeringCoach.ai.provider#` is **ollama** or **openai-compatible**. The extension POSTs to `<baseUrl>/chat/completions`. Examples: `http://127.0.0.1:11434/v1` (Ollama — prefer `127.0.0.1` over `localhost` to avoid IPv6 resolution issues), `https://api.openai.com/v1` (OpenAI), `https://openrouter.ai/api/v1` (OpenRouter)."
+          "markdownDescription": "Base URL of the OpenAI-compatible API used when `#cursorEngineeringCoach.ai.provider#` is **ollama**, **gemini**, or **openai-compatible**. The extension POSTs to `<baseUrl>/chat/completions`. Examples: `http://127.0.0.1:11434/v1` (Ollama — prefer `127.0.0.1` over `localhost` to avoid IPv6 resolution issues), `https://generativelanguage.googleapis.com/v1beta/openai` (Gemini), `https://api.openai.com/v1` (OpenAI), `https://openrouter.ai/api/v1` (OpenRouter). Leave blank to use the selected provider's default."
         },
         "cursorEngineeringCoach.ai.model": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Model name to request from the provider, e.g. `qwen2.5-coder` (after `ollama pull qwen2.5-coder`) or `gpt-4o-mini`. Required when a non-`auto` provider is selected; if empty the coach shows a \"set a model\" message instead of failing silently."
+          "markdownDescription": "Model name to request from the provider, e.g. `qwen2.5-coder` (after `ollama pull qwen2.5-coder`), `gemini-2.5-pro` (Gemini), or `gpt-4o-mini`. Required when a non-`auto` provider is selected; if empty the coach shows a \"set a model\" message instead of failing silently."
         }
       }
     }

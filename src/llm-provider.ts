@@ -6,8 +6,11 @@
 /**
  * Opt-in, OpenAI-compatible LLM provider. This lets the coach's in-panel AI work
  * in Cursor (where `vscode.lm` exposes no models) by calling a chat-completions
- * endpoint directly. The default target is a LOCAL Ollama server, so prompts and
- * session summaries stay on the user's machine.
+ * endpoint directly. Supported presets: a LOCAL Ollama server (default, fully
+ * on-device), Google Gemini (Google's OpenAI-compatible endpoint, authed with a
+ * Google AI Studio key), or any other OpenAI-compatible service. A hosted provider
+ * like Gemini lets the coach review prompts/context without spending the user's
+ * Cursor request/token budget.
  *
  * Privacy contract (mirrors src/billing-usage.ts and the project's local-first stance):
  *   - Nothing is sent unless the user sets `cursorEngineeringCoach.ai.provider`
@@ -19,20 +22,31 @@
  */
 
 import * as vscode from 'vscode';
-import { buildChatBody, ChatMsg, extractContent, JsonSchemaSpec, joinUrl } from './core/llm-request';
+import {
+  AiProvider,
+  buildChatBody,
+  ChatMsg,
+  defaultBaseUrlFor,
+  describeProviderHttpError,
+  extractContent,
+  extractModelIds,
+  JsonSchemaSpec,
+  joinUrl,
+  modelHintFor,
+  providerHelpText,
+} from './core/llm-request';
 
 /** Config section watched for changes (used with `event.affectsConfiguration`). */
 export const AI_CONFIG_SECTION = 'cursorEngineeringCoach.ai';
 /** SecretStorage key holding the optional hosted-provider API key. */
 export const AI_API_KEY_SECRET = 'cursorEngineeringCoach.ai.apiKey';
 
-// Use 127.0.0.1 (not "localhost"): Node's fetch can resolve "localhost" to IPv6
-// (::1) while Ollama listens on IPv4 only, which surfaces as a cryptic "fetch failed".
-const DEFAULT_BASE_URL = 'http://127.0.0.1:11434/v1';
 // Generous timeout: local models on modest hardware can take a while to respond.
 const FETCH_TIMEOUT_MS = 120_000;
 
-export type AiProvider = 'auto' | 'ollama' | 'openai-compatible';
+// Provider id + per-provider presets live in the (vscode-free) core module so
+// they can be unit-tested; re-exported here so existing importers are unchanged.
+export type { AiProvider };
 
 export interface LlmConfig {
   provider: AiProvider;
@@ -44,7 +58,9 @@ export interface LlmConfig {
 export function getLlmConfig(): LlmConfig {
   const cfg = vscode.workspace.getConfiguration(AI_CONFIG_SECTION);
   const provider = (cfg.get<string>('provider') ?? 'auto') as AiProvider;
-  const baseUrl = (cfg.get<string>('baseUrl') || DEFAULT_BASE_URL).trim();
+  // Fall back to the provider's documented default so a half-configured provider
+  // (e.g. Gemini selected but baseUrl left blank) still points at the right host.
+  const baseUrl = (cfg.get<string>('baseUrl') || '').trim() || defaultBaseUrlFor(provider);
   const model = (cfg.get<string>('model') || '').trim();
   return { provider, baseUrl, model };
 }
@@ -86,10 +102,9 @@ export async function hasApiKey(): Promise<boolean> {
 
 /* ---- completion ---- */
 
-async function readErrorDetail(resp: Response): Promise<string> {
+async function readErrorBody(resp: Response): Promise<string> {
   try {
-    const text = (await resp.text()).trim();
-    return text ? `: ${text.slice(0, 300)}` : '';
+    return (await resp.text()).trim().slice(0, 300);
   } catch {
     return '';
   }
@@ -111,11 +126,7 @@ function describeFetchError(err: unknown, url: string, provider: AiProvider): st
   }
   const code = fetchErrorCode(err);
   const codeSuffix = code ? ` (${code})` : '';
-  const base = `Couldn't reach the AI provider at ${url}${codeSuffix}.`;
-  if (provider === 'ollama') {
-    return `${base} Make sure Ollama is installed and running (open the Ollama app or run \`ollama serve\`), pull a model with \`ollama pull <model>\`, then retry. If Ollama is running but this persists, set cursorEngineeringCoach.ai.baseUrl to http://127.0.0.1:11434/v1.`;
-  }
-  return `${base} Check that the endpoint is running and that cursorEngineeringCoach.ai.baseUrl is correct.`;
+  return `Couldn't reach the AI provider at ${url}${codeSuffix}. ${providerHelpText(provider)}`;
 }
 
 /**
@@ -130,14 +141,20 @@ export async function completeChat(
   const { provider, baseUrl, model } = getLlmConfig();
   if (!model) {
     throw new Error(
-      'No AI model configured. Set "cursorEngineeringCoach.ai.model" ' +
-      '(for Ollama, run e.g. `ollama pull qwen2.5-coder` and use that name).',
+      `No AI model configured. Set "cursorEngineeringCoach.ai.model" (e.g. ${modelHintFor(provider)}). ` +
+      'Re-run "Cursor Engineering Coach: Set Up AI Provider" for a guided setup.',
     );
   }
 
   const url = joinUrl(baseUrl, '/chat/completions');
   const body = buildChatBody(model, messages, opts.jsonSchema);
   const key = await getApiKey();
+  // Gemini always requires a key; surface that up front rather than as an opaque 401.
+  if (provider === 'gemini' && !key) {
+    throw new Error(
+      'No API key set for Google Gemini. Run "Cursor Engineering Coach: Set AI API Key" and paste your Google AI Studio key.',
+    );
+  }
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -163,7 +180,38 @@ export async function completeChat(
   }
 
   if (!resp.ok) {
-    throw new Error(`AI provider returned ${resp.status} ${resp.statusText}${await readErrorDetail(resp)}`);
+    const bodyText = await readErrorBody(resp);
+    throw new Error(describeProviderHttpError(resp.status, resp.statusText, bodyText, provider, model));
   }
   return extractContent(await resp.json());
+}
+
+/** Generous-but-bounded timeout for the `GET /models` discovery call (setup-time). */
+const MODELS_FETCH_TIMEOUT_MS = 15_000;
+
+/**
+ * Best-effort: list the model ids the configured provider/key exposes via
+ * `GET <baseUrl>/models` (OpenAI-compatible). Used by the setup command to offer
+ * a pick-list instead of a free-text box, so users don't guess an unavailable id.
+ * Returns `[]` on any failure (endpoint unsupported, network, auth) — callers then
+ * fall back to manual entry. The API key is sent only as a Bearer header.
+ */
+export async function listModels(): Promise<string[]> {
+  const { baseUrl } = getLlmConfig();
+  const url = joinUrl(baseUrl, '/models');
+  const key = await getApiKey();
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (key) headers.Authorization = `Bearer ${key}`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), MODELS_FETCH_TIMEOUT_MS);
+  try {
+    const resp = await fetch(url, { method: 'GET', headers, signal: controller.signal });
+    if (!resp.ok) return [];
+    return extractModelIds(await resp.json());
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
 }

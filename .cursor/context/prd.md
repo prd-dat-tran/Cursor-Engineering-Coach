@@ -59,10 +59,14 @@ rebrand and harden Cursor-native behavior**. Concretely:
   - changelog check behind `cursorEngineeringCoach.changelog.notifications`
     → unauthenticated `GET` of Cursor's public changelog feed.
   - AI provider behind `cursorEngineeringCoach.ai.provider` (default `auto` =
-    no call) → an OpenAI-compatible endpoint. The default target is **local
-    Ollama**, so prompts + session summaries stay on-device; hosted endpoints
-    use a SecretStorage key sent only to that endpoint, never stored or logged.
-    See [`src/llm-provider.ts`](../../src/llm-provider.ts).
+    no call) → an OpenAI-compatible endpoint. Presets: **local Ollama** (default;
+    prompts + session summaries stay on-device), **Google Gemini** (Google's
+    OpenAI-compatible endpoint, authed with a Google AI Studio key — lets the
+    coach review prompts/context without spending the user's Cursor token/request
+    budget), or any other OpenAI-compatible service. Hosted providers use a
+    SecretStorage key sent only to that endpoint as a Bearer header, never stored
+    in settings or logged. A non-`auto` provider is preferred over the host
+    `vscode.lm` model. See [`src/llm-provider.ts`](../../src/llm-provider.ts).
 - ❌ Writing to the user's source tree. The extension only writes to its
   cache directory at `~/.cursor-engineering-coach/cache/` and (when
   explicitly invoked) to summary export targets the user picks.

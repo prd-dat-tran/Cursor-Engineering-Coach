@@ -75,8 +75,15 @@ log line). Adding to the dictionary is the default.
 
 ### Words you should NOT add
 
-- Stale brand names from harnesses we no longer support beyond what is
-  already in the dictionary. (`copilot`, `codex`, `opencode` are
-  grandfathered for historical references; do not add `claude`,
-  `gemini`, `xcode`, etc. — that would let stale copy slip past
-  review.)
+- Stale brand names from **harnesses / coding agents we dropped** in the
+  Cursor-only rebrand (Copilot / Claude Code / Codex / OpenCode / Xcode).
+  `copilot`, `codex`, `opencode` are grandfathered for historical
+  references; do not add `claude`, `xcode`, etc. — that would let stale
+  *harness* copy slip past review.
+- **Exception — LLM provider / model names are allowed.** Names of
+  backends the opt-in AI provider can call are legitimate and already
+  whitelisted (`openai`, `openrouter`, `ollama`, `qwen`, and `gemini` /
+  `generativelanguage` / `googleapis` for Google Gemini). These are
+  *providers the coach talks to*, not coding harnesses we parse, so adding
+  them does **not** reintroduce a dropped harness. When you add a new
+  provider, add its product/host tokens here too.

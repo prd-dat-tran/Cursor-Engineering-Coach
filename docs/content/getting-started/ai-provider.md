@@ -8,7 +8,7 @@ description: "Optionally power in-panel AI analyses with a local or hosted model
 
 A few Cursor Engineering Coach features run a small AI analysis *inside the panel* — Skill Finder triage, the anti-pattern **Why?** explainer, the Learning Center, and Context Health review. In stock VS Code these use the editor's built-in model. **Cursor does not expose its models to extensions**, so by default those features hand off to Cursor Chat or fall back to a local heuristic.
 
-To run them directly in the panel, point the coach at an **OpenAI-compatible** model. The recommended choice is a **local model via Ollama**, which keeps everything on your machine.
+To run them directly in the panel, point the coach at an **OpenAI-compatible** model. The recommended choice for privacy is a **local model via Ollama**, which keeps everything on your machine. If you already have a **Google Gemini** API key, you can use that instead — it runs the coach's analyses on Google's models without spending your Cursor request/token budget.
 
 ## What is sent — and what is not
 
@@ -19,7 +19,7 @@ When you enable a provider, each request contains:
 - the analysis prompt, and
 - a compact **summary** of the relevant sessions (prompt counts, models used, anti-pattern names, cancel/correction rates).
 
-It does **not** send your source code. With **local Ollama** nothing leaves your machine. With a hosted endpoint, the summary is sent only to that endpoint; an API key (if any) is stored in the editor's secret storage and sent only as an `Authorization` header — never written to settings or logs.
+It does **not** send your source code. With **local Ollama** nothing leaves your machine. With a hosted endpoint (including **Google Gemini**), the summary is sent only to that endpoint; an API key is stored in the editor's secret storage and sent only as an `Authorization: Bearer` header — never written to settings or logs.
 
 ## Option A — Local Ollama (recommended)
 
@@ -40,7 +40,22 @@ curl http://127.0.0.1:11434/api/tags
 
 Re-run an analysis (e.g. Skill Finder → **Analyze**) and it will use the local model.
 
-## Option B — Hosted (OpenAI-compatible)
+## Option B — Google Gemini
+
+Use your existing Google Gemini API key. The coach talks to Gemini through its OpenAI-compatible endpoint, so setup is a one-liner — and because it's your own Gemini key, it doesn't touch your Cursor request/token budget.
+
+1. Get an API key from [Google AI Studio](https://aistudio.google.com/apikey).
+2. In Cursor, run **Cursor Engineering Coach: Set Up AI Provider** and choose **Google Gemini**.
+3. Accept the default base URL (`https://generativelanguage.googleapis.com/v1beta/openai`) and paste your API key when prompted.
+4. The coach fetches the models **your key can actually use** and shows them in a list — pick a `*-pro` id (e.g. `gemini-2.5-pro`) for the Pro tier, or a `*-flash` id for cheaper/faster runs. (You can still enter an id by hand if you prefer.)
+
+The coach then sends a tiny **test request** to confirm the key and model work, so you find out at setup time rather than the first time you run an analysis.
+
+Picking from the fetched list avoids the most common Gemini stumble: a `model ... not found` error from copying a preview id (like `gemini-3.5-flash`) that a standard key can't access.
+
+When set up, Gemini takes priority over Ollama and the host editor — the coach routes its in-panel AI through it. Switch back any time by re-running setup and choosing **Local Ollama** or **Off (auto)**.
+
+## Option C — Hosted (OpenAI-compatible)
 
 1. Run **Cursor Engineering Coach: Set Up AI Provider** and choose **OpenAI-compatible endpoint**.
 2. Enter the base URL, for example:
@@ -61,8 +76,8 @@ Change the key later with **Set AI API Key**, or remove it with **Clear AI API K
 
 | Setting | Default | Purpose |
 |---|---|---|
-| `cursorEngineeringCoach.ai.provider` | `auto` | `auto` (no external calls), `ollama`, or `openai-compatible`. |
-| `cursorEngineeringCoach.ai.baseUrl` | `http://127.0.0.1:11434/v1` | OpenAI-compatible base; requests are POSTed to `<baseUrl>/chat/completions`. |
+| `cursorEngineeringCoach.ai.provider` | `auto` | `auto` (no external calls), `ollama`, `gemini`, or `openai-compatible`. A non-`auto` provider is used in preference to the host editor's model. |
+| `cursorEngineeringCoach.ai.baseUrl` | `http://127.0.0.1:11434/v1` | OpenAI-compatible base; requests are POSTed to `<baseUrl>/chat/completions`. Leave blank to use the provider's default (e.g. `https://generativelanguage.googleapis.com/v1beta/openai` for Gemini). |
 | `cursorEngineeringCoach.ai.model` | *(empty)* | Model name to request. Required for a non-`auto` provider. |
 
 The API key is **not** a setting — manage it only through the commands above so it stays in secret storage.
@@ -74,6 +89,8 @@ If you see **"Couldn't reach the AI provider…"** (or the older `fetch failed`)
 1. Is Ollama running? Open the Ollama app or run `ollama serve`, then test with `curl http://127.0.0.1:11434/api/tags`.
 2. Is the model pulled? `ollama list` should show the name you set in `cursorEngineeringCoach.ai.model` (pull it with `ollama pull qwen2.5-coder`).
 3. Is the URL right? Prefer `http://127.0.0.1:11434/v1` over `http://localhost:11434/v1` — Node can resolve `localhost` to IPv6 while Ollama listens on IPv4, which looks like a connection failure.
+
+For **Google Gemini**, a `model ... not found` (HTTP 404) means the configured model id isn't available to your key — preview ids like `gemini-3.5-flash` often aren't on a standard tier. Re-run **Set Up AI Provider** and pick a model from the fetched list (e.g. `gemini-2.5-pro`). A `401`/`403` instead means the key itself was rejected — re-enter it with **Set AI API Key** using your [Google AI Studio](https://aistudio.google.com/apikey) key.
 
 Even when a provider fails, the coach does not dead-end:
 

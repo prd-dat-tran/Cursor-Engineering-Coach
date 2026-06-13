@@ -203,18 +203,31 @@ degrade. Centralised in
 [`src/core/llm-request.ts`](../../src/core/llm-request.ts) let the panel call any
 OpenAI-compatible `/chat/completions` endpoint. Controlled by
 `cursorEngineeringCoach.ai.*`; configured via the **Set Up AI Provider** command
-([`src/ai-provider-commands.ts`](../../src/ai-provider-commands.ts)).
+([`src/ai-provider-commands.ts`](../../src/ai-provider-commands.ts)). Setup fetches the
+key's available models (`listModels` → `GET <baseUrl>/models`, parsed by the pure
+`extractModelIds`) and offers a pick-list — falling back to free-text entry — then ends
+with a one-shot **verify** ping (`completeChat`) so a bad key/model/URL fails at setup
+time. Non-2xx responses are turned into actionable guidance by `describeProviderHttpError`
+(404 "model not found" → pick a supported id; 401/403 → key rejected). Per-provider
+presets (default base URL, model hint, failure-help text) are pure functions in
+`llm-request.ts` (`defaultBaseUrlFor` / `modelHintFor` / `providerHelpText`),
+unit-tested without `vscode`.
 
 - `provider: auto` (default) → **no external call**; `vscode.lm`-only.
 - `provider: ollama` → local Ollama (`http://127.0.0.1:11434/v1`); prompts +
   session summaries stay on-device.
+- `provider: gemini` → Google Gemini via its OpenAI-compatible endpoint
+  (`https://generativelanguage.googleapis.com/v1beta/openai`); Google AI Studio key
+  from **SecretStorage** (Bearer). Lets the coach review prompts/context without
+  spending the user's Cursor token/request budget.
 - `provider: openai-compatible` → OpenAI/OpenRouter/Azure/LiteLLM; API key from
   **SecretStorage** (`setAiApiKey`/`clearAiApiKey`), sent only as a Bearer header,
   never stored in settings or logged (mirrors the `billing-usage.ts` privacy contract).
 
-Resolution order per call: external provider (if configured) → `vscode.lm` (if a
+Resolution order per call: external provider (if configured — so a non-`auto`
+provider such as Gemini wins over Ollama and the host model) → `vscode.lm` (if a
 model exists) → fallbacks below. A configured-but-unreachable provider falls through
-to the same fallbacks, so a stopped Ollama never dead-ends.
+to the same fallbacks, so a stopped Ollama (or a Gemini outage) never dead-ends.
 
 Degradation strategy (no model available, or provider failed):
 
